@@ -1,0 +1,367 @@
+rule-providers:
+  Lan:
+    type: http
+    behavior: classical
+    format: yaml
+    path: ./ruleset/Lan_No_Resolve.yaml
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Lan/Lan_No_Resolve.yaml
+    interval: 1209600
+  private:
+    type: http
+    behavior: domain
+    url: https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/private.txt
+    path: ./ruleset/private.yaml
+    interval: 1209600
+  Scholar:
+    type: http
+    behavior: classical
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Scholar/Scholar.yaml
+    path: ./ruleset/Scholar.yaml
+    interval: 1209600
+  AppleIntelligence:
+    type: http
+    behavior: classical
+    format: text
+    url: https://raw.githubusercontent.com/ddgksf2013/Filter/refs/heads/master/AppleIntelligence.list
+    path: ./ruleset/AppleIntelligence.list
+    interval: 259200
+  openai:
+    type: http
+    behavior: classical
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/OpenAI/OpenAI.yaml
+    path: ./ruleset/openai.yaml
+    interval: 259200
+  claude:
+    type: http
+    behavior: classical
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Claude/Claude.yaml
+    path: ./ruleset/claude.yaml
+    interval: 259200
+  Anthropic:
+    type: http
+    behavior: classical
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Anthropic/Anthropic.yaml
+    path: ./ruleset/Anthropic.yaml
+    interval: 259200
+  gemini:
+    type: http
+    behavior: classical
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Gemini/Gemini.yaml
+    path: ./ruleset/gemini.yaml
+    interval: 259200
+  AI:
+    type: http
+    behavior: classical
+    format: text
+    url: https://raw.githubusercontent.com/QuixoticHeart/rule-set/refs/heads/ruleset/meta/ai.list
+    path: ./ruleset/AI.list
+    interval: 259200
+  GoogleVoice:
+    type: http
+    behavior: classical
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/GoogleVoice/GoogleVoice.yaml
+    path: ./ruleset/GoogleVoice.yaml
+    interval: 259200
+  Crypto:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Crypto/Crypto.yaml
+    path: ./rule-providers/crypto.yaml
+    interval: 1209600
+  IPCheck:
+    type: http
+    behavior: classical
+    format: text
+    url: https://raw.githubusercontent.com/iab0x00/ProxyRules/main/Rule/IPCheck.txt
+    path: ./ruleset/IPCheck.txt
+    interval: 1209600
+  paypal:
+    type: http
+    behavior: classical
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/PayPal/PayPal.yaml
+    path: ./ruleset/paypal.yaml
+    interval: 1209600
+  wechat:
+    type: http
+    behavior: classical
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/WeChat/WeChat_No_Resolve.yaml
+    path: ./ruleset/wechat.yaml
+    interval: 1209600
+  cloudflare:
+    type: http
+    behavior: classical
+    url: https://raw.githubusercontent.com/LM-Firefly/Rules/master/Clash-RuleSet-Classical/PROXY/Cloudflare.yaml
+    path: ./ruleset/cloudflare.yaml
+    interval: 1209600
+  AppleProxy:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/AppleProxy/AppleProxy.yaml
+    path: ./ruleset/AppleProxy.yaml
+    interval: 1209600
+  Telegram:
+    type: http
+    behavior: classical
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Telegram/Telegram_No_Resolve.yaml
+    path: ./ruleset/Telegram.yaml
+    interval: 1209600
+  github:
+    type: http
+    behavior: classical
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/GitHub/GitHub_No_Resolve.yaml
+    path: ./ruleset/github.yaml
+    interval: 1209600
+  youtube:
+    type: http
+    behavior: classical
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/YouTube/YouTube_No_Resolve.yaml
+    path: ./ruleset/youtube.yaml
+    interval: 1209600
+  GoogleEarth:
+    type: http
+    behavior: classical
+    format: yaml
+    path: ./ruleset/GoogleEarth_No_Resolve.yaml
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/GoogleEarth/GoogleEarth_No_Resolve.yaml
+    interval: 1209600
+  Instagram:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Instagram/Instagram.yaml
+    path: ./ruleset/Instagram.yaml
+    interval: 1209600
+  Facebook:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Facebook/Facebook.yaml
+    path: ./ruleset/Facebook.yaml
+    interval: 1209600
+  Twitter:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Twitter/Twitter.yaml
+    path: ./rule-providers/twitter.yaml
+    interval: 1209600
+  Reddit:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Reddit/Reddit.yaml
+    path: ./rule-providers/reddit.yaml
+    interval: 1209600
+  Discord:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Discord/Discord.yaml
+    path: ./rule-providers/discord.yaml
+    interval: 1209600
+  GoogleDrive:
+    type: http
+    behavior: classical
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/GoogleDrive/GoogleDrive.yaml
+    path: ./ruleset/GoogleDrive.yaml
+    interval: 1209600
+  OneDrive:
+    type: http
+    behavior: classical
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/OneDrive/OneDrive.yaml
+    path: ./ruleset/OneDrive.yaml
+    interval: 1209600
+  Dropbox:
+    type: http
+    behavior: classical
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Dropbox/Dropbox.yaml
+    path: ./ruleset/Dropbox.yaml
+    interval: 1209600
+  MEGA:
+    type: http
+    behavior: classical
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/MEGA/MEGA.yaml
+    path: ./ruleset/MEGA.yaml
+    interval: 1209600
+  AWAvenueAds:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/TG-Twilight/AWAvenue-Ads-Rule/main/Filters/AWAvenue-Ads-Rule-Clash-Classical.yaml
+    path: ./ruleset/AWAvenueAds.yaml
+    interval: 604800
+  HageziAds:
+    type: http
+    behavior: domain
+    format: text
+    url: https://raw.githubusercontent.com/hagezi/dns-blocklists-legacy/main/domains/light.txt
+    path: ./ruleset/HageziAds.txt
+    interval: 604800
+  AntiAD:
+    type: http
+    behavior: domain
+    format: yaml
+    url: https://raw.githubusercontent.com/privacy-protection-tools/anti-AD/master/anti-ad-clash.yaml
+    path: ./ruleset/AntiAD.yaml
+    interval: 604800
+  Spotify:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Spotify/Spotify.yaml
+    path: ./ruleset/Spotify.yaml
+    interval: 1209600
+  WhatsApp:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Whatsapp/Whatsapp.yaml
+    path: ./ruleset/WhatsApp.yaml
+    interval: 1209600
+  tiktok:
+    type: http
+    behavior: classical
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/TikTok/TikTok.yaml
+    path: ./ruleset/tiktok.yaml
+    interval: 1209600
+  netflix:
+    type: http
+    behavior: classical
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Netflix/Netflix.yaml
+    path: ./ruleset/netflix.yaml
+    interval: 1209600
+  disney:
+    type: http
+    behavior: classical
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Disney/Disney.yaml
+    path: ./ruleset/disney.yaml
+    interval: 1209600
+  primevideo:
+    type: http
+    behavior: classical
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/AmazonPrimeVideo/AmazonPrimeVideo.yaml
+    path: ./ruleset/primevideo.yaml
+    interval: 1209600
+  google:
+    type: http
+    behavior: classical
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Google/Google.yaml
+    path: ./ruleset/google.yaml
+    interval: 1209600
+  apple:
+    type: http
+    behavior: domain
+    url: https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/apple.txt
+    path: ./ruleset/apple.yaml
+    interval: 1209600
+  icloud:
+    type: http
+    behavior: domain
+    url: https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/icloud.txt
+    path: ./ruleset/icloud.yaml
+    interval: 1209600
+  DouYin:
+    type: http
+    behavior: classical
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/DouYin/DouYin.yaml
+    path: ./ruleset/DouYin.yaml
+    interval: 1209600
+  BiliBili:
+    type: http
+    behavior: classical
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/BiliBili/BiliBili.yaml
+    path: ./ruleset/BiliBili.yaml
+    interval: 1209600
+  BaiDuTieBa:
+    type: http
+    behavior: classical
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/BaiDuTieBa/BaiDuTieBa.yaml
+    path: ./ruleset/BaiDuTieBa.yaml
+    interval: 1209600
+  global:
+    type: http
+    behavior: classical
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Global/Global_Classical.yaml
+    path: ./ruleset/global.yaml
+    interval: 1209600
+  global-domain:
+    type: http
+    behavior: domain
+    format: text
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Global/Global_Domain.txt
+    path: ./ruleset/global-domain.txt
+    interval: 1209600
+  chinamax:
+    type: http
+    behavior: classical
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/ChinaMax/ChinaMax_Classical.yaml
+    path: ./ruleset/chinamax.yaml
+    interval: 1209600
+  chinamax-domain:
+    type: http
+    behavior: domain
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/ChinaMax/ChinaMax_Domain.yaml
+    path: ./ruleset/chinamax-domain.yaml
+    interval: 1209600
+rules:
+- IP-CIDR,0.0.0.0/32,REJECT,no-resolve
+- DOMAIN-SUFFIX,giffgaff.com,🤖 AI
+- DOMAIN-SUFFIX,giff.ly,🤖 AI
+- DOMAIN-SUFFIX,giffgaffrecycle.com,🤖 AI
+- RULE-SET,Lan,DIRECT
+- RULE-SET,private,DIRECT
+- DOMAIN-SUFFIX,cnki.net,DIRECT
+- DOMAIN-SUFFIX,cqvip.com,DIRECT
+- DOMAIN-SUFFIX,kuke.com,DIRECT
+- DOMAIN-SUFFIX,pkulaw.com,DIRECT
+- DOMAIN-SUFFIX,wanfangdata.com,DIRECT
+- DOMAIN-SUFFIX,wanfangdata.com.cn,DIRECT
+- DOMAIN-SUFFIX,westlawchina.com,DIRECT
+- DOMAIN-SUFFIX,clinicaltrials.gov,⚡ 海外高速
+- DOMAIN-SUFFIX,orcid.org,⚡ 海外高速
+- DOMAIN-SUFFIX,medrxiv.org,⚡ 海外高速
+- RULE-SET,Scholar,⚡ 海外高速
+- RULE-SET,AppleIntelligence,🤖 AI
+- RULE-SET,openai,🤖 AI
+- RULE-SET,claude,🤖 AI
+- RULE-SET,Anthropic,🤖 AI
+- RULE-SET,gemini,🤖 AI
+- RULE-SET,AI,🤖 AI
+- RULE-SET,GoogleVoice,🤖 AI
+- RULE-SET,Crypto,🤖 AI
+- RULE-SET,IPCheck,🤖 AI
+- RULE-SET,paypal,🤖 AI
+- RULE-SET,wechat,DIRECT
+- RULE-SET,cloudflare,⚡ 海外高速
+- RULE-SET,AppleProxy,⚡ 海外高速
+- RULE-SET,Telegram,⚡ 海外高速
+- RULE-SET,github,⚡ 海外高速
+- RULE-SET,GoogleEarth,⚡ 海外高速
+- RULE-SET,WhatsApp,⚡ 海外高速
+- RULE-SET,Discord,⚡ 海外高速
+- RULE-SET,netflix,⚡ 海外高速
+- RULE-SET,disney,⚡ 海外高速
+- RULE-SET,primevideo,⚡ 海外高速
+- RULE-SET,GoogleDrive,⚡ 海外高速
+- RULE-SET,OneDrive,⚡ 海外高速
+- RULE-SET,Dropbox,⚡ 海外高速
+- RULE-SET,MEGA,⚡ 海外高速
+- RULE-SET,youtube,⚡ 海外高速
+- RULE-SET,Instagram,⚡ 海外高速
+- RULE-SET,Facebook,⚡ 海外高速
+- RULE-SET,Twitter,⚡ 海外高速
+- RULE-SET,Reddit,⚡ 海外高速
+- RULE-SET,Spotify,⚡ 海外高速
+- RULE-SET,tiktok,⚡ 海外高速
+- RULE-SET,google,🤖 AI
+- RULE-SET,apple,DIRECT
+- RULE-SET,icloud,DIRECT
+- RULE-SET,DouYin,DIRECT
+- RULE-SET,BiliBili,DIRECT
+- RULE-SET,BaiDuTieBa,DIRECT
+- RULE-SET,global,🌍 国外流量
+- RULE-SET,chinamax,DIRECT
+- GEOIP,CN,DIRECT,no-resolve
+- MATCH,🌍 国外流量

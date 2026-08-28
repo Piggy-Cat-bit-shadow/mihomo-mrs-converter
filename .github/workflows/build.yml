@@ -1,0 +1,46 @@
+name: Build rules
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "25 3 * * *"
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install mihomo
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          asset="$(gh release view Prerelease-Alpha --repo MetaCubeX/mihomo --json assets --jq '.assets[].name | select(test("^mihomo-linux-amd64-alpha-[^.]+\\.gz$"))' | head -n 1)"
+          curl -fsSL "https://github.com/MetaCubeX/mihomo/releases/download/Prerelease-Alpha/${asset}" -o mihomo.gz
+          gzip -d mihomo.gz
+          chmod +x mihomo
+          sudo mv mihomo /usr/local/bin/mihomo
+
+      - name: Build MRS rules
+        run: |
+          python scripts/convert.py examples/my-rules.yaml \
+            --base-url "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}"
+
+      - name: Commit generated dist
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "build: update generated mihomo rules"
+          file_pattern: dist

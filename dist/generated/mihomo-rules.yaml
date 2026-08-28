@@ -1,0 +1,716 @@
+rule-providers:
+  Lan-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/Lan.mrs
+    path: ./ruleset/Lan-domain.mrs
+    interval: 1209600
+  Lan-ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/Lan.mrs
+    path: ./ruleset/Lan-ip.mrs
+    interval: 1209600
+  private:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/private.mrs
+    path: ./ruleset/private.mrs
+    interval: 1209600
+  Scholar-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/Scholar.mrs
+    path: ./ruleset/Scholar-domain.mrs
+    interval: 1209600
+  AppleIntelligence-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/AppleIntelligence.mrs
+    path: ./ruleset/AppleIntelligence-domain.mrs
+    interval: 259200
+  openai-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/openai.mrs
+    path: ./ruleset/openai-domain.mrs
+    interval: 259200
+  openai-ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/openai.mrs
+    path: ./ruleset/openai-ip.mrs
+    interval: 259200
+  openai-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/openai.yaml
+    path: ./ruleset/openai-classical.yaml
+    interval: 259200
+  claude-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/claude.mrs
+    path: ./ruleset/claude-domain.mrs
+    interval: 259200
+  Anthropic-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/Anthropic.mrs
+    path: ./ruleset/Anthropic-domain.mrs
+    interval: 259200
+  gemini-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/gemini.mrs
+    path: ./ruleset/gemini-domain.mrs
+    interval: 259200
+  gemini-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/gemini.yaml
+    path: ./ruleset/gemini-classical.yaml
+    interval: 259200
+  AI-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/AI.mrs
+    path: ./ruleset/AI-domain.mrs
+    interval: 259200
+  AI-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/AI.yaml
+    path: ./ruleset/AI-classical.yaml
+    interval: 259200
+  GoogleVoice-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/GoogleVoice.mrs
+    path: ./ruleset/GoogleVoice-domain.mrs
+    interval: 259200
+  Crypto-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/Crypto.mrs
+    path: ./ruleset/Crypto-domain.mrs
+    interval: 1209600
+  Crypto-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/Crypto.yaml
+    path: ./ruleset/Crypto-classical.yaml
+    interval: 1209600
+  IPCheck-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/IPCheck.mrs
+    path: ./ruleset/IPCheck-domain.mrs
+    interval: 1209600
+  paypal-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/paypal.mrs
+    path: ./ruleset/paypal-domain.mrs
+    interval: 1209600
+  paypal-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/paypal.yaml
+    path: ./ruleset/paypal-classical.yaml
+    interval: 1209600
+  wechat-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/wechat.mrs
+    path: ./ruleset/wechat-domain.mrs
+    interval: 1209600
+  wechat-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/wechat.yaml
+    path: ./ruleset/wechat-classical.yaml
+    interval: 1209600
+  cloudflare-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/cloudflare.mrs
+    path: ./ruleset/cloudflare-domain.mrs
+    interval: 1209600
+  AppleProxy-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/AppleProxy.mrs
+    path: ./ruleset/AppleProxy-domain.mrs
+    interval: 1209600
+  AppleProxy-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/AppleProxy.yaml
+    path: ./ruleset/AppleProxy-classical.yaml
+    interval: 1209600
+  Telegram-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/Telegram.mrs
+    path: ./ruleset/Telegram-domain.mrs
+    interval: 1209600
+  Telegram-ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/Telegram.mrs
+    path: ./ruleset/Telegram-ip.mrs
+    interval: 1209600
+  Telegram-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/Telegram.yaml
+    path: ./ruleset/Telegram-classical.yaml
+    interval: 1209600
+  github-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/github.mrs
+    path: ./ruleset/github-domain.mrs
+    interval: 1209600
+  github-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/github.yaml
+    path: ./ruleset/github-classical.yaml
+    interval: 1209600
+  youtube-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/youtube.mrs
+    path: ./ruleset/youtube-domain.mrs
+    interval: 1209600
+  youtube-ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/youtube.mrs
+    path: ./ruleset/youtube-ip.mrs
+    interval: 1209600
+  youtube-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/youtube.yaml
+    path: ./ruleset/youtube-classical.yaml
+    interval: 1209600
+  GoogleEarth-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/GoogleEarth.mrs
+    path: ./ruleset/GoogleEarth-domain.mrs
+    interval: 1209600
+  Instagram-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/Instagram.mrs
+    path: ./ruleset/Instagram-domain.mrs
+    interval: 1209600
+  Instagram-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/Instagram.yaml
+    path: ./ruleset/Instagram-classical.yaml
+    interval: 1209600
+  Facebook-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/Facebook.mrs
+    path: ./ruleset/Facebook-domain.mrs
+    interval: 1209600
+  Facebook-ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/Facebook.mrs
+    path: ./ruleset/Facebook-ip.mrs
+    interval: 1209600
+  Facebook-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/Facebook.yaml
+    path: ./ruleset/Facebook-classical.yaml
+    interval: 1209600
+  Twitter-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/Twitter.mrs
+    path: ./ruleset/Twitter-domain.mrs
+    interval: 1209600
+  Twitter-ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/Twitter.mrs
+    path: ./ruleset/Twitter-ip.mrs
+    interval: 1209600
+  Twitter-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/Twitter.yaml
+    path: ./ruleset/Twitter-classical.yaml
+    interval: 1209600
+  Reddit-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/Reddit.mrs
+    path: ./ruleset/Reddit-domain.mrs
+    interval: 1209600
+  Discord-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/Discord.mrs
+    path: ./ruleset/Discord-domain.mrs
+    interval: 1209600
+  GoogleDrive-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/GoogleDrive.mrs
+    path: ./ruleset/GoogleDrive-domain.mrs
+    interval: 1209600
+  GoogleDrive-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/GoogleDrive.yaml
+    path: ./ruleset/GoogleDrive-classical.yaml
+    interval: 1209600
+  OneDrive-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/OneDrive.mrs
+    path: ./ruleset/OneDrive-domain.mrs
+    interval: 1209600
+  OneDrive-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/OneDrive.yaml
+    path: ./ruleset/OneDrive-classical.yaml
+    interval: 1209600
+  Dropbox-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/Dropbox.mrs
+    path: ./ruleset/Dropbox-domain.mrs
+    interval: 1209600
+  MEGA-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/MEGA.mrs
+    path: ./ruleset/MEGA-domain.mrs
+    interval: 1209600
+  MEGA-ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/MEGA.mrs
+    path: ./ruleset/MEGA-ip.mrs
+    interval: 1209600
+  MEGA-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/MEGA.yaml
+    path: ./ruleset/MEGA-classical.yaml
+    interval: 1209600
+  AWAvenueAds-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/AWAvenueAds.mrs
+    path: ./ruleset/AWAvenueAds-domain.mrs
+    interval: 604800
+  AWAvenueAds-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/AWAvenueAds.yaml
+    path: ./ruleset/AWAvenueAds-classical.yaml
+    interval: 604800
+  HageziAds:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/HageziAds.mrs
+    path: ./ruleset/HageziAds.mrs
+    interval: 604800
+  AntiAD:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/AntiAD.mrs
+    path: ./ruleset/AntiAD.mrs
+    interval: 604800
+  Spotify-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/Spotify.mrs
+    path: ./ruleset/Spotify-domain.mrs
+    interval: 1209600
+  Spotify-ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/Spotify.mrs
+    path: ./ruleset/Spotify-ip.mrs
+    interval: 1209600
+  Spotify-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/Spotify.yaml
+    path: ./ruleset/Spotify-classical.yaml
+    interval: 1209600
+  WhatsApp-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/WhatsApp.mrs
+    path: ./ruleset/WhatsApp-domain.mrs
+    interval: 1209600
+  WhatsApp-ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/WhatsApp.mrs
+    path: ./ruleset/WhatsApp-ip.mrs
+    interval: 1209600
+  WhatsApp-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/WhatsApp.yaml
+    path: ./ruleset/WhatsApp-classical.yaml
+    interval: 1209600
+  tiktok-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/tiktok.mrs
+    path: ./ruleset/tiktok-domain.mrs
+    interval: 1209600
+  tiktok-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/tiktok.yaml
+    path: ./ruleset/tiktok-classical.yaml
+    interval: 1209600
+  netflix-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/netflix.mrs
+    path: ./ruleset/netflix-domain.mrs
+    interval: 1209600
+  netflix-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/netflix.yaml
+    path: ./ruleset/netflix-classical.yaml
+    interval: 1209600
+  disney-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/disney.mrs
+    path: ./ruleset/disney-domain.mrs
+    interval: 1209600
+  disney-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/disney.yaml
+    path: ./ruleset/disney-classical.yaml
+    interval: 1209600
+  primevideo-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/primevideo.mrs
+    path: ./ruleset/primevideo-domain.mrs
+    interval: 1209600
+  primevideo-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/primevideo.yaml
+    path: ./ruleset/primevideo-classical.yaml
+    interval: 1209600
+  google-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/google.mrs
+    path: ./ruleset/google-domain.mrs
+    interval: 1209600
+  google-ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/google.mrs
+    path: ./ruleset/google-ip.mrs
+    interval: 1209600
+  google-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/google.yaml
+    path: ./ruleset/google-classical.yaml
+    interval: 1209600
+  apple:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/apple.mrs
+    path: ./ruleset/apple.mrs
+    interval: 1209600
+  icloud:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/icloud.mrs
+    path: ./ruleset/icloud.mrs
+    interval: 1209600
+  DouYin-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/DouYin.mrs
+    path: ./ruleset/DouYin-domain.mrs
+    interval: 1209600
+  BiliBili-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/BiliBili.mrs
+    path: ./ruleset/BiliBili-domain.mrs
+    interval: 1209600
+  BiliBili-ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/BiliBili.mrs
+    path: ./ruleset/BiliBili-ip.mrs
+    interval: 1209600
+  BiliBili-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/BiliBili.yaml
+    path: ./ruleset/BiliBili-classical.yaml
+    interval: 1209600
+  BaiDuTieBa-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/BaiDuTieBa.mrs
+    path: ./ruleset/BaiDuTieBa-domain.mrs
+    interval: 1209600
+  global-mrs-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/global.mrs
+    path: ./ruleset/global-mrs-domain.mrs
+    interval: 1209600
+  global-ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/global.mrs
+    path: ./ruleset/global-ip.mrs
+    interval: 1209600
+  global-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/global.yaml
+    path: ./ruleset/global-classical.yaml
+    interval: 1209600
+  global-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/global-domain.mrs
+    path: ./ruleset/global-domain.mrs
+    interval: 1209600
+  chinamax-mrs-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/chinamax.mrs
+    path: ./ruleset/chinamax-mrs-domain.mrs
+    interval: 1209600
+  chinamax-ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/chinamax.mrs
+    path: ./ruleset/chinamax-ip.mrs
+    interval: 1209600
+  chinamax-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/chinamax.yaml
+    path: ./ruleset/chinamax-classical.yaml
+    interval: 1209600
+  chinamax-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/chinamax-domain.mrs
+    path: ./ruleset/chinamax-domain.mrs
+    interval: 1209600
+rules:
+- IP-CIDR,0.0.0.0/32,REJECT,no-resolve
+- DOMAIN-SUFFIX,giffgaff.com,🤖 AI
+- DOMAIN-SUFFIX,giff.ly,🤖 AI
+- DOMAIN-SUFFIX,giffgaffrecycle.com,🤖 AI
+- RULE-SET,Lan-domain,DIRECT
+- RULE-SET,Lan-ip,DIRECT
+- RULE-SET,private,DIRECT
+- DOMAIN-SUFFIX,cnki.net,DIRECT
+- DOMAIN-SUFFIX,cqvip.com,DIRECT
+- DOMAIN-SUFFIX,kuke.com,DIRECT
+- DOMAIN-SUFFIX,pkulaw.com,DIRECT
+- DOMAIN-SUFFIX,wanfangdata.com,DIRECT
+- DOMAIN-SUFFIX,wanfangdata.com.cn,DIRECT
+- DOMAIN-SUFFIX,westlawchina.com,DIRECT
+- DOMAIN-SUFFIX,clinicaltrials.gov,⚡ 海外高速
+- DOMAIN-SUFFIX,orcid.org,⚡ 海外高速
+- DOMAIN-SUFFIX,medrxiv.org,⚡ 海外高速
+- RULE-SET,Scholar-domain,⚡ 海外高速
+- RULE-SET,AppleIntelligence-domain,🤖 AI
+- RULE-SET,openai-domain,🤖 AI
+- RULE-SET,openai-ip,🤖 AI
+- RULE-SET,openai-classical,🤖 AI
+- RULE-SET,claude-domain,🤖 AI
+- RULE-SET,Anthropic-domain,🤖 AI
+- RULE-SET,gemini-domain,🤖 AI
+- RULE-SET,gemini-classical,🤖 AI
+- RULE-SET,AI-domain,🤖 AI
+- RULE-SET,AI-classical,🤖 AI
+- RULE-SET,GoogleVoice-domain,🤖 AI
+- RULE-SET,Crypto-domain,🤖 AI
+- RULE-SET,Crypto-classical,🤖 AI
+- RULE-SET,IPCheck-domain,🤖 AI
+- RULE-SET,paypal-domain,🤖 AI
+- RULE-SET,paypal-classical,🤖 AI
+- RULE-SET,wechat-domain,DIRECT
+- RULE-SET,wechat-classical,DIRECT
+- RULE-SET,cloudflare-domain,⚡ 海外高速
+- RULE-SET,AppleProxy-domain,⚡ 海外高速
+- RULE-SET,AppleProxy-classical,⚡ 海外高速
+- RULE-SET,Telegram-domain,⚡ 海外高速
+- RULE-SET,Telegram-ip,⚡ 海外高速
+- RULE-SET,Telegram-classical,⚡ 海外高速
+- RULE-SET,github-domain,⚡ 海外高速
+- RULE-SET,github-classical,⚡ 海外高速
+- RULE-SET,GoogleEarth-domain,⚡ 海外高速
+- RULE-SET,WhatsApp-domain,⚡ 海外高速
+- RULE-SET,WhatsApp-ip,⚡ 海外高速
+- RULE-SET,WhatsApp-classical,⚡ 海外高速
+- RULE-SET,Discord-domain,⚡ 海外高速
+- RULE-SET,netflix-domain,⚡ 海外高速
+- RULE-SET,netflix-classical,⚡ 海外高速
+- RULE-SET,disney-domain,⚡ 海外高速
+- RULE-SET,disney-classical,⚡ 海外高速
+- RULE-SET,primevideo-domain,⚡ 海外高速
+- RULE-SET,primevideo-classical,⚡ 海外高速
+- RULE-SET,GoogleDrive-domain,⚡ 海外高速
+- RULE-SET,GoogleDrive-classical,⚡ 海外高速
+- RULE-SET,OneDrive-domain,⚡ 海外高速
+- RULE-SET,OneDrive-classical,⚡ 海外高速
+- RULE-SET,Dropbox-domain,⚡ 海外高速
+- RULE-SET,MEGA-domain,⚡ 海外高速
+- RULE-SET,MEGA-ip,⚡ 海外高速
+- RULE-SET,MEGA-classical,⚡ 海外高速
+- RULE-SET,youtube-domain,⚡ 海外高速
+- RULE-SET,youtube-ip,⚡ 海外高速
+- RULE-SET,youtube-classical,⚡ 海外高速
+- RULE-SET,Instagram-domain,⚡ 海外高速
+- RULE-SET,Instagram-classical,⚡ 海外高速
+- RULE-SET,Facebook-domain,⚡ 海外高速
+- RULE-SET,Facebook-ip,⚡ 海外高速
+- RULE-SET,Facebook-classical,⚡ 海外高速
+- RULE-SET,Twitter-domain,⚡ 海外高速
+- RULE-SET,Twitter-ip,⚡ 海外高速
+- RULE-SET,Twitter-classical,⚡ 海外高速
+- RULE-SET,Reddit-domain,⚡ 海外高速
+- RULE-SET,Spotify-domain,⚡ 海外高速
+- RULE-SET,Spotify-ip,⚡ 海外高速
+- RULE-SET,Spotify-classical,⚡ 海外高速
+- RULE-SET,tiktok-domain,⚡ 海外高速
+- RULE-SET,tiktok-classical,⚡ 海外高速
+- RULE-SET,google-domain,🤖 AI
+- RULE-SET,google-ip,🤖 AI
+- RULE-SET,google-classical,🤖 AI
+- RULE-SET,apple,DIRECT
+- RULE-SET,icloud,DIRECT
+- RULE-SET,DouYin-domain,DIRECT
+- RULE-SET,BiliBili-domain,DIRECT
+- RULE-SET,BiliBili-ip,DIRECT
+- RULE-SET,BiliBili-classical,DIRECT
+- RULE-SET,BaiDuTieBa-domain,DIRECT
+- RULE-SET,global-mrs-domain,🌍 国外流量
+- RULE-SET,global-ip,🌍 国外流量
+- RULE-SET,global-classical,🌍 国外流量
+- RULE-SET,chinamax-mrs-domain,DIRECT
+- RULE-SET,chinamax-ip,DIRECT
+- RULE-SET,chinamax-classical,DIRECT
+- GEOIP,CN,DIRECT,no-resolve
+- MATCH,🌍 国外流量
