@@ -20,16 +20,22 @@ rules:
 - 可以无损表达为 `behavior: domain` 的规则会进入 `dist/domain/*.mrs`。
 - 可以无损表达为 `behavior: ipcidr` 的规则会进入 `dist/ipcidr/*.mrs`。
 - 不能确认无损表达的规则保留到 `dist/classical/*.yaml`。
-- 每个 provider 都会检查原始规则集合和重建规则集合是否一致。
+- 每个 provider 都会用多重集合检查原始规则和重建规则是否一致，重复规则数量变化也会失败。
 - `rules` 中的 `RULE-SET` 会按原位置展开，策略组和其他参数会继承。
+- 空 provider 会直接构建失败。
+- 默认每次构建都会重新抓取上游规则；同一次 Python 运行中只做内存缓存。
 
 当前保守转换范围：
 
 - `DOMAIN` -> domain MRS source
 - `DOMAIN-SUFFIX` -> domain MRS source
-- `IP-CIDR` / `IP-CIDR6` -> ipcidr MRS source
+- 严格两段式 `IP-CIDR` / `IP-CIDR6` -> ipcidr MRS source
+
+带额外修饰符的 IP 规则，例如 `IP-CIDR,1.2.3.0/24,no-resolve`，会完整保留到 classical fallback。
+`format: text` 和 `format: yaml` 会严格按 provider 的 `format` 解析；已有 `format: mrs` 的 `domain` / `ipcidr` provider 会直接 passthrough，不重新下载或重新生成。
 
 其他 classical 规则类型一律进入 classical fallback。
+`type: file`、inline provider、`path-in-bundle` 和 `format: mrs` 的 classical provider 当前不支持。
 
 ## 目录
 
@@ -82,13 +88,16 @@ python scripts/convert.py examples/my-rules.yaml \
   --allow-no-mihomo
 ```
 
+此模式下 `domain` / `ipcidr` provider 会引用 `dist/source/domain/*.yaml` 和 `dist/source/ipcidr/*.yaml`，不会生成指向不存在 `.mrs` 的配置。
+
 ## GitHub Actions
 
 推送到 GitHub 后，工作流会：
 
 1. 安装 Python 依赖。
-2. 下载 Mihomo alpha 二进制。
-3. 运行转换。
-4. 把 `dist/` 提交回仓库。
+2. 下载固定的 Mihomo `v1.19.30` 二进制并输出版本。
+3. 运行 `unittest`。
+4. 运行转换和生成结果验收。
+5. 把 `dist/` 提交回仓库。
 
 发布后的客户端 URL 会指向本仓库的 raw 文件。

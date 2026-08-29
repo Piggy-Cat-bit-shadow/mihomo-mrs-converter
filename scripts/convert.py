@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 import argparse
-import hashlib
 import os
 import shutil
 import ssl
 import subprocess
 import sys
+import time
 import urllib.request
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import yaml
 
@@ -35,8 +37,41 @@ class ProviderResult:
     original_name: str
     generated_names: list[str]
     providers: dict[str, dict[str, Any]]
-    original_rules: set[str]
-    rebuilt_rules: set[str]
+    original_rules: Counter[str]
+    rebuilt_rules: Counter[str]
+
+
+@dataclass
+class BuildOptions:
+    dist: Path
+    base_url: str
+    mihomo: str | None
+    used_names: set[str]
+    used_paths: set[str]
+    memory_cache: dict[str, str]
+
+
+ALLOWED_PROVIDER_FIELDS = {
+    "type",
+    "behavior",
+    "format",
+    "url",
+    "path",
+    "interval",
+    "proxy",
+    "size-limit",
+    "header",
+}
+PASSTHROUGH_PROVIDER_FIELDS = {
+    "type",
+    "behavior",
+    "format",
+    "url",
+    "path",
+    "interval",
+    "proxy",
+    "size-limit",
+}
 
 
 def load_yaml(path: Path) -> dict[str, Any]:
@@ -52,35 +87,76 @@ def load_yaml(path: Path) -> dict[str, Any]:
     return data
 
 
-def fetch_text(url: str, cache_dir: Path) -> str:
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    cache_key = hashlib.sha256(url.encode("utf-8")).hexdigest()
-    cached = cache_dir / f"{cache_key}.txt"
-    if cached.exists():
-        return cached.read_text(encoding="utf-8")
+def validate_provider_name(name: str) -> None:
+    if "\x00" in name or "/" in name or "\\" in name or ".." in name:
+        raise SystemExit(f"{name}: provider name contains unsupported path content")
 
-    request = urllib.request.Request(url, headers={"User-Agent": "mihomo-mrs-converter"})
+
+def validate_http_url(name: str, url: str) -> None:
+    scheme = urlparse(url).scheme.lower()
+    if scheme not in {"http", "https"}:
+        raise SystemExit(f"{name}: unsupported provider URL scheme {scheme!r}")
+
+
+def fetch_text(url: str, headers: dict[str, Any] | None, memory_cache: dict[str, str]) -> str:
+    if url in memory_cache:
+        return memory_cache[url]
+    request_headers = {"User-Agent": "mihomo-mrs-converter"}
+    if headers:
+        for key, value in headers.items():
+            if isinstance(key, str) and isinstance(value, str):
+                request_headers[key] = value
+            else:
+                raise SystemExit("provider header keys and values must be strings")
+    request = urllib.request.Request(url, headers=request_headers)
     context = (
         ssl.create_default_context(cafile=certifi.where())
         if certifi is not None
         else ssl.create_default_context()
     )
-    with urllib.request.urlopen(request, timeout=60, context=context) as response:
-        body = response.read().decode("utf-8-sig")
-    cached.write_text(body, encoding="utf-8")
+    last_error: Exception | None = None
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(request, timeout=60, context=context) as response:
+                body = response.read().decode("utf-8-sig")
+            break
+        except Exception as exc:  # pragma: no cover - network timing dependent
+            last_error = exc
+            if attempt == 2:
+                raise
+            time.sleep(2 * (attempt + 1))
+    else:  # pragma: no cover
+        raise last_error
+    memory_cache[url] = body
     return body
 
 
-def payload_from_remote(text: str) -> list[str]:
+def strict_yaml_rule_list(name: str, value: Any) -> list[str]:
+    if not isinstance(value, list):
+        raise SystemExit(f"{name}: YAML provider payload must be a list")
+    rules: list[str] = []
+    for item in value:
+        if not isinstance(item, str):
+            raise SystemExit(f"{name}: YAML provider payload items must be strings")
+        stripped = item.strip()
+        if stripped:
+            rules.append(stripped)
+    return rules
+
+
+def payload_from_yaml(name: str, text: str) -> list[str]:
     parsed = yaml.safe_load(text)
     if isinstance(parsed, dict):
         for key in ("payload", "rules"):
-            value = parsed.get(key)
-            if isinstance(value, list):
-                return [str(item).strip() for item in value if str(item).strip()]
+            if key in parsed:
+                return strict_yaml_rule_list(name, parsed[key])
+        raise SystemExit(f"{name}: YAML provider must contain payload or rules")
     if isinstance(parsed, list):
-        return [str(item).strip() for item in parsed if str(item).strip()]
+        return strict_yaml_rule_list(name, parsed)
+    raise SystemExit(f"{name}: YAML provider must be a mapping or list")
 
+
+def payload_from_text(text: str) -> list[str]:
     lines: list[str] = []
     for line in text.splitlines():
         stripped = line.strip()
@@ -88,6 +164,14 @@ def payload_from_remote(text: str) -> list[str]:
             continue
         lines.append(stripped)
     return lines
+
+
+def payload_from_remote(name: str, text: str, fmt: str) -> list[str]:
+    if fmt == "yaml":
+        return payload_from_yaml(name, text)
+    if fmt == "text":
+        return payload_from_text(text)
+    raise SystemExit(f"{name}: unsupported source format {fmt!r}")
 
 
 def parse_rule(raw: str) -> RuleLine:
@@ -126,7 +210,7 @@ def validate_source_domain_value(rule: RuleLine, converted: str) -> None:
 
 
 def source_ip_value(rule: RuleLine) -> str | None:
-    if len(rule.parts) < 2:
+    if len(rule.parts) != 2:
         return None
     return rule.parts[1] if rule.kind in IPCIDR_RULES else None
 
@@ -163,17 +247,12 @@ def public_url(base_url: str, *parts: str) -> str:
     return "/".join([base_url.rstrip("/"), *[part.strip("/") for part in parts]])
 
 
-def provider_interval(provider: dict[str, Any]) -> int | None:
-    interval = provider.get("interval")
-    return interval if isinstance(interval, int) else None
-
-
 def make_provider(
     behavior: str,
     fmt: str,
     url: str,
     path: str,
-    interval: int | None,
+    source_provider: dict[str, Any],
 ) -> dict[str, Any]:
     result: dict[str, Any] = {
         "type": "http",
@@ -182,76 +261,169 @@ def make_provider(
         "url": url,
         "path": path,
     }
-    if interval is not None:
-        result["interval"] = interval
+    for key in ("interval", "proxy", "size-limit"):
+        if key in source_provider:
+            result[key] = source_provider[key]
     return result
 
 
-def split_provider_name(name: str, suffix: str, reserved_names: set[str]) -> str:
+def reserve_provider_name(name: str, suffix: str, used_names: set[str]) -> str:
     candidate = f"{name}-{suffix}"
-    if candidate not in reserved_names:
+    if candidate not in used_names:
+        used_names.add(candidate)
         return candidate
-    return f"{name}-mrs-{suffix}"
+    candidate = f"{name}-mrs-{suffix}"
+    if candidate not in used_names:
+        used_names.add(candidate)
+        return candidate
+    index = 2
+    while True:
+        candidate = f"{name}-mrs{index}-{suffix}"
+        if candidate not in used_names:
+            used_names.add(candidate)
+            return candidate
+        index += 1
+
+
+def reserve_path(path: str, used_paths: set[str]) -> None:
+    if path in used_paths:
+        raise SystemExit(f"generated provider path collision: {path}")
+    used_paths.add(path)
+
+
+def generated_artifact_path(dist: Path, provider: dict[str, Any]) -> Path | None:
+    url = provider.get("url")
+    if not isinstance(url, str):
+        return None
+    marker = "/dist/"
+    if marker not in url:
+        return None
+    relative = url.split(marker, 1)[1]
+    return dist / relative
+
+
+def make_generated_provider(
+    behavior: str,
+    fmt: str,
+    url: str,
+    path: str,
+    source_provider: dict[str, Any],
+    used_paths: set[str],
+) -> dict[str, Any]:
+    reserve_path(path, used_paths)
+    return make_provider(behavior, fmt, url, path, source_provider)
 
 
 def process_provider(
     name: str,
     provider: dict[str, Any],
-    dist: Path,
-    cache_dir: Path,
-    base_url: str,
-    mihomo: str | None,
-    reserved_names: set[str],
+    options: BuildOptions,
 ) -> ProviderResult:
+    validate_provider_name(name)
+    extra_fields = sorted(set(provider) - ALLOWED_PROVIDER_FIELDS)
+    if "path-in-bundle" in provider:
+        raise SystemExit(f"{name}: path-in-bundle is unsupported")
+    if extra_fields:
+        raise SystemExit(f"{name}: unsupported provider fields: {', '.join(extra_fields)}")
+
     url = provider.get("url")
     behavior = provider.get("behavior")
     if provider.get("type") != "http" or not isinstance(url, str):
         raise SystemExit(f"{name}: only http providers with url are supported")
+    validate_http_url(name, url)
     if behavior not in {"classical", "domain", "ipcidr"}:
         raise SystemExit(f"{name}: unsupported behavior {behavior!r}")
-
-    interval = provider_interval(provider)
-    remote_rules = [normalize(rule) for rule in payload_from_remote(fetch_text(url, cache_dir))]
-    parsed = [parse_rule(rule) for rule in remote_rules]
-    original_set = set(remote_rules)
+    fmt = provider.get("format", "yaml")
+    if fmt not in {"yaml", "text", "mrs"}:
+        raise SystemExit(f"{name}: unsupported format {fmt!r}")
 
     generated: dict[str, dict[str, Any]] = {}
     generated_names: list[str] = []
-    rebuilt: set[str] = set()
+
+    if fmt == "mrs":
+        if behavior == "classical":
+            raise SystemExit(f"{name}: format mrs with classical behavior is unsupported")
+        path = provider.get("path")
+        if not isinstance(path, str):
+            raise SystemExit(f"{name}: provider path must be a string")
+        reserve_path(path, options.used_paths)
+        passthrough = {
+            key: value
+            for key, value in provider.items()
+            if key in PASSTHROUGH_PROVIDER_FIELDS
+        }
+        generated[name] = passthrough
+        generated_names.append(name)
+        options.used_names.add(name)
+        empty_counter: Counter[str] = Counter()
+        return ProviderResult(name, generated_names, generated, empty_counter, empty_counter)
+
+    headers = provider.get("header")
+    if headers is not None and not isinstance(headers, dict):
+        raise SystemExit(f"{name}: provider header must be a mapping")
+    remote_rules = payload_from_remote(
+        name,
+        fetch_text(url, headers, options.memory_cache),
+        fmt,
+    )
+    if not remote_rules:
+        raise SystemExit(f"{name}: provider contains no rules")
+    parsed = [parse_rule(rule) for rule in remote_rules]
+    original_counter = Counter(remote_rules)
+
+    rebuilt: Counter[str] = Counter()
 
     if behavior == "domain":
         source_values = [rule.raw for rule in parsed]
-        source_path = dist / "source" / "domain" / f"{name}.yaml"
-        mrs_path = dist / "domain" / f"{name}.mrs"
+        source_path = options.dist / "source" / "domain" / f"{name}.yaml"
+        mrs_path = options.dist / "domain" / f"{name}.mrs"
         write_yaml_payload(source_path, source_values)
-        if mihomo:
-            convert_source_to_mrs(mihomo, "domain", source_path, mrs_path)
+        if options.mihomo:
+            convert_source_to_mrs(options.mihomo, "domain", source_path, mrs_path)
+            fmt_out = "mrs"
+            url_out = public_url(options.base_url, "dist/domain", f"{name}.mrs")
+            path_out = f"./ruleset/{name}.mrs"
+        else:
+            fmt_out = "yaml"
+            url_out = public_url(options.base_url, "dist/source/domain", f"{name}.yaml")
+            path_out = f"./ruleset/{name}.yaml"
         generated[name] = make_provider(
             "domain",
-            "mrs",
-            public_url(base_url, "dist/domain", f"{name}.mrs"),
-            f"./ruleset/{name}.mrs",
-            interval,
+            fmt_out,
+            url_out,
+            path_out,
+            provider,
         )
+        reserve_path(path_out, options.used_paths)
         generated_names.append(name)
-        rebuilt = original_set
+        options.used_names.add(name)
+        rebuilt.update(rule.raw for rule in parsed)
 
     elif behavior == "ipcidr":
         source_values = [rule.raw for rule in parsed]
-        source_path = dist / "source" / "ipcidr" / f"{name}.yaml"
-        mrs_path = dist / "ipcidr" / f"{name}.mrs"
+        source_path = options.dist / "source" / "ipcidr" / f"{name}.yaml"
+        mrs_path = options.dist / "ipcidr" / f"{name}.mrs"
         write_yaml_payload(source_path, source_values)
-        if mihomo:
-            convert_source_to_mrs(mihomo, "ipcidr", source_path, mrs_path)
+        if options.mihomo:
+            convert_source_to_mrs(options.mihomo, "ipcidr", source_path, mrs_path)
+            fmt_out = "mrs"
+            url_out = public_url(options.base_url, "dist/ipcidr", f"{name}.mrs")
+            path_out = f"./ruleset/{name}.mrs"
+        else:
+            fmt_out = "yaml"
+            url_out = public_url(options.base_url, "dist/source/ipcidr", f"{name}.yaml")
+            path_out = f"./ruleset/{name}.yaml"
         generated[name] = make_provider(
             "ipcidr",
-            "mrs",
-            public_url(base_url, "dist/ipcidr", f"{name}.mrs"),
-            f"./ruleset/{name}.mrs",
-            interval,
+            fmt_out,
+            url_out,
+            path_out,
+            provider,
         )
+        reserve_path(path_out, options.used_paths)
         generated_names.append(name)
-        rebuilt = original_set
+        options.used_names.add(name)
+        rebuilt.update(rule.raw for rule in parsed)
 
     else:
         domain_values: list[str] = []
@@ -274,61 +446,77 @@ def process_provider(
                 fallback.append(rule.raw)
 
         if domain_values:
-            generated_name = split_provider_name(name, "domain", reserved_names)
-            source_path = dist / "source" / "domain" / f"{name}.yaml"
-            mrs_path = dist / "domain" / f"{name}.mrs"
+            generated_name = reserve_provider_name(name, "domain", options.used_names)
+            source_path = options.dist / "source" / "domain" / f"{name}.yaml"
+            mrs_path = options.dist / "domain" / f"{name}.mrs"
             write_yaml_payload(source_path, domain_values)
-            if mihomo:
-                convert_source_to_mrs(mihomo, "domain", source_path, mrs_path)
-            generated[generated_name] = make_provider(
+            if options.mihomo:
+                convert_source_to_mrs(options.mihomo, "domain", source_path, mrs_path)
+                fmt_out = "mrs"
+                url_out = public_url(options.base_url, "dist/domain", f"{name}.mrs")
+                path_out = f"./ruleset/{generated_name}.mrs"
+            else:
+                fmt_out = "yaml"
+                url_out = public_url(options.base_url, "dist/source/domain", f"{name}.yaml")
+                path_out = f"./ruleset/{generated_name}.yaml"
+            generated[generated_name] = make_generated_provider(
                 "domain",
-                "mrs",
-                public_url(base_url, "dist/domain", f"{name}.mrs"),
-                f"./ruleset/{generated_name}.mrs",
-                interval,
+                fmt_out,
+                url_out,
+                path_out,
+                provider,
+                options.used_paths,
             )
             generated_names.append(generated_name)
             rebuilt.update(domain_originals)
 
         if ip_values:
-            generated_name = split_provider_name(name, "ip", reserved_names)
-            source_path = dist / "source" / "ipcidr" / f"{name}.yaml"
-            mrs_path = dist / "ipcidr" / f"{name}.mrs"
+            generated_name = reserve_provider_name(name, "ip", options.used_names)
+            source_path = options.dist / "source" / "ipcidr" / f"{name}.yaml"
+            mrs_path = options.dist / "ipcidr" / f"{name}.mrs"
             write_yaml_payload(source_path, ip_values)
-            if mihomo:
-                convert_source_to_mrs(mihomo, "ipcidr", source_path, mrs_path)
-            generated[generated_name] = make_provider(
+            if options.mihomo:
+                convert_source_to_mrs(options.mihomo, "ipcidr", source_path, mrs_path)
+                fmt_out = "mrs"
+                url_out = public_url(options.base_url, "dist/ipcidr", f"{name}.mrs")
+                path_out = f"./ruleset/{generated_name}.mrs"
+            else:
+                fmt_out = "yaml"
+                url_out = public_url(options.base_url, "dist/source/ipcidr", f"{name}.yaml")
+                path_out = f"./ruleset/{generated_name}.yaml"
+            generated[generated_name] = make_generated_provider(
                 "ipcidr",
-                "mrs",
-                public_url(base_url, "dist/ipcidr", f"{name}.mrs"),
-                f"./ruleset/{generated_name}.mrs",
-                interval,
+                fmt_out,
+                url_out,
+                path_out,
+                provider,
+                options.used_paths,
             )
             generated_names.append(generated_name)
             rebuilt.update(ip_originals)
 
         if fallback:
-            generated_name = split_provider_name(name, "classical", reserved_names)
-            classical_path = dist / "classical" / f"{name}.yaml"
+            generated_name = reserve_provider_name(name, "classical", options.used_names)
+            classical_path = options.dist / "classical" / f"{name}.yaml"
             write_yaml_payload(classical_path, fallback)
-            generated[generated_name] = make_provider(
+            path_out = f"./ruleset/{generated_name}.yaml"
+            generated[generated_name] = make_generated_provider(
                 "classical",
                 "yaml",
-                public_url(base_url, "dist/classical", f"{name}.yaml"),
-                f"./ruleset/{generated_name}.yaml",
-                interval,
+                public_url(options.base_url, "dist/classical", f"{name}.yaml"),
+                path_out,
+                provider,
+                options.used_paths,
             )
             generated_names.append(generated_name)
             rebuilt.update(fallback)
 
-    missing = original_set - rebuilt
-    unexpected = rebuilt - original_set
-    if missing or unexpected:
-        raise SystemExit(
-            f"{name}: verification failed; missing={len(missing)} unexpected={len(unexpected)}"
-        )
+    if not generated_names:
+        raise SystemExit(f"{name}: provider produced no generated providers")
 
-    return ProviderResult(name, generated_names, generated, original_set, rebuilt)
+    validate_rule_counts(name, original_counter, rebuilt)
+
+    return ProviderResult(name, generated_names, generated, original_counter, rebuilt)
 
 
 def rewrite_rules(
@@ -354,6 +542,50 @@ def rewrite_rules(
     return rewritten
 
 
+def contains_ruleset(value: Any) -> bool:
+    if isinstance(value, str):
+        return "RULE-SET" in value.upper()
+    if isinstance(value, list):
+        return any(contains_ruleset(item) for item in value)
+    if isinstance(value, dict):
+        return any(contains_ruleset(item) for item in value.values())
+    return False
+
+
+def validate_top_level_rulesets(rules: list[Any], provider_names: set[str]) -> None:
+    for item in rules:
+        if not isinstance(item, str):
+            if contains_ruleset(item):
+                raise SystemExit("nested RULE-SET rewriting is not supported")
+            continue
+        parts = [part.strip() for part in item.split(",")]
+        if parts and parts[0].upper() == "RULE-SET":
+            if len(parts) < 2 or parts[1] not in provider_names:
+                raise SystemExit(f"RULE-SET references missing provider: {parts[1] if len(parts) > 1 else ''}")
+        elif "RULE-SET" in item.upper():
+            raise SystemExit("nested RULE-SET rewriting is not supported")
+
+
+def validate_generated_rulesets(rules: list[Any], provider_names: set[str]) -> None:
+    validate_top_level_rulesets(rules, provider_names)
+
+
+def validate_generated_artifacts(dist: Path, providers: dict[str, dict[str, Any]]) -> None:
+    for name, provider in providers.items():
+        artifact = generated_artifact_path(dist, provider)
+        if artifact is not None and not artifact.exists():
+            raise SystemExit(f"{name}: generated URL artifact does not exist: {artifact}")
+
+
+def validate_rule_counts(name: str, original: Counter[str], rebuilt: Counter[str]) -> None:
+    missing = original - rebuilt
+    unexpected = rebuilt - original
+    if missing or unexpected:
+        raise SystemExit(
+            f"{name}: verification failed; missing={len(missing)} unexpected={len(unexpected)}"
+        )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Convert Mihomo rule-providers to MRS safely.")
     parser.add_argument("input", type=Path)
@@ -375,11 +607,16 @@ def main() -> None:
     rules = data.get("rules") or []
     if not isinstance(providers, dict) or not isinstance(rules, list):
         raise SystemExit("input must contain rule-providers mapping and rules list")
+    validate_top_level_rulesets(rules, set(providers))
 
     args.dist.mkdir(parents=True, exist_ok=True)
-    clean_targets = [args.dist / "classical", args.dist / "source", args.dist / "generated"]
-    if args.mihomo:
-        clean_targets.extend([args.dist / "domain", args.dist / "ipcidr"])
+    clean_targets = [
+        args.dist / "classical",
+        args.dist / "source",
+        args.dist / "generated",
+        args.dist / "domain",
+        args.dist / "ipcidr",
+    ]
     for target in clean_targets:
         if target.exists():
             shutil.rmtree(target)
@@ -387,8 +624,14 @@ def main() -> None:
     generated_providers: dict[str, dict[str, Any]] = {}
     provider_behaviors: dict[str, str] = {}
     replacements: dict[str, list[str]] = {}
-    cache_dir = Path(".cache") / "remote-rules"
-    reserved_names = set(providers)
+    options = BuildOptions(
+        dist=args.dist,
+        base_url=args.base_url,
+        mihomo=args.mihomo,
+        used_names=set(providers),
+        used_paths=set(),
+        memory_cache={},
+    )
 
     for name, provider in providers.items():
         if not isinstance(provider, dict):
@@ -396,21 +639,23 @@ def main() -> None:
         result = process_provider(
             name=name,
             provider=provider,
-            dist=args.dist,
-            cache_dir=cache_dir,
-            base_url=args.base_url,
-            mihomo=args.mihomo,
-            reserved_names=reserved_names,
+            options=options,
         )
+        overlap = set(generated_providers) & set(result.providers)
+        if overlap:
+            raise SystemExit(f"generated provider name collision: {', '.join(sorted(overlap))}")
         generated_providers.update(result.providers)
         for generated_name, generated_provider in result.providers.items():
             provider_behaviors[generated_name] = generated_provider["behavior"]
         replacements[name] = result.generated_names
         print(f"{name}: ok ({len(result.original_rules)} rules -> {', '.join(result.generated_names)})")
 
+    rewritten_rules = rewrite_rules(rules, replacements, provider_behaviors)
+    validate_generated_rulesets(rewritten_rules, set(generated_providers))
+    validate_generated_artifacts(args.dist, generated_providers)
     generated = {
         "rule-providers": generated_providers,
-        "rules": rewrite_rules(rules, replacements, provider_behaviors),
+        "rules": rewritten_rules,
     }
     output = args.dist / "generated" / "mihomo-rules.yaml"
     output.parent.mkdir(parents=True, exist_ok=True)

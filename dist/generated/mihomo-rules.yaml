@@ -6,12 +6,12 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/Lan.mrs
     path: ./ruleset/Lan-domain.mrs
     interval: 1209600
-  Lan-ip:
+  Lan-classical:
     type: http
-    behavior: ipcidr
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/Lan.mrs
-    path: ./ruleset/Lan-ip.mrs
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/Lan.yaml
+    path: ./ruleset/Lan-classical.yaml
     interval: 1209600
   private:
     type: http
@@ -181,13 +181,6 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/Telegram.mrs
     path: ./ruleset/Telegram-domain.mrs
     interval: 1209600
-  Telegram-ip:
-    type: http
-    behavior: ipcidr
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/Telegram.mrs
-    path: ./ruleset/Telegram-ip.mrs
-    interval: 1209600
   Telegram-classical:
     type: http
     behavior: classical
@@ -215,13 +208,6 @@ rule-providers:
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/youtube.mrs
     path: ./ruleset/youtube-domain.mrs
-    interval: 1209600
-  youtube-ip:
-    type: http
-    behavior: ipcidr
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/youtube.mrs
-    path: ./ruleset/youtube-ip.mrs
     interval: 1209600
   youtube-classical:
     type: http
@@ -649,7 +635,7 @@ rules:
 - DOMAIN-SUFFIX,giff.ly,🤖 AI
 - DOMAIN-SUFFIX,giffgaffrecycle.com,🤖 AI
 - RULE-SET,Lan-domain,DIRECT
-- RULE-SET,Lan-ip,DIRECT
+- RULE-SET,Lan-classical,DIRECT
 - RULE-SET,private,DIRECT
 - DOMAIN-SUFFIX,cnki.net,DIRECT
 - DOMAIN-SUFFIX,cqvip.com,DIRECT
@@ -684,7 +670,6 @@ rules:
 - RULE-SET,AppleProxy-domain,⚡ 海外高速
 - RULE-SET,AppleProxy-classical,⚡ 海外高速
 - RULE-SET,Telegram-domain,⚡ 海外高速
-- RULE-SET,Telegram-ip,⚡ 海外高速
 - RULE-SET,Telegram-classical,⚡ 海外高速
 - RULE-SET,github-domain,⚡ 海外高速
 - RULE-SET,github-classical,⚡ 海外高速
@@ -712,7 +697,6 @@ rules:
 - RULE-SET,HageziAds,REJECT-DROP
 - RULE-SET,AntiAD,REJECT-DROP
 - RULE-SET,youtube-domain,⚡ 海外高速
-- RULE-SET,youtube-ip,⚡ 海外高速
 - RULE-SET,youtube-classical,⚡ 海外高速
 - RULE-SET,Instagram-domain,⚡ 海外高速
 - RULE-SET,Instagram-classical,⚡ 海外高速

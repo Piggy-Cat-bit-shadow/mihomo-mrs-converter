@@ -7,6 +7,10 @@ on:
   push:
     branches: ["main"]
 
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
@@ -18,26 +22,36 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          python-version: "3.12"
 
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
       - name: Install mihomo
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          asset="$(gh release view Prerelease-Alpha --repo MetaCubeX/mihomo --json assets --jq '.assets[].name | select(test("^mihomo-linux-amd64-alpha-[^.]+\\.gz$"))' | head -n 1)"
-          curl -fsSL "https://github.com/MetaCubeX/mihomo/releases/download/Prerelease-Alpha/${asset}" -o mihomo.gz
+          curl -fsSL "https://github.com/MetaCubeX/mihomo/releases/download/v1.19.30/mihomo-linux-amd64-v1.19.30.gz" -o mihomo.gz
           gzip -d mihomo.gz
           chmod +x mihomo
           sudo mv mihomo /usr/local/bin/mihomo
+
+      - name: Check mihomo version
+        run: mihomo -v
+
+      - name: Run tests
+        run: python -m unittest discover -s tests
 
       - name: Build MRS rules
         run: |
           python scripts/convert.py examples/my-rules.yaml \
             --base-url "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}"
+
+      - name: Validate generated rules
+        run: |
+          test -f dist/generated/mihomo-rules.yaml
+          test -f dist/domain/openai.mrs
+          grep -q -- '- +.chatgpt.com' dist/source/domain/openai.yaml
+          ! grep -q -- '- .chatgpt.com' dist/source/domain/openai.yaml
 
       - name: Commit generated dist
         uses: stefanzweifel/git-auto-commit-action@v5
