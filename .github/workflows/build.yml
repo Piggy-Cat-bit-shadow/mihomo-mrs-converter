@@ -48,8 +48,44 @@ jobs:
 
       - name: Validate generated rules
         run: |
-          test -f dist/generated/mihomo-rules.yaml
-          test -f dist/domain/openai.mrs
+          python - <<'PY'
+          from pathlib import Path
+          import yaml
+
+          root = Path("dist")
+
+          def validate(path, require_no_orphans=False):
+              data = yaml.safe_load(path.read_text(encoding="utf-8"))
+              providers = data["rule-providers"]
+              paths = {}
+              used = set()
+              for name, provider in providers.items():
+                  provider_path = provider["path"]
+                  if provider_path in paths:
+                      raise SystemExit(f"{path}: duplicate provider path {provider_path}")
+                  paths[provider_path] = name
+              for rule in data["rules"]:
+                  if not isinstance(rule, str):
+                      continue
+                  parts = [part.strip() for part in rule.split(",")]
+                  if parts and parts[0].upper() == "RULE-SET":
+                      if parts[1] not in providers:
+                          raise SystemExit(f"{path}: missing provider {parts[1]}")
+                      used.add(parts[1])
+              for name, provider in providers.items():
+                  url = provider["url"]
+                  if "/dist/" in url:
+                      artifact = root / url.split("/dist/", 1)[1]
+                      if not artifact.exists():
+                          raise SystemExit(f"{path}: missing artifact {artifact}")
+              if require_no_orphans:
+                  orphaned = set(providers) - used
+                  if orphaned:
+                      raise SystemExit(f"{path}: orphan providers {sorted(orphaned)}")
+
+          validate(Path("dist/generated/mihomo-rules.yaml"))
+          validate(Path("dist/generated/mihomo-rules-merged.yaml"), require_no_orphans=True)
+          PY
           grep -q -- '- +.chatgpt.com' dist/source/domain/openai.yaml
           ! grep -q -- '- .chatgpt.com' dist/source/domain/openai.yaml
 

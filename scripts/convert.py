@@ -39,6 +39,7 @@ class ProviderResult:
     providers: dict[str, dict[str, Any]]
     original_rules: Counter[str]
     rebuilt_rules: Counter[str]
+    source_payloads: dict[str, list[str]]
 
 
 @dataclass
@@ -314,6 +315,60 @@ def make_generated_provider(
     return make_provider(behavior, fmt, url, path, source_provider)
 
 
+def make_merged_provider(
+    behavior: str,
+    fmt: str,
+    url: str,
+    path: str,
+    source_providers: list[dict[str, Any]],
+) -> dict[str, Any]:
+    result: dict[str, Any] = {
+        "type": "http",
+        "behavior": behavior,
+        "format": fmt,
+        "url": url,
+        "path": path,
+    }
+    intervals = [
+        provider["interval"]
+        for provider in source_providers
+        if isinstance(provider.get("interval"), int)
+    ]
+    if intervals:
+        result["interval"] = min(intervals)
+    for key in ("proxy", "size-limit"):
+        values = [provider[key] for provider in source_providers if key in provider]
+        if values and all(value == values[0] for value in values):
+            result[key] = values[0]
+    return result
+
+
+def merge_metadata_compatible(providers: list[dict[str, Any]]) -> bool:
+    for key in ("proxy", "size-limit"):
+        present = [provider[key] for provider in providers if key in provider]
+        if present and len(present) != len(providers):
+            return False
+        if len({repr(value) for value in present}) > 1:
+            return False
+    return True
+
+
+def ruleset_parts(rule: Any) -> list[str] | None:
+    if not isinstance(rule, str):
+        return None
+    parts = [part.strip() for part in rule.split(",")]
+    if len(parts) >= 3 and parts[0].upper() == "RULE-SET":
+        return parts
+    return None
+
+
+def ruleset_suffix_for_behavior(suffix: tuple[str, ...], behavior: str) -> list[str]:
+    inherited = list(suffix)
+    if behavior != "ipcidr":
+        inherited = [part for part in inherited if part != "no-resolve"]
+    return inherited
+
+
 def process_provider(
     name: str,
     provider: dict[str, Any],
@@ -339,6 +394,7 @@ def process_provider(
 
     generated: dict[str, dict[str, Any]] = {}
     generated_names: list[str] = []
+    source_payloads: dict[str, list[str]] = {}
 
     if fmt == "mrs":
         if behavior == "classical":
@@ -356,7 +412,7 @@ def process_provider(
         generated_names.append(name)
         options.used_names.add(name)
         empty_counter: Counter[str] = Counter()
-        return ProviderResult(name, generated_names, generated, empty_counter, empty_counter)
+        return ProviderResult(name, generated_names, generated, empty_counter, empty_counter, source_payloads)
 
     headers = provider.get("header")
     if headers is not None and not isinstance(headers, dict):
@@ -398,6 +454,7 @@ def process_provider(
         generated_names.append(name)
         options.used_names.add(name)
         rebuilt.update(rule.raw for rule in parsed)
+        source_payloads[name] = source_values
 
     elif behavior == "ipcidr":
         source_values = [rule.raw for rule in parsed]
@@ -424,6 +481,7 @@ def process_provider(
         generated_names.append(name)
         options.used_names.add(name)
         rebuilt.update(rule.raw for rule in parsed)
+        source_payloads[name] = source_values
 
     else:
         domain_values: list[str] = []
@@ -469,6 +527,7 @@ def process_provider(
             )
             generated_names.append(generated_name)
             rebuilt.update(domain_originals)
+            source_payloads[generated_name] = domain_values
 
         if ip_values:
             generated_name = reserve_provider_name(name, "ip", options.used_names)
@@ -494,6 +553,7 @@ def process_provider(
             )
             generated_names.append(generated_name)
             rebuilt.update(ip_originals)
+            source_payloads[generated_name] = ip_values
 
         if fallback:
             generated_name = reserve_provider_name(name, "classical", options.used_names)
@@ -516,7 +576,7 @@ def process_provider(
 
     validate_rule_counts(name, original_counter, rebuilt)
 
-    return ProviderResult(name, generated_names, generated, original_counter, rebuilt)
+    return ProviderResult(name, generated_names, generated, original_counter, rebuilt, source_payloads)
 
 
 def rewrite_rules(
@@ -540,6 +600,184 @@ def rewrite_rules(
         else:
             rewritten.append(item)
     return rewritten
+
+
+def write_merged_ruleset(
+    segment_index: int,
+    behavior: str,
+    suffix: tuple[str, ...],
+    generated_names: list[str],
+    generated_providers: dict[str, dict[str, Any]],
+    source_payloads: dict[str, list[str]],
+    options: BuildOptions,
+    used_names: set[str],
+    used_paths: set[str],
+) -> tuple[str | None, dict[str, Any] | None]:
+    mergeable = [
+        name
+        for name in generated_names
+        if name in source_payloads and generated_providers[name]["behavior"] == behavior
+    ]
+    if len(mergeable) < 2:
+        return None, None
+    source_providers = [generated_providers[name] for name in mergeable]
+    if not merge_metadata_compatible(source_providers):
+        return None, None
+
+    suffix_name = "ip" if behavior == "ipcidr" else behavior
+    merged_name = reserve_provider_name(f"merged-segment-{segment_index:02d}", suffix_name, used_names)
+    payload: list[str] = []
+    expected = Counter()
+    for name in mergeable:
+        payload.extend(source_payloads[name])
+        expected.update(source_payloads[name])
+    validate_rule_counts(merged_name, expected, Counter(payload))
+
+    source_dir = "ipcidr" if behavior == "ipcidr" else "domain"
+    source_path = options.dist / "merged" / "source" / source_dir / f"{merged_name}.yaml"
+    write_yaml_payload(source_path, payload)
+    if options.mihomo:
+        mrs_path = options.dist / "merged" / source_dir / f"{merged_name}.mrs"
+        convert_source_to_mrs(options.mihomo, behavior, source_path, mrs_path)
+        fmt = "mrs"
+        url = public_url(options.base_url, "dist/merged", source_dir, f"{merged_name}.mrs")
+        path = f"./ruleset/{merged_name}.mrs"
+    else:
+        fmt = "yaml"
+        url = public_url(options.base_url, "dist/merged/source", source_dir, f"{merged_name}.yaml")
+        path = f"./ruleset/{merged_name}.yaml"
+    reserve_path(path, used_paths)
+    provider = make_merged_provider(behavior, fmt, url, path, source_providers)
+    return merged_name, provider
+
+
+def build_merged_segment_rules(
+    segment_index: int,
+    parts_list: list[list[str]],
+    replacements: dict[str, list[str]],
+    generated_providers: dict[str, dict[str, Any]],
+    provider_behaviors: dict[str, str],
+    source_payloads: dict[str, list[str]],
+    options: BuildOptions,
+    used_names: set[str],
+    used_paths: set[str],
+) -> tuple[list[str], dict[str, dict[str, Any]], set[str]]:
+    suffix = tuple(parts_list[0][2:])
+    expanded_names = [
+        generated_name
+        for parts in parts_list
+        for generated_name in replacements[parts[1]]
+    ]
+    merged_providers: dict[str, dict[str, Any]] = {}
+    replaced: set[str] = set()
+    merged_rules: list[str] = []
+
+    for behavior in ("domain", "ipcidr"):
+        merged_name, provider = write_merged_ruleset(
+            segment_index,
+            behavior,
+            suffix,
+            expanded_names,
+            generated_providers,
+            source_payloads,
+            options,
+            used_names,
+            used_paths,
+        )
+        if merged_name and provider:
+            merged_providers[merged_name] = provider
+            replaced.update(
+                name
+                for name in expanded_names
+                if name in source_payloads and generated_providers[name]["behavior"] == behavior
+            )
+            merged_rules.append(
+                ",".join(["RULE-SET", merged_name, *ruleset_suffix_for_behavior(suffix, behavior)])
+            )
+
+    for generated_name in expanded_names:
+        if generated_name in replaced:
+            continue
+        behavior = provider_behaviors[generated_name]
+        merged_rules.append(
+            ",".join(["RULE-SET", generated_name, *ruleset_suffix_for_behavior(suffix, behavior)])
+        )
+
+    return merged_rules, merged_providers, replaced
+
+
+def build_merged_config(
+    rules: list[Any],
+    replacements: dict[str, list[str]],
+    generated_providers: dict[str, dict[str, Any]],
+    provider_behaviors: dict[str, str],
+    source_payloads: dict[str, list[str]],
+    options: BuildOptions,
+) -> dict[str, Any]:
+    used_names = set(generated_providers)
+    used_paths: set[str] = set()
+    merged_providers: dict[str, dict[str, Any]] = {}
+    merged_rules: list[Any] = []
+    used_provider_names: list[str] = []
+    seen_provider_names: set[str] = set()
+    index = 0
+    segment_index = 1
+
+    def mark_used(name: str) -> None:
+        if name not in seen_provider_names:
+            seen_provider_names.add(name)
+            used_provider_names.append(name)
+
+    while index < len(rules):
+        parts = ruleset_parts(rules[index])
+        if parts is None or parts[1] not in replacements:
+            merged_rules.append(rules[index])
+            index += 1
+            continue
+
+        segment = [parts]
+        suffix = tuple(parts[2:])
+        index += 1
+        while index < len(rules):
+            next_parts = ruleset_parts(rules[index])
+            if next_parts is None or next_parts[1] not in replacements or tuple(next_parts[2:]) != suffix:
+                break
+            segment.append(next_parts)
+            index += 1
+
+        segment_rules, segment_providers, replaced = build_merged_segment_rules(
+            segment_index,
+            segment,
+            replacements,
+            generated_providers,
+            provider_behaviors,
+            source_payloads,
+            options,
+            used_names,
+            used_paths,
+        )
+        segment_index += 1
+        merged_rules.extend(segment_rules)
+        merged_providers.update(segment_providers)
+        for rule in segment_rules:
+            rule_parts = ruleset_parts(rule)
+            if rule_parts is not None:
+                mark_used(rule_parts[1])
+        for parts_item in segment:
+            for generated_name in replacements[parts_item[1]]:
+                if generated_name not in replaced:
+                    mark_used(generated_name)
+
+    for name in used_provider_names:
+        if name not in merged_providers:
+            provider = generated_providers[name]
+            reserve_path(provider["path"], used_paths)
+            merged_providers[name] = provider
+
+    return {
+        "rule-providers": merged_providers,
+        "rules": merged_rules,
+    }
 
 
 def contains_ruleset(value: Any) -> bool:
@@ -575,6 +813,18 @@ def validate_generated_artifacts(dist: Path, providers: dict[str, dict[str, Any]
         artifact = generated_artifact_path(dist, provider)
         if artifact is not None and not artifact.exists():
             raise SystemExit(f"{name}: generated URL artifact does not exist: {artifact}")
+
+
+def validate_no_orphan_providers(config: dict[str, Any]) -> None:
+    providers = set(config["rule-providers"])
+    used: set[str] = set()
+    for rule in config["rules"]:
+        parts = ruleset_parts(rule)
+        if parts is not None:
+            used.add(parts[1])
+    orphaned = providers - used
+    if orphaned:
+        raise SystemExit(f"unused generated providers: {', '.join(sorted(orphaned))}")
 
 
 def validate_rule_counts(name: str, original: Counter[str], rebuilt: Counter[str]) -> None:
@@ -616,6 +866,7 @@ def main() -> None:
         args.dist / "generated",
         args.dist / "domain",
         args.dist / "ipcidr",
+        args.dist / "merged",
     ]
     for target in clean_targets:
         if target.exists():
@@ -624,6 +875,7 @@ def main() -> None:
     generated_providers: dict[str, dict[str, Any]] = {}
     provider_behaviors: dict[str, str] = {}
     replacements: dict[str, list[str]] = {}
+    source_payloads: dict[str, list[str]] = {}
     options = BuildOptions(
         dist=args.dist,
         base_url=args.base_url,
@@ -645,6 +897,7 @@ def main() -> None:
         if overlap:
             raise SystemExit(f"generated provider name collision: {', '.join(sorted(overlap))}")
         generated_providers.update(result.providers)
+        source_payloads.update(result.source_payloads)
         for generated_name, generated_provider in result.providers.items():
             provider_behaviors[generated_name] = generated_provider["behavior"]
         replacements[name] = result.generated_names
@@ -664,6 +917,24 @@ def main() -> None:
         encoding="utf-8",
     )
     print(f"wrote {output}")
+
+    merged = build_merged_config(
+        rules,
+        replacements,
+        generated_providers,
+        provider_behaviors,
+        source_payloads,
+        options,
+    )
+    validate_generated_rulesets(merged["rules"], set(merged["rule-providers"]))
+    validate_generated_artifacts(args.dist, merged["rule-providers"])
+    validate_no_orphan_providers(merged)
+    merged_output = args.dist / "generated" / "mihomo-rules-merged.yaml"
+    merged_output.write_text(
+        yaml.safe_dump(merged, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
+    )
+    print(f"wrote {merged_output}")
 
 
 if __name__ == "__main__":

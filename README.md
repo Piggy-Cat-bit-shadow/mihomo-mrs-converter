@@ -47,17 +47,32 @@ dist/
 ├── source/
 │   ├── domain/
 │   └── ipcidr/
+├── merged/
+│   ├── domain/
+│   ├── ipcidr/
+│   └── source/
+│       ├── domain/
+│       └── ipcidr/
 └── generated/
-    └── mihomo-rules.yaml
+    ├── mihomo-rules.yaml
+    └── mihomo-rules-merged.yaml
 ```
 
-最终给 Mihomo 主配置复制使用的是：
+默认给 Mihomo 主配置复制使用的是不合并版：
 
 ```text
 dist/generated/mihomo-rules.yaml
 ```
 
-这个文件只包含 `rule-providers` 和 `rules`。
+这个文件只包含 `rule-providers` 和 `rules`，保持独立 provider，方便兼容和回退。
+
+同时会额外生成安全合并版：
+
+```text
+dist/generated/mihomo-rules-merged.yaml
+```
+
+合并版只合并原始 `rules` 中连续出现、策略和附加参数完全相同的 `RULE-SET` 区间；`domain` 和 `ipcidr` 分开合并，classical fallback 保持独立，不跨普通规则、不同策略或广告等优先级边界。
 
 ## 从完整配置抽取输入
 

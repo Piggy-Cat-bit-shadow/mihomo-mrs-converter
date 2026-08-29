@@ -281,6 +281,128 @@ class ProviderConversionTest(ConvertTestCase):
             self.assertIn("/dist/source/domain/sample.yaml", provider["url"])
             self.assertNotIn(".mrs", provider["url"])
 
+    def test_unmerged_rewrite_does_not_add_extra_ruleset_duplicates(self) -> None:
+        rules = ["RULE-SET,A,Proxy", "RULE-SET,B,Proxy", "RULE-SET,B,Proxy"]
+        replacements = {"A": ["A-domain"], "B": ["B-domain", "B-classical"]}
+        behaviors = {"A-domain": "domain", "B-domain": "domain", "B-classical": "classical"}
+
+        self.assertEqual(
+            convert.rewrite_rules(rules, replacements, behaviors),
+            [
+                "RULE-SET,A-domain,Proxy",
+                "RULE-SET,B-domain,Proxy",
+                "RULE-SET,B-classical,Proxy",
+                "RULE-SET,B-domain,Proxy",
+                "RULE-SET,B-classical,Proxy",
+            ],
+        )
+
+    def test_merged_rules_do_not_cross_non_ruleset_barriers(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            dist = Path(tmp)
+            options = self.build_options(dist)
+            rules = [
+                "RULE-SET,A,Proxy",
+                "RULE-SET,B,Proxy",
+                "DOMAIN,barrier.example,Proxy",
+                "RULE-SET,C,Proxy",
+                "RULE-SET,D,Proxy",
+            ]
+            replacements = {name: [f"{name}-domain"] for name in "ABCD"}
+            providers = {
+                f"{name}-domain": {
+                    "type": "http",
+                    "behavior": "domain",
+                    "format": "mrs",
+                    "url": f"{BASE_URL}/dist/domain/{name}.mrs",
+                    "path": f"./ruleset/{name}-domain.mrs",
+                }
+                for name in "ABCD"
+            }
+            behaviors = {name: "domain" for name in providers}
+            source_payloads = {f"{name}-domain": [f"{name.lower()}.example"] for name in "ABCD"}
+
+            merged = convert.build_merged_config(
+                rules,
+                replacements,
+                providers,
+                behaviors,
+                source_payloads,
+                options,
+            )
+
+            merged_rules = merged["rules"]
+            self.assertEqual(
+                merged_rules,
+                [
+                    "RULE-SET,merged-segment-01-domain,Proxy",
+                    "DOMAIN,barrier.example,Proxy",
+                    "RULE-SET,merged-segment-02-domain,Proxy",
+                ],
+            )
+            first_payload = yaml.safe_load(
+                (dist / "merged/source/domain/merged-segment-01-domain.yaml").read_text()
+            )["payload"]
+            second_payload = yaml.safe_load(
+                (dist / "merged/source/domain/merged-segment-02-domain.yaml").read_text()
+            )["payload"]
+            self.assertEqual(first_payload, ["a.example", "b.example"])
+            self.assertEqual(second_payload, ["c.example", "d.example"])
+            convert.validate_no_orphan_providers(merged)
+
+    def test_merged_rules_keep_domain_ipcidr_and_classical_separate(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            dist = Path(tmp)
+            options = self.build_options(dist)
+            rules = ["RULE-SET,A,Proxy,no-resolve", "RULE-SET,B,Proxy,no-resolve"]
+            replacements = {
+                "A": ["A-domain", "A-ip", "A-classical"],
+                "B": ["B-domain", "B-ip", "B-classical"],
+            }
+            providers = {
+                "A-domain": {"type": "http", "behavior": "domain", "format": "mrs", "url": f"{BASE_URL}/dist/domain/A.mrs", "path": "./ruleset/A-domain.mrs"},
+                "A-ip": {"type": "http", "behavior": "ipcidr", "format": "mrs", "url": f"{BASE_URL}/dist/ipcidr/A.mrs", "path": "./ruleset/A-ip.mrs"},
+                "A-classical": {"type": "http", "behavior": "classical", "format": "yaml", "url": f"{BASE_URL}/dist/classical/A.yaml", "path": "./ruleset/A-classical.yaml"},
+                "B-domain": {"type": "http", "behavior": "domain", "format": "mrs", "url": f"{BASE_URL}/dist/domain/B.mrs", "path": "./ruleset/B-domain.mrs"},
+                "B-ip": {"type": "http", "behavior": "ipcidr", "format": "mrs", "url": f"{BASE_URL}/dist/ipcidr/B.mrs", "path": "./ruleset/B-ip.mrs"},
+                "B-classical": {"type": "http", "behavior": "classical", "format": "yaml", "url": f"{BASE_URL}/dist/classical/B.yaml", "path": "./ruleset/B-classical.yaml"},
+            }
+            behaviors = {name: provider["behavior"] for name, provider in providers.items()}
+            source_payloads = {
+                "A-domain": ["a.example"],
+                "A-ip": ["10.0.0.0/8"],
+                "B-domain": ["b.example"],
+                "B-ip": ["192.168.0.0/16"],
+            }
+
+            merged = convert.build_merged_config(
+                rules,
+                replacements,
+                providers,
+                behaviors,
+                source_payloads,
+                options,
+            )
+
+            self.assertEqual(
+                merged["rules"],
+                [
+                    "RULE-SET,merged-segment-01-domain,Proxy",
+                    "RULE-SET,merged-segment-01-ip,Proxy,no-resolve",
+                    "RULE-SET,A-classical,Proxy",
+                    "RULE-SET,B-classical,Proxy",
+                ],
+            )
+            self.assertEqual(merged["rule-providers"]["merged-segment-01-domain"]["behavior"], "domain")
+            self.assertEqual(merged["rule-providers"]["merged-segment-01-ip"]["behavior"], "ipcidr")
+            classical_providers = [
+                name
+                for name, provider in merged["rule-providers"].items()
+                if provider["behavior"] == "classical"
+            ]
+            self.assertEqual(classical_providers, ["A-classical", "B-classical"])
+            convert.validate_no_orphan_providers(merged)
+
 
 if __name__ == "__main__":
     unittest.main()
