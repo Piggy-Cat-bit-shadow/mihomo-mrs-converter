@@ -5,7 +5,7 @@ rule-providers:
     format: yaml
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/Scholar-China
     path: ./ruleset/Scholar-China.yaml
-  Scholar-Scholar-Foreign:
+  Scholar-Foreign:
     type: http
     behavior: classical
     format: yaml
