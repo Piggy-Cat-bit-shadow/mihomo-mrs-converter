@@ -1,4 +1,16 @@
 rule-providers:
+  Scholar-China-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/Scholar-China.mrs
+    path: ./ruleset/Scholar-China-domain.mrs
+  Scholar-Foreign-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/Scholar-Foreign.yaml
+    path: ./ruleset/Scholar-Foreign-classical.yaml
   me-domain:
     type: http
     behavior: domain
@@ -623,21 +635,13 @@ rule-providers:
     interval: 1209600
 rules:
 - IP-CIDR,0.0.0.0/32,REJECT-DROP,no-resolve
-- RULE-SET,me-domain,🤖 AI
 - RULE-SET,Lan-domain,DIRECT
 - RULE-SET,Lan-classical,DIRECT
 - RULE-SET,private,DIRECT
-- DOMAIN-SUFFIX,cnki.net,DIRECT
-- DOMAIN-SUFFIX,cqvip.com,DIRECT
-- DOMAIN-SUFFIX,kuke.com,DIRECT
-- DOMAIN-SUFFIX,pkulaw.com,DIRECT
-- DOMAIN-SUFFIX,wanfangdata.com,DIRECT
-- DOMAIN-SUFFIX,wanfangdata.com.cn,DIRECT
-- DOMAIN-SUFFIX,westlawchina.com,DIRECT
-- DOMAIN-SUFFIX,clinicaltrials.gov,⚡ 海外高速
-- DOMAIN-SUFFIX,orcid.org,⚡ 海外高速
-- DOMAIN-SUFFIX,medrxiv.org,⚡ 海外高速
+- RULE-SET,Scholar-China-domain,DIRECT
+- RULE-SET,Scholar-Foreign-classical,⚡ 海外高速
 - RULE-SET,Scholar-domain,⚡ 海外高速
+- RULE-SET,me-domain,🤖 AI
 - RULE-SET,AppleIntelligence-domain,🤖 AI
 - RULE-SET,openai-domain,🤖 AI
 - RULE-SET,openai-ip,🤖 AI

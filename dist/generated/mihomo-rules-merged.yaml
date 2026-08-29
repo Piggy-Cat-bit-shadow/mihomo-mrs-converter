@@ -1,25 +1,32 @@
 rule-providers:
-  merged-segment-02-domain:
+  merged-segment-01-domain:
     type: http
     behavior: domain
     format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/merged-segment-02-domain.mrs
-    path: ./ruleset/merged-segment-02-domain.mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/merged-segment-01-domain.mrs
+    path: ./ruleset/merged-segment-01-domain.mrs
     interval: 1209600
+  merged-segment-03-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/merged-segment-03-domain.mrs
+    path: ./ruleset/merged-segment-03-domain.mrs
+    interval: 259200
   merged-segment-04-domain:
     type: http
     behavior: domain
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/merged-segment-04-domain.mrs
     path: ./ruleset/merged-segment-04-domain.mrs
-    interval: 259200
+    interval: 86400
   merged-segment-05-domain:
     type: http
     behavior: domain
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/merged-segment-05-domain.mrs
     path: ./ruleset/merged-segment-05-domain.mrs
-    interval: 86400
+    interval: 1209600
   merged-segment-06-domain:
     type: http
     behavior: domain
@@ -27,61 +34,48 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/merged-segment-06-domain.mrs
     path: ./ruleset/merged-segment-06-domain.mrs
     interval: 1209600
+  merged-segment-06-ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/merged-segment-06-ip.mrs
+    path: ./ruleset/merged-segment-06-ip.mrs
+    interval: 1209600
   merged-segment-07-domain:
     type: http
     behavior: domain
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/merged-segment-07-domain.mrs
     path: ./ruleset/merged-segment-07-domain.mrs
-    interval: 1209600
-  merged-segment-07-ip:
-    type: http
-    behavior: ipcidr
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/merged-segment-07-ip.mrs
-    path: ./ruleset/merged-segment-07-ip.mrs
-    interval: 1209600
+    interval: 604800
   merged-segment-08-domain:
     type: http
     behavior: domain
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/merged-segment-08-domain.mrs
     path: ./ruleset/merged-segment-08-domain.mrs
-    interval: 604800
+    interval: 1209600
+  merged-segment-08-ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/merged-segment-08-ip.mrs
+    path: ./ruleset/merged-segment-08-ip.mrs
+    interval: 1209600
   merged-segment-09-domain:
     type: http
     behavior: domain
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/merged-segment-09-domain.mrs
     path: ./ruleset/merged-segment-09-domain.mrs
-    interval: 1209600
+    interval: 86400
   merged-segment-09-ip:
     type: http
     behavior: ipcidr
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/merged-segment-09-ip.mrs
     path: ./ruleset/merged-segment-09-ip.mrs
-    interval: 1209600
-  merged-segment-10-domain:
-    type: http
-    behavior: domain
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/merged-segment-10-domain.mrs
-    path: ./ruleset/merged-segment-10-domain.mrs
     interval: 86400
-  merged-segment-10-ip:
-    type: http
-    behavior: ipcidr
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/merged-segment-10-ip.mrs
-    path: ./ruleset/merged-segment-10-ip.mrs
-    interval: 86400
-  me-domain:
-    type: http
-    behavior: domain
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/me.mrs
-    path: ./ruleset/me-domain.mrs
   Lan-classical:
     type: http
     behavior: classical
@@ -89,6 +83,12 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/Lan.yaml
     path: ./ruleset/Lan-classical.yaml
     interval: 1209600
+  Scholar-Foreign-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/Scholar-Foreign.yaml
+    path: ./ruleset/Scholar-Foreign-classical.yaml
   Scholar-domain:
     type: http
     behavior: domain
@@ -329,33 +329,23 @@ rule-providers:
     interval: 1209600
 rules:
 - IP-CIDR,0.0.0.0/32,REJECT-DROP,no-resolve
-- RULE-SET,me-domain,🤖 AI
-- RULE-SET,merged-segment-02-domain,DIRECT
+- RULE-SET,merged-segment-01-domain,DIRECT
 - RULE-SET,Lan-classical,DIRECT
-- DOMAIN-SUFFIX,cnki.net,DIRECT
-- DOMAIN-SUFFIX,cqvip.com,DIRECT
-- DOMAIN-SUFFIX,kuke.com,DIRECT
-- DOMAIN-SUFFIX,pkulaw.com,DIRECT
-- DOMAIN-SUFFIX,wanfangdata.com,DIRECT
-- DOMAIN-SUFFIX,wanfangdata.com.cn,DIRECT
-- DOMAIN-SUFFIX,westlawchina.com,DIRECT
-- DOMAIN-SUFFIX,clinicaltrials.gov,⚡ 海外高速
-- DOMAIN-SUFFIX,orcid.org,⚡ 海外高速
-- DOMAIN-SUFFIX,medrxiv.org,⚡ 海外高速
+- RULE-SET,Scholar-Foreign-classical,⚡ 海外高速
 - RULE-SET,Scholar-domain,⚡ 海外高速
-- RULE-SET,merged-segment-04-domain,🤖 AI
+- RULE-SET,merged-segment-03-domain,🤖 AI
 - RULE-SET,openai-ip,🤖 AI
 - RULE-SET,openai-classical,🤖 AI
 - RULE-SET,gemini-classical,🤖 AI
 - RULE-SET,AI-classical,🤖 AI
 - RULE-SET,Crypto-classical,🤖 AI
 - RULE-SET,paypal-classical,🤖 AI
-- RULE-SET,merged-segment-05-domain,DIRECT
+- RULE-SET,merged-segment-04-domain,DIRECT
 - RULE-SET,wechat-classical,DIRECT
-- RULE-SET,merged-segment-06-domain,🤖 AI
+- RULE-SET,merged-segment-05-domain,🤖 AI
 - RULE-SET,AppleProxy-classical,🤖 AI
-- RULE-SET,merged-segment-07-domain,⚡ 海外高速
-- RULE-SET,merged-segment-07-ip,⚡ 海外高速
+- RULE-SET,merged-segment-06-domain,⚡ 海外高速
+- RULE-SET,merged-segment-06-ip,⚡ 海外高速
 - RULE-SET,Telegram-classical,⚡ 海外高速
 - RULE-SET,github-classical,⚡ 海外高速
 - RULE-SET,WhatsApp-classical,⚡ 海外高速
@@ -365,10 +355,10 @@ rules:
 - RULE-SET,GoogleDrive-classical,⚡ 海外高速
 - RULE-SET,OneDrive-classical,⚡ 海外高速
 - RULE-SET,MEGA-classical,⚡ 海外高速
-- RULE-SET,merged-segment-08-domain,REJECT-DROP
+- RULE-SET,merged-segment-07-domain,REJECT-DROP
 - RULE-SET,AWAvenueAds-classical,REJECT-DROP
-- RULE-SET,merged-segment-09-domain,⚡ 海外高速
-- RULE-SET,merged-segment-09-ip,⚡ 海外高速
+- RULE-SET,merged-segment-08-domain,⚡ 海外高速
+- RULE-SET,merged-segment-08-ip,⚡ 海外高速
 - RULE-SET,youtube-classical,⚡ 海外高速
 - RULE-SET,Instagram-classical,⚡ 海外高速
 - RULE-SET,Facebook-classical,⚡ 海外高速
@@ -376,8 +366,8 @@ rules:
 - RULE-SET,Spotify-classical,⚡ 海外高速
 - RULE-SET,tiktok-classical,⚡ 海外高速
 - RULE-SET,google-classical,⚡ 海外高速
-- RULE-SET,merged-segment-10-domain,DIRECT
-- RULE-SET,merged-segment-10-ip,DIRECT
+- RULE-SET,merged-segment-09-domain,DIRECT
+- RULE-SET,merged-segment-09-ip,DIRECT
 - RULE-SET,BiliBili-classical,DIRECT
 - RULE-SET,alibaba-classical,DIRECT
 - RULE-SET,global-domain,🌍 国外流量
