@@ -638,10 +638,9 @@ rules:
 - RULE-SET,Lan-domain,DIRECT
 - RULE-SET,Lan-classical,DIRECT
 - RULE-SET,private,DIRECT
-- RULE-SET,Scholar-China-domain,DIRECT
-- RULE-SET,Scholar-Foreign-classical,⚡ 海外高速
-- RULE-SET,Scholar-domain,⚡ 海外高速
 - RULE-SET,me-domain,🤖 AI
+- RULE-SET,AppleProxy-domain,🤖 AI
+- RULE-SET,AppleProxy-classical,🤖 AI
 - RULE-SET,AppleIntelligence-domain,🤖 AI
 - RULE-SET,openai-domain,🤖 AI
 - RULE-SET,openai-ip,🤖 AI
@@ -652,6 +651,7 @@ rules:
 - RULE-SET,gemini-classical,🤖 AI
 - RULE-SET,AI-domain,🤖 AI
 - RULE-SET,AI-classical,🤖 AI
+- RULE-SET,cloudflare-domain,🤖 AI
 - RULE-SET,GoogleVoice-domain,🤖 AI
 - RULE-SET,Crypto-domain,🤖 AI
 - RULE-SET,Crypto-classical,🤖 AI
@@ -663,9 +663,9 @@ rules:
 - RULE-SET,apple,DIRECT
 - RULE-SET,icloud,DIRECT
 - RULE-SET,qcloud,DIRECT
-- RULE-SET,cloudflare-domain,🤖 AI
-- RULE-SET,AppleProxy-domain,🤖 AI
-- RULE-SET,AppleProxy-classical,🤖 AI
+- RULE-SET,Scholar-China-domain,DIRECT
+- RULE-SET,Scholar-Foreign-classical,⚡ 海外高速
+- RULE-SET,Scholar-domain,⚡ 海外高速
 - RULE-SET,Telegram-domain,⚡ 海外高速
 - RULE-SET,Telegram-classical,⚡ 海外高速
 - RULE-SET,github-domain,⚡ 海外高速
