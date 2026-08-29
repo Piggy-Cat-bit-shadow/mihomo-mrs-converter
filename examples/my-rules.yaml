@@ -359,8 +359,8 @@ rules:
 - RULE-SET,IPCheck,🤖 AI
 - RULE-SET,paypal,🤖 AI
 - RULE-SET,wechat,DIRECT
-- RULE-SET,cloudflare,⚡ 海外高速
-- RULE-SET,AppleProxy,⚡ 海外高速
+- RULE-SET,cloudflare,🤖 AI
+- RULE-SET,AppleProxy,🤖 AI
 - RULE-SET,Telegram,⚡ 海外高速
 - RULE-SET,github,⚡ 海外高速
 - RULE-SET,GoogleEarth,⚡ 海外高速
