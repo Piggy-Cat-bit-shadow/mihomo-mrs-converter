@@ -644,7 +644,7 @@ rule-providers:
     path: ./ruleset/chinamax-domain.mrs
     interval: 1209600
 rules:
-- IP-CIDR,0.0.0.0/32,REJECT,no-resolve
+- IP-CIDR,0.0.0.0/32,REJECT-DROP,no-resolve
 - DOMAIN-SUFFIX,giffgaff.com,🤖 AI
 - DOMAIN-SUFFIX,giff.ly,🤖 AI
 - DOMAIN-SUFFIX,giffgaffrecycle.com,🤖 AI
@@ -707,6 +707,10 @@ rules:
 - RULE-SET,MEGA-domain,⚡ 海外高速
 - RULE-SET,MEGA-ip,⚡ 海外高速
 - RULE-SET,MEGA-classical,⚡ 海外高速
+- RULE-SET,AWAvenueAds-domain,REJECT-DROP
+- RULE-SET,AWAvenueAds-classical,REJECT-DROP
+- RULE-SET,HageziAds,REJECT-DROP
+- RULE-SET,AntiAD,REJECT-DROP
 - RULE-SET,youtube-domain,⚡ 海外高速
 - RULE-SET,youtube-ip,⚡ 海外高速
 - RULE-SET,youtube-classical,⚡ 海外高速
