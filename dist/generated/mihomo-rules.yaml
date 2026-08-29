@@ -559,6 +559,34 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/BaiDuTieBa.mrs
     path: ./ruleset/BaiDuTieBa-domain.mrs
     interval: 1209600
+  alibaba-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/alibaba-domain.mrs
+    path: ./ruleset/alibaba-domain.mrs
+    interval: 86400
+  alibaba-ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/alibaba.mrs
+    path: ./ruleset/alibaba-ip.mrs
+    interval: 86400
+  alibaba-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/alibaba.yaml
+    path: ./ruleset/alibaba-classical.yaml
+    interval: 86400
+  qcloud:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/qcloud.mrs
+    path: ./ruleset/qcloud.mrs
+    interval: 86400
   global-mrs-domain:
     type: http
     behavior: domain
@@ -706,6 +734,14 @@ rules:
 - RULE-SET,BiliBili-ip,DIRECT
 - RULE-SET,BiliBili-classical,DIRECT
 - RULE-SET,BaiDuTieBa-domain,DIRECT
+- RULE-SET,BiliBili-domain,DIRECT
+- RULE-SET,BiliBili-ip,DIRECT
+- RULE-SET,BiliBili-classical,DIRECT
+- RULE-SET,BaiDuTieBa-domain,DIRECT
+- RULE-SET,alibaba-domain,DIRECT
+- RULE-SET,alibaba-ip,DIRECT
+- RULE-SET,alibaba-classical,DIRECT
+- RULE-SET,qcloud,DIRECT
 - RULE-SET,global-mrs-domain,🌍 国外流量
 - RULE-SET,global-ip,🌍 国外流量
 - RULE-SET,global-classical,🌍 国外流量
