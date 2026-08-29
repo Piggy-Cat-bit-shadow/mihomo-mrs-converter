@@ -107,8 +107,22 @@ def source_domain_value(rule: RuleLine) -> str | None:
     if rule.kind == "DOMAIN":
         return value
     if rule.kind == "DOMAIN-SUFFIX":
-        return f".{value.lstrip('.')}"
+        return f"+.{value.lstrip('.')}"
     return None
+
+
+def validate_source_domain_value(rule: RuleLine, converted: str) -> None:
+    value = rule.parts[1]
+    if rule.kind == "DOMAIN":
+        expected = value
+    elif rule.kind == "DOMAIN-SUFFIX":
+        expected = f"+.{value.lstrip('.')}"
+    else:
+        return
+    if converted != expected:
+        raise SystemExit(
+            f"{rule.raw}: domain conversion mismatch; got={converted!r} expected={expected!r}"
+        )
 
 
 def source_ip_value(rule: RuleLine) -> str | None:
@@ -250,6 +264,7 @@ def process_provider(
             domain_value = source_domain_value(rule)
             ip_value = source_ip_value(rule)
             if domain_value is not None:
+                validate_source_domain_value(rule, domain_value)
                 domain_values.append(domain_value)
                 domain_originals.append(rule.raw)
             elif ip_value is not None:

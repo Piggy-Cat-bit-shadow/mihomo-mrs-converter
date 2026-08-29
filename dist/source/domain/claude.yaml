@@ -1,4 +1,4 @@
 payload:
 - cdn.usefathom.com
-- .anthropic.com
-- .claude.ai
+- +.anthropic.com
+- +.claude.ai
