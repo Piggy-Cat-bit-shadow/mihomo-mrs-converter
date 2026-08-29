@@ -1,4 +1,10 @@
 rule-providers:
+  me:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/me
+    path: ./ruleset/me.yaml
   Lan:
     type: http
     behavior: classical
@@ -328,9 +334,7 @@ rule-providers:
     interval: 1209600
 rules:
 - IP-CIDR,0.0.0.0/32,REJECT-DROP,no-resolve
-- DOMAIN-SUFFIX,giffgaff.com,🤖 AI
-- DOMAIN-SUFFIX,giff.ly,🤖 AI
-- DOMAIN-SUFFIX,giffgaffrecycle.com,🤖 AI
+- RULE-SET,me,🤖 AI
 - RULE-SET,Lan,DIRECT
 - RULE-SET,private,DIRECT
 - DOMAIN-SUFFIX,cnki.net,DIRECT
