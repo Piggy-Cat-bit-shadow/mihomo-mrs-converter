@@ -280,6 +280,27 @@ rule-providers:
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/BaiDuTieBa/BaiDuTieBa.yaml
     path: ./ruleset/BaiDuTieBa.yaml
     interval: 1209600
+  alibaba-domain:
+    type: http
+    behavior: domain
+    format: yaml
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Alibaba/Alibaba_Domain.yaml
+    path: ./ruleset/alibaba-domain.yaml
+    interval: 86400
+  alibaba:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Alibaba/Alibaba.yaml
+    path: ./ruleset/alibaba.yaml
+    interval: 86400
+  qcloud:
+    type: http
+    behavior: domain
+    format: yaml
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/qcloud.yaml
+    path: ./ruleset/qcloud.yaml
+    interval: 86400
   global:
     type: http
     behavior: classical
@@ -361,6 +382,11 @@ rules:
 - RULE-SET,DouYin,DIRECT
 - RULE-SET,BiliBili,DIRECT
 - RULE-SET,BaiDuTieBa,DIRECT
+- RULE-SET,BiliBili,DIRECT
+- RULE-SET,BaiDuTieBa,DIRECT
+- RULE-SET,alibaba-domain,DIRECT
+- RULE-SET,alibaba,DIRECT
+- RULE-SET,qcloud,DIRECT
 - RULE-SET,global,🌍 国外流量
 - RULE-SET,chinamax,DIRECT
 - GEOIP,CN,DIRECT,no-resolve
