@@ -185,7 +185,7 @@ def normalize(rule: str) -> str:
 
 
 def source_domain_value(rule: RuleLine) -> str | None:
-    if len(rule.parts) < 2:
+    if len(rule.parts) != 2:
         return None
     value = rule.parts[1]
     if rule.kind == "DOMAIN":

@@ -71,6 +71,21 @@ class SourceDomainValueTest(unittest.TestCase):
             "+.chatgpt.com",
         )
 
+    def test_domain_with_extra_field_is_not_convertible(self) -> None:
+        self.assertIsNone(convert.source_domain_value(convert.parse_rule("DOMAIN,example.com,foo")))
+
+    def test_domain_suffix_with_extra_field_is_not_convertible(self) -> None:
+        self.assertIsNone(convert.source_domain_value(convert.parse_rule("DOMAIN-SUFFIX,example.com,foo")))
+
+    def test_domain_no_resolve_is_not_convertible(self) -> None:
+        self.assertIsNone(convert.source_domain_value(convert.parse_rule("DOMAIN,example.com,no-resolve")))
+
+    def test_domain_suffix_no_resolve_is_not_convertible(self) -> None:
+        self.assertIsNone(convert.source_domain_value(convert.parse_rule("DOMAIN-SUFFIX,example.com,no-resolve")))
+
+    def test_domain_suffix_with_multiple_extra_fields_is_not_convertible(self) -> None:
+        self.assertIsNone(convert.source_domain_value(convert.parse_rule("DOMAIN-SUFFIX,example.com,foo,bar")))
+
 
 class ProviderConversionTest(ConvertTestCase):
     def test_ip_cidr_enters_ipcidr(self) -> None:
@@ -218,6 +233,37 @@ class ProviderConversionTest(ConvertTestCase):
             self.assertEqual(
                 yaml.safe_load((dist / "classical/sample.yaml").read_text()),
                 {"payload": [raw]},
+            )
+
+    def test_domain_rules_with_extra_fields_stay_in_classical_fallback(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            dist = Path(tmp)
+            self.process_with_text(
+                "sample",
+                http_provider(),
+                "\n".join(
+                    [
+                        "payload:",
+                        "- DOMAIN,exact.example.com",
+                        "- DOMAIN-SUFFIX,suffix.example.com",
+                        "- DOMAIN,keep.example.com,some-option",
+                        "- DOMAIN-SUFFIX,keep-suffix.example.com,some-option",
+                    ]
+                ),
+                dist,
+            )
+
+            domain_payload = yaml.safe_load((dist / "source/domain/sample.yaml").read_text())["payload"]
+            classical_payload = yaml.safe_load((dist / "classical/sample.yaml").read_text())["payload"]
+            self.assertEqual(domain_payload, ["exact.example.com", "+.suffix.example.com"])
+            self.assertNotIn("keep.example.com", domain_payload)
+            self.assertNotIn("+.keep-suffix.example.com", domain_payload)
+            self.assertEqual(
+                classical_payload,
+                [
+                    "DOMAIN,keep.example.com,some-option",
+                    "DOMAIN-SUFFIX,keep-suffix.example.com,some-option",
+                ],
             )
 
     def test_allow_no_mihomo_uses_yaml_source_urls(self) -> None:
