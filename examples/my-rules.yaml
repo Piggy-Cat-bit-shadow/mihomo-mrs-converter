@@ -335,16 +335,15 @@ rules:
 - IP-CIDR,0.0.0.0/32,REJECT-DROP,no-resolve
 - RULE-SET,Lan,DIRECT
 - RULE-SET,private,DIRECT
-- RULE-SET,Scholar-China,DIRECT
-- RULE-SET,Scholar-Foreign,⚡ 海外高速
-- RULE-SET,Scholar,⚡ 海外高速
 - RULE-SET,me,🤖 AI
+- RULE-SET,AppleProxy,🤖 AI
 - RULE-SET,AppleIntelligence,🤖 AI
 - RULE-SET,openai,🤖 AI
 - RULE-SET,claude,🤖 AI
 - RULE-SET,Anthropic,🤖 AI
 - RULE-SET,gemini,🤖 AI
 - RULE-SET,AI,🤖 AI
+- RULE-SET,cloudflare,🤖 AI
 - RULE-SET,GoogleVoice,🤖 AI
 - RULE-SET,Crypto,🤖 AI
 - RULE-SET,IPCheck,🤖 AI
@@ -353,8 +352,9 @@ rules:
 - RULE-SET,apple,DIRECT
 - RULE-SET,icloud,DIRECT
 - RULE-SET,qcloud,DIRECT
-- RULE-SET,cloudflare,🤖 AI
-- RULE-SET,AppleProxy,🤖 AI
+- RULE-SET,Scholar-China,DIRECT
+- RULE-SET,Scholar-Foreign,⚡ 海外高速
+- RULE-SET,Scholar,⚡ 海外高速
 - RULE-SET,Telegram,⚡ 海外高速
 - RULE-SET,github,⚡ 海外高速
 - RULE-SET,GoogleEarth,⚡ 海外高速
