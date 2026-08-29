@@ -1,4 +1,16 @@
 rule-providers:
+  Scholar-China:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/Scholar-China
+    path: ./ruleset/Scholar-China.yaml
+  Scholar-Scholar-Foreign:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/Scholar-Foreign
+    path: ./ruleset/Scholar-Foreign.yaml
   me:
     type: http
     behavior: classical
@@ -321,20 +333,12 @@ rule-providers:
     interval: 1209600
 rules:
 - IP-CIDR,0.0.0.0/32,REJECT-DROP,no-resolve
-- RULE-SET,me,🤖 AI
 - RULE-SET,Lan,DIRECT
 - RULE-SET,private,DIRECT
-- DOMAIN-SUFFIX,cnki.net,DIRECT
-- DOMAIN-SUFFIX,cqvip.com,DIRECT
-- DOMAIN-SUFFIX,kuke.com,DIRECT
-- DOMAIN-SUFFIX,pkulaw.com,DIRECT
-- DOMAIN-SUFFIX,wanfangdata.com,DIRECT
-- DOMAIN-SUFFIX,wanfangdata.com.cn,DIRECT
-- DOMAIN-SUFFIX,westlawchina.com,DIRECT
-- DOMAIN-SUFFIX,clinicaltrials.gov,⚡ 海外高速
-- DOMAIN-SUFFIX,orcid.org,⚡ 海外高速
-- DOMAIN-SUFFIX,medrxiv.org,⚡ 海外高速
+- RULE-SET,Scholar-China,DIRECT
+- RULE-SET,Scholar-Foreign,⚡ 海外高速
 - RULE-SET,Scholar,⚡ 海外高速
+- RULE-SET,me,🤖 AI
 - RULE-SET,AppleIntelligence,🤖 AI
 - RULE-SET,openai,🤖 AI
 - RULE-SET,claude,🤖 AI
