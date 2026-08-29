@@ -670,9 +670,9 @@ rules:
 - RULE-SET,paypal-classical,🤖 AI
 - RULE-SET,wechat-domain,DIRECT
 - RULE-SET,wechat-classical,DIRECT
-- RULE-SET,cloudflare-domain,⚡ 海外高速
-- RULE-SET,AppleProxy-domain,⚡ 海外高速
-- RULE-SET,AppleProxy-classical,⚡ 海外高速
+- RULE-SET,cloudflare-domain,🤖 AI
+- RULE-SET,AppleProxy-domain,🤖 AI
+- RULE-SET,AppleProxy-classical,🤖 AI
 - RULE-SET,Telegram-domain,⚡ 海外高速
 - RULE-SET,Telegram-classical,⚡ 海外高速
 - RULE-SET,github-domain,⚡ 海外高速
