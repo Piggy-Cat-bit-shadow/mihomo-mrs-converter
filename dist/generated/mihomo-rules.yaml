@@ -716,9 +716,9 @@ rules:
 - RULE-SET,Spotify-classical,⚡ 海外高速
 - RULE-SET,tiktok-domain,⚡ 海外高速
 - RULE-SET,tiktok-classical,⚡ 海外高速
-- RULE-SET,google-domain,🤖 AI
-- RULE-SET,google-ip,🤖 AI
-- RULE-SET,google-classical,🤖 AI
+- RULE-SET,google-domain,⚡ 海外高速
+- RULE-SET,google-ip,⚡ 海外高速
+- RULE-SET,google-classical,⚡ 海外高速
 - RULE-SET,apple,DIRECT
 - RULE-SET,icloud,DIRECT
 - RULE-SET,DouYin-domain,DIRECT
