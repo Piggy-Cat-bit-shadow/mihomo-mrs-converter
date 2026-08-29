@@ -579,12 +579,12 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/qcloud.mrs
     path: ./ruleset/qcloud.mrs
     interval: 86400
-  global-mrs-domain:
+  global-domain:
     type: http
     behavior: domain
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/global.mrs
-    path: ./ruleset/global-mrs-domain.mrs
+    path: ./ruleset/global-domain.mrs
     interval: 1209600
   global-ip:
     type: http
@@ -600,19 +600,12 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/global.yaml
     path: ./ruleset/global-classical.yaml
     interval: 1209600
-  global-domain:
-    type: http
-    behavior: domain
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/global-domain.mrs
-    path: ./ruleset/global-domain.mrs
-    interval: 1209600
-  chinamax-mrs-domain:
+  chinamax-domain:
     type: http
     behavior: domain
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/chinamax.mrs
-    path: ./ruleset/chinamax-mrs-domain.mrs
+    path: ./ruleset/chinamax-domain.mrs
     interval: 1209600
   chinamax-ip:
     type: http
@@ -628,15 +621,11 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/chinamax.yaml
     path: ./ruleset/chinamax-classical.yaml
     interval: 1209600
-  chinamax-domain:
-    type: http
-    behavior: domain
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/chinamax-domain.mrs
-    path: ./ruleset/chinamax-domain.mrs
-    interval: 1209600
 rules:
 - IP-CIDR,0.0.0.0/32,REJECT-DROP,no-resolve
+- IP-CIDR,1.12.226.144/32,DIRECT,no-resolve
+- IP-CIDR,195.245.241.114/32,DIRECT,no-resolve
+- IP-CIDR,95.169.6.169/32,DIRECT,no-resolve
 - RULE-SET,me-domain,🤖 AI
 - RULE-SET,Lan-domain,DIRECT
 - RULE-SET,Lan-classical,DIRECT
@@ -670,6 +659,9 @@ rules:
 - RULE-SET,paypal-classical,🤖 AI
 - RULE-SET,wechat-domain,DIRECT
 - RULE-SET,wechat-classical,DIRECT
+- RULE-SET,apple,DIRECT
+- RULE-SET,icloud,DIRECT
+- RULE-SET,qcloud,DIRECT
 - RULE-SET,cloudflare-domain,🤖 AI
 - RULE-SET,AppleProxy-domain,🤖 AI
 - RULE-SET,AppleProxy-classical,🤖 AI
@@ -719,13 +711,7 @@ rules:
 - RULE-SET,google-domain,⚡ 海外高速
 - RULE-SET,google-ip,⚡ 海外高速
 - RULE-SET,google-classical,⚡ 海外高速
-- RULE-SET,apple,DIRECT
-- RULE-SET,icloud,DIRECT
 - RULE-SET,DouYin-domain,DIRECT
-- RULE-SET,BiliBili-domain,DIRECT
-- RULE-SET,BiliBili-ip,DIRECT
-- RULE-SET,BiliBili-classical,DIRECT
-- RULE-SET,BaiDuTieBa-domain,DIRECT
 - RULE-SET,BiliBili-domain,DIRECT
 - RULE-SET,BiliBili-ip,DIRECT
 - RULE-SET,BiliBili-classical,DIRECT
@@ -733,11 +719,10 @@ rules:
 - RULE-SET,alibaba-domain,DIRECT
 - RULE-SET,alibaba-ip,DIRECT
 - RULE-SET,alibaba-classical,DIRECT
-- RULE-SET,qcloud,DIRECT
-- RULE-SET,global-mrs-domain,🌍 国外流量
+- RULE-SET,global-domain,🌍 国外流量
 - RULE-SET,global-ip,🌍 国外流量
 - RULE-SET,global-classical,🌍 国外流量
-- RULE-SET,chinamax-mrs-domain,DIRECT
+- RULE-SET,chinamax-domain,DIRECT
 - RULE-SET,chinamax-ip,DIRECT
 - RULE-SET,chinamax-classical,DIRECT
 - GEOIP,CN,DIRECT,no-resolve
