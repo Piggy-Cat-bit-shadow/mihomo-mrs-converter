@@ -47,27 +47,13 @@ rule-providers:
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/merged-segment-06-domain.mrs
     path: ./ruleset/merged/merged-segment-06-domain.mrs
-    interval: 1209600
+    interval: 86400
   merged-segment-06-ip:
     type: http
     behavior: ipcidr
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/merged-segment-06-ip.mrs
     path: ./ruleset/merged/merged-segment-06-ip.mrs
-    interval: 1209600
-  merged-segment-07-domain:
-    type: http
-    behavior: domain
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/merged-segment-07-domain.mrs
-    path: ./ruleset/merged/merged-segment-07-domain.mrs
-    interval: 86400
-  merged-segment-07-ip:
-    type: http
-    behavior: ipcidr
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/merged-segment-07-ip.mrs
-    path: ./ruleset/merged/merged-segment-07-ip.mrs
     interval: 86400
   Lan-classical:
     type: http
@@ -201,13 +187,6 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/MEGA.yaml
     path: ./ruleset/merged/MEGA-classical.yaml
     interval: 1209600
-  AWAvenueAds-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/AWAvenueAds.yaml
-    path: ./ruleset/merged/AWAvenueAds-classical.yaml
-    interval: 604800
   youtube-classical:
     type: http
     behavior: classical
@@ -257,6 +236,20 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/google.yaml
     path: ./ruleset/merged/google-classical.yaml
     interval: 1209600
+  global-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/global.yaml
+    path: ./ruleset/merged/global-classical.yaml
+    interval: 1209600
+  AWAvenueAds-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/AWAvenueAds.yaml
+    path: ./ruleset/merged/AWAvenueAds-classical.yaml
+    interval: 604800
   BiliBili-classical:
     type: http
     behavior: classical
@@ -271,41 +264,6 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/alibaba.yaml
     path: ./ruleset/merged/alibaba-classical.yaml
     interval: 86400
-  global-domain:
-    type: http
-    behavior: domain
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/global.mrs
-    path: ./ruleset/merged/global-domain.mrs
-    interval: 1209600
-  global-ip:
-    type: http
-    behavior: ipcidr
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/global.mrs
-    path: ./ruleset/merged/global-ip.mrs
-    interval: 1209600
-  global-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/global.yaml
-    path: ./ruleset/merged/global-classical.yaml
-    interval: 1209600
-  chinamax-domain:
-    type: http
-    behavior: domain
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/chinamax.mrs
-    path: ./ruleset/merged/chinamax-domain.mrs
-    interval: 1209600
-  chinamax-ip:
-    type: http
-    behavior: ipcidr
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/chinamax.mrs
-    path: ./ruleset/merged/chinamax-ip.mrs
-    interval: 1209600
   chinamax-classical:
     type: http
     behavior: classical
@@ -339,10 +297,6 @@ rules:
 - RULE-SET,GoogleDrive-classical,⚡ 海外高速
 - RULE-SET,OneDrive-classical,⚡ 海外高速
 - RULE-SET,MEGA-classical,⚡ 海外高速
-- RULE-SET,merged-segment-05-domain,REJECT-DROP
-- RULE-SET,AWAvenueAds-classical,REJECT-DROP
-- RULE-SET,merged-segment-06-domain,⚡ 海外高速
-- RULE-SET,merged-segment-06-ip,⚡ 海外高速
 - RULE-SET,youtube-classical,⚡ 海外高速
 - RULE-SET,Instagram-classical,⚡ 海外高速
 - RULE-SET,Facebook-classical,⚡ 海外高速
@@ -350,15 +304,13 @@ rules:
 - RULE-SET,Spotify-classical,⚡ 海外高速
 - RULE-SET,tiktok-classical,⚡ 海外高速
 - RULE-SET,google-classical,⚡ 海外高速
-- RULE-SET,merged-segment-07-domain,DIRECT
-- RULE-SET,merged-segment-07-ip,DIRECT
+- RULE-SET,global-classical,⚡ 海外高速
+- RULE-SET,merged-segment-05-domain,REJECT-DROP
+- RULE-SET,AWAvenueAds-classical,REJECT-DROP
+- RULE-SET,merged-segment-06-domain,DIRECT
+- RULE-SET,merged-segment-06-ip,DIRECT
 - RULE-SET,BiliBili-classical,DIRECT
 - RULE-SET,alibaba-classical,DIRECT
-- RULE-SET,global-domain,🌍 国外流量
-- RULE-SET,global-ip,🌍 国外流量
-- RULE-SET,global-classical,🌍 国外流量
-- RULE-SET,chinamax-domain,DIRECT
-- RULE-SET,chinamax-ip,DIRECT
 - RULE-SET,chinamax-classical,DIRECT
 - GEOIP,CN,DIRECT,no-resolve
-- MATCH,🌍 国外流量
+- MATCH,⚡ 海外高速

@@ -689,10 +689,6 @@ rules:
 - RULE-SET,MEGA-domain,⚡ 海外高速
 - RULE-SET,MEGA-ip,⚡ 海外高速
 - RULE-SET,MEGA-classical,⚡ 海外高速
-- RULE-SET,AWAvenueAds-domain,REJECT-DROP
-- RULE-SET,AWAvenueAds-classical,REJECT-DROP
-- RULE-SET,HageziAds,REJECT-DROP
-- RULE-SET,AntiAD,REJECT-DROP
 - RULE-SET,youtube-domain,⚡ 海外高速
 - RULE-SET,youtube-classical,⚡ 海外高速
 - RULE-SET,Instagram-domain,⚡ 海外高速
@@ -712,6 +708,13 @@ rules:
 - RULE-SET,google-domain,⚡ 海外高速
 - RULE-SET,google-ip,⚡ 海外高速
 - RULE-SET,google-classical,⚡ 海外高速
+- RULE-SET,global-domain,⚡ 海外高速
+- RULE-SET,global-ip,⚡ 海外高速
+- RULE-SET,global-classical,⚡ 海外高速
+- RULE-SET,AWAvenueAds-domain,REJECT-DROP
+- RULE-SET,AWAvenueAds-classical,REJECT-DROP
+- RULE-SET,HageziAds,REJECT-DROP
+- RULE-SET,AntiAD,REJECT-DROP
 - RULE-SET,DouYin-domain,DIRECT
 - RULE-SET,BiliBili-domain,DIRECT
 - RULE-SET,BiliBili-ip,DIRECT
@@ -720,11 +723,8 @@ rules:
 - RULE-SET,alibaba-domain,DIRECT
 - RULE-SET,alibaba-ip,DIRECT
 - RULE-SET,alibaba-classical,DIRECT
-- RULE-SET,global-domain,🌍 国外流量
-- RULE-SET,global-ip,🌍 国外流量
-- RULE-SET,global-classical,🌍 国外流量
 - RULE-SET,chinamax-domain,DIRECT
 - RULE-SET,chinamax-ip,DIRECT
 - RULE-SET,chinamax-classical,DIRECT
 - GEOIP,CN,DIRECT,no-resolve
-- MATCH,🌍 国外流量
+- MATCH,⚡ 海外高速
