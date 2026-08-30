@@ -91,10 +91,15 @@ PASSTHROUGH_PROVIDER_FIELDS = {
 }
 
 
-def load_yaml(path: Path) -> dict[str, Any]:
+def load_yaml_mapping(path: Path) -> dict[str, Any]:
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
         raise SystemExit(f"{path} must be a YAML mapping")
+    return data
+
+
+def load_yaml(path: Path) -> dict[str, Any]:
+    data = load_yaml_mapping(path)
     allowed = {"rule-providers", "rules"}
     extra = sorted(set(data) - allowed)
     if extra:
@@ -1306,6 +1311,100 @@ def validate_rule_counts(name: str, original: Counter[str], rebuilt: Counter[str
         )
 
 
+def is_converter_managed_provider(provider: dict[str, Any]) -> bool:
+    url = provider.get("url")
+    if isinstance(url, str):
+        relative = dist_relative_from_url(url)
+        if relative is not None and relative.parts:
+            if relative.parts[0] in {
+                "classical",
+                "domain",
+                "generated",
+                "ipcidr",
+                "merged",
+                "merged-dedup",
+                "source",
+                "unmerged",
+            }:
+                return True
+
+    path = provider.get("path")
+    if isinstance(path, str) and path.startswith(
+        (
+            "./ruleset/merged/",
+            "./ruleset/merged-dedup/",
+            "./ruleset/unmerged/",
+        )
+    ):
+        return True
+
+    return False
+
+
+def ruleset_provider_name(rule: Any) -> str | None:
+    parts = ruleset_parts(rule)
+    if parts is None:
+        return None
+    return parts[1]
+
+
+def refresh_complete_config(
+    complete_config: dict[str, Any],
+    generated_config: dict[str, Any],
+) -> dict[str, Any]:
+    old_providers = complete_config.get("rule-providers") or {}
+    old_rules = complete_config.get("rules") or []
+    new_providers = generated_config.get("rule-providers") or {}
+    new_rules = generated_config.get("rules") or []
+
+    if not isinstance(old_providers, dict) or not isinstance(old_rules, list):
+        raise SystemExit("complete config must contain rule-providers mapping and rules list")
+    if not isinstance(new_providers, dict) or not isinstance(new_rules, list):
+        raise SystemExit("generated config must contain rule-providers mapping and rules list")
+
+    managed_old_names = {
+        name
+        for name, provider in old_providers.items()
+        if isinstance(provider, dict) and is_converter_managed_provider(provider)
+    }
+
+    refreshed = dict(complete_config)
+    refreshed_providers = {
+        name: provider
+        for name, provider in old_providers.items()
+        if name not in managed_old_names and name not in new_providers
+    }
+    refreshed_providers.update(new_providers)
+    refreshed["rule-providers"] = refreshed_providers
+
+    first_managed_index: int | None = None
+    retained_rules: list[Any] = []
+    for rule in old_rules:
+        provider_name = ruleset_provider_name(rule)
+        if provider_name is not None and provider_name in managed_old_names:
+            if first_managed_index is None:
+                first_managed_index = len(retained_rules)
+            continue
+        retained_rules.append(rule)
+
+    insert_at = first_managed_index if first_managed_index is not None else len(retained_rules)
+    refreshed["rules"] = [
+        *retained_rules[:insert_at],
+        *new_rules,
+        *retained_rules[insert_at:],
+    ]
+    validate_generated_rulesets(refreshed["rules"], set(refreshed_providers))
+    return refreshed
+
+
+def write_yaml_mapping(path: Path, data: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        yaml.safe_dump(data, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Convert Mihomo rule-providers to MRS safely.")
     parser.add_argument("input", type=Path)
@@ -1317,6 +1416,22 @@ def main() -> None:
     )
     parser.add_argument("--mihomo", default=os.environ.get("MIHOMO_BIN") or shutil.which("mihomo"))
     parser.add_argument("--allow-no-mihomo", action="store_true")
+    parser.add_argument(
+        "--complete-config",
+        type=Path,
+        help="Optional full Mihomo/Clash config to refresh with this run's generated providers and rules.",
+    )
+    parser.add_argument(
+        "--complete-output",
+        type=Path,
+        help="Output path for --complete-config. Defaults to overwriting --complete-config.",
+    )
+    parser.add_argument(
+        "--complete-suite",
+        choices=("unmerged", "merged", "merged-dedup"),
+        default="merged-dedup",
+        help="Generated suite to merge into --complete-config.",
+    )
     args = parser.parse_args()
 
     if not args.mihomo and not args.allow_no_mihomo:
@@ -1440,6 +1555,18 @@ def main() -> None:
     print_suite_stats("Merged", "merged", merged_suite, args.dist)
     print_suite_stats("Merged + dedup", "merged-dedup", dedup, args.dist)
     print("=======================================")
+
+    if args.complete_config:
+        suite_configs = {
+            "unmerged": unmerged_suite,
+            "merged": merged_suite,
+            "merged-dedup": dedup,
+        }
+        complete = load_yaml_mapping(args.complete_config)
+        refreshed = refresh_complete_config(complete, suite_configs[args.complete_suite])
+        complete_output = args.complete_output or args.complete_config
+        write_yaml_mapping(complete_output, refreshed)
+        print(f"wrote refreshed complete config {complete_output}")
 
 
 if __name__ == "__main__":

@@ -115,6 +115,18 @@ python scripts/convert.py examples/my-rules.yaml \
 
 此模式下 `domain` / `ipcidr` provider 会引用 `dist/source/domain/*.yaml` 和 `dist/source/ipcidr/*.yaml`，不会生成指向不存在 `.mrs` 的配置。
 
+如果要把本轮生成结果刷新进完整 Mihomo / Clash 配置，可以指定完整配置路径：
+
+```bash
+python scripts/convert.py examples/my-rules.yaml \
+  --base-url "https://raw.githubusercontent.com/<owner>/<repo>/main" \
+  --complete-config "/path/to/full-config.yaml" \
+  --complete-output "/path/to/full-config.generated.yaml" \
+  --complete-suite merged-dedup
+```
+
+刷新完整配置时，本轮转换器生成的 `rule-providers` 和 `RULE-SET` 会作为转换器管理区域的唯一真源；上一轮存在但本轮不存在的旧 provider 和旧 `RULE-SET` 会被删除。其它非转换器管理的配置字段、普通规则和自定义 provider 会保留。
+
 ## GitHub Actions
 
 推送到 GitHub 后，工作流会：

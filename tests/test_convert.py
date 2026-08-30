@@ -492,5 +492,88 @@ class SafeDedupTest(ConvertTestCase):
             )
 
 
+class CompleteConfigRefreshTest(unittest.TestCase):
+    def test_refresh_removes_stale_managed_providers_and_rules(self) -> None:
+        complete = {
+            "proxies": [{"name": "keep-proxy", "type": "direct"}],
+            "rule-providers": {
+                "custom-provider": {
+                    "type": "http",
+                    "behavior": "domain",
+                    "format": "yaml",
+                    "url": "https://example.com/custom.yaml",
+                    "path": "./rule-providers/custom.yaml",
+                },
+                "xxx-classical": {
+                    "type": "http",
+                    "behavior": "classical",
+                    "format": "yaml",
+                    "url": f"{BASE_URL}/dist/merged-dedup/classical/xxx.yaml",
+                    "path": "./ruleset/merged-dedup/xxx-classical.yaml",
+                },
+                "merged-segment-06-domain": {
+                    "type": "http",
+                    "behavior": "domain",
+                    "format": "mrs",
+                    "url": f"{BASE_URL}/dist/merged-dedup/domain/merged-segment-06-domain.mrs",
+                    "path": "./ruleset/merged-dedup/merged-segment-06-domain.mrs",
+                },
+                "merged-segment-07-domain": {
+                    "type": "http",
+                    "behavior": "domain",
+                    "format": "mrs",
+                    "url": f"{BASE_URL}/dist/merged-dedup/domain/merged-segment-07-domain.mrs",
+                    "path": "./ruleset/merged-dedup/merged-segment-07-domain.mrs",
+                },
+                "merged-segment-07-ip": {
+                    "type": "http",
+                    "behavior": "ipcidr",
+                    "format": "mrs",
+                    "url": f"{BASE_URL}/dist/merged-dedup/ipcidr/merged-segment-07-ip.mrs",
+                    "path": "./ruleset/merged-dedup/merged-segment-07-ip.mrs",
+                },
+            },
+            "rules": [
+                "DOMAIN,manual-before.example,DIRECT",
+                "RULE-SET,merged-segment-06-domain,DIRECT",
+                "RULE-SET,xxx-classical,DIRECT",
+                "RULE-SET,merged-segment-07-domain,DIRECT",
+                "RULE-SET,merged-segment-07-ip,DIRECT,no-resolve",
+                "RULE-SET,custom-provider,Proxy",
+                "MATCH,Proxy",
+            ],
+        }
+        generated = {
+            "rule-providers": {
+                "merged-segment-06-domain": {
+                    "type": "http",
+                    "behavior": "domain",
+                    "format": "mrs",
+                    "url": f"{BASE_URL}/dist/merged-dedup/domain/merged-segment-06-domain.mrs",
+                    "path": "./ruleset/merged-dedup/merged-segment-06-domain.mrs",
+                }
+            },
+            "rules": ["RULE-SET,merged-segment-06-domain,DIRECT"],
+        }
+
+        refreshed = convert.refresh_complete_config(complete, generated)
+
+        self.assertEqual(refreshed["proxies"], complete["proxies"])
+        self.assertIn("custom-provider", refreshed["rule-providers"])
+        self.assertIn("merged-segment-06-domain", refreshed["rule-providers"])
+        self.assertNotIn("xxx-classical", refreshed["rule-providers"])
+        self.assertNotIn("merged-segment-07-domain", refreshed["rule-providers"])
+        self.assertNotIn("merged-segment-07-ip", refreshed["rule-providers"])
+        self.assertEqual(
+            refreshed["rules"],
+            [
+                "DOMAIN,manual-before.example,DIRECT",
+                "RULE-SET,merged-segment-06-domain,DIRECT",
+                "RULE-SET,custom-provider,Proxy",
+                "MATCH,Proxy",
+            ],
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
