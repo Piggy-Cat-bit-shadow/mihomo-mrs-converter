@@ -332,7 +332,7 @@ rule-providers:
     path: ./ruleset/chinamax.yaml
     interval: 1209600
 rules:
-- IP-CIDR,0.0.0.0/32,REJECT-DROP,no-resolve
+- IP-CIDR,0.0.0.0/32,REJECT,no-resolve
 - RULE-SET,Lan,DIRECT
 - RULE-SET,private,DIRECT
 - RULE-SET,me,🤖 AI
