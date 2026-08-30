@@ -1,4 +1,7 @@
 payload:
+- +.clinicaltrials.gov
+- +.orcid.org
+- +.medrxiv.org
 - +.1lib.cloud
 - +.1lib.domains
 - +.1lib.education
@@ -13773,7 +13776,6 @@ payload:
 - +.medium.systems
 - +.mediumquality.ru
 - +.medow.ru
-- +.medrxiv.org
 - +.meendo.com
 - +.meetandfuck.games
 - +.meetandfuckgames.com

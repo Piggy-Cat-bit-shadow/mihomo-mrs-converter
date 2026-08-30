@@ -1,4 +1,7 @@
 payload:
+- +.clinicaltrials.gov
+- +.orcid.org
+- +.medrxiv.org
 - scholar.google.com
 - +.1lib.cloud
 - +.1lib.domains

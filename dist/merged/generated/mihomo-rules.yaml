@@ -118,12 +118,6 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/wechat.yaml
     path: ./ruleset/merged/wechat-classical.yaml
     interval: 1209600
-  Scholar-Foreign-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/Scholar-Foreign.yaml
-    path: ./ruleset/merged/Scholar-Foreign-classical.yaml
   Telegram-classical:
     type: http
     behavior: classical
@@ -287,7 +281,6 @@ rules:
 - RULE-SET,wechat-classical,DIRECT
 - RULE-SET,merged-segment-04-domain,⚡ 海外高速
 - RULE-SET,merged-segment-04-ip,⚡ 海外高速
-- RULE-SET,Scholar-Foreign-classical,⚡ 海外高速
 - RULE-SET,Telegram-classical,⚡ 海外高速
 - RULE-SET,github-classical,⚡ 海外高速
 - RULE-SET,WhatsApp-classical,⚡ 海外高速

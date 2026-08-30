@@ -5,12 +5,12 @@ rule-providers:
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Scholar-China.mrs
     path: ./ruleset/unmerged/Scholar-China-domain.mrs
-  Scholar-Foreign-classical:
+  Scholar-Foreign-domain:
     type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/Scholar-Foreign.yaml
-    path: ./ruleset/unmerged/Scholar-Foreign-classical.yaml
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Scholar-Foreign.mrs
+    path: ./ruleset/unmerged/Scholar-Foreign-domain.mrs
   me-domain:
     type: http
     behavior: domain
@@ -664,7 +664,7 @@ rules:
 - RULE-SET,icloud,DIRECT
 - RULE-SET,qcloud,DIRECT
 - RULE-SET,Scholar-China-domain,DIRECT
-- RULE-SET,Scholar-Foreign-classical,⚡ 海外高速
+- RULE-SET,Scholar-Foreign-domain,⚡ 海外高速
 - RULE-SET,Scholar-domain,⚡ 海外高速
 - RULE-SET,Telegram-domain,⚡ 海外高速
 - RULE-SET,Telegram-classical,⚡ 海外高速
