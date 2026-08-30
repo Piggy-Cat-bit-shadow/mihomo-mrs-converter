@@ -340,7 +340,7 @@ rule-providers:
     interval: 1209600
 rules:
 - IP-CIDR,0.0.0.0/32,REJECT,no-resolve
-- RULE-SET,AppleUpdate,REJECT
+- RULE-SET,AppleUpdate,REJECT-DROP
 - RULE-SET,Lan,DIRECT
 - RULE-SET,private,DIRECT
 - RULE-SET,me,🤖 AI
