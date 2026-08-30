@@ -5,18 +5,21 @@ rule-providers:
     format: yaml
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/Scholar-China
     path: ./ruleset/Scholar-China.yaml
+    interval: 1209600
   Scholar-Foreign:
     type: http
     behavior: classical
     format: yaml
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/Scholar-Foreign
     path: ./ruleset/Scholar-Foreign.yaml
+    interval: 1209600
   me:
     type: http
     behavior: classical
     format: yaml
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/me
     path: ./ruleset/me.yaml
+    interval: 1209600
   Lan:
     type: http
     behavior: classical
@@ -334,10 +337,9 @@ rule-providers:
   cn-ip:
     type: http
     behavior: ipcidr
-    format: mrs
-    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs
-    path: ./ruleset/cn-ip.mrs
-    interval: 604800
+    format: yaml
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.yaml
+    interval: 1209600
 rules:
 - IP-CIDR,0.0.0.0/32,REJECT,no-resolve
 - RULE-SET,Lan,DIRECT
