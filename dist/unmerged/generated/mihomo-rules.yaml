@@ -1,4 +1,11 @@
 rule-providers:
+  AppleUpdate:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/apple-update.mrs
+    path: ./ruleset/unmerged/AppleUpdate.mrs
+    interval: 1209600
   Scholar-China-domain:
     type: http
     behavior: domain
@@ -635,6 +642,7 @@ rule-providers:
     interval: 1209600
 rules:
 - IP-CIDR,0.0.0.0/32,REJECT,no-resolve
+- RULE-SET,AppleUpdate,REJECT
 - RULE-SET,Lan-domain,DIRECT
 - RULE-SET,Lan-classical,DIRECT
 - RULE-SET,private,DIRECT
