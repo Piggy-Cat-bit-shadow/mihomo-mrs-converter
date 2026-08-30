@@ -30,6 +30,13 @@ providers:
     behavior: domain
     format: mrs
     fingerprint: c6185b0bd3d4f556ed55116de36ae2fe26ad42457d934d14cee89b30dbd28527
+  me-classical:
+    name: me-classical
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/me.yaml
+    path: ./ruleset/unmerged/me-classical.yaml
+    behavior: classical
+    format: yaml
+    fingerprint: bf7d9baa1c0938ac8182ae0d0b1478bfa835057d6a59f87e87d072bfeadeeb93
   Lan-domain:
     name: Lan-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Lan.mrs

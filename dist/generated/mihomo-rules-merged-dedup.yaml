@@ -69,6 +69,12 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/Lan.yaml
     path: ./ruleset/merged-dedup/Lan-classical.yaml
     interval: 1209600
+  me-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/me.yaml
+    path: ./ruleset/merged-dedup/me-classical.yaml
   AppleProxy-classical:
     type: http
     behavior: classical
@@ -278,6 +284,7 @@ rules:
 - RULE-SET,merged-segment-02-domain,DIRECT
 - RULE-SET,Lan-classical,DIRECT
 - RULE-SET,merged-segment-03-domain,🤖 AI
+- RULE-SET,me-classical,🤖 AI
 - RULE-SET,AppleProxy-classical,🤖 AI
 - RULE-SET,openai-ip,🤖 AI
 - RULE-SET,openai-classical,🤖 AI

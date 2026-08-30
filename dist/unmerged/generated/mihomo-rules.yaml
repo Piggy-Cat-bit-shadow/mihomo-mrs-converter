@@ -24,6 +24,12 @@ rule-providers:
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/me.mrs
     path: ./ruleset/unmerged/me-domain.mrs
+  me-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/me.yaml
+    path: ./ruleset/unmerged/me-classical.yaml
   Lan-domain:
     type: http
     behavior: domain
@@ -647,6 +653,7 @@ rules:
 - RULE-SET,Lan-classical,DIRECT
 - RULE-SET,private,DIRECT
 - RULE-SET,me-domain,🤖 AI
+- RULE-SET,me-classical,🤖 AI
 - RULE-SET,AppleProxy-domain,🤖 AI
 - RULE-SET,AppleProxy-classical,🤖 AI
 - RULE-SET,AppleIntelligence-domain,🤖 AI

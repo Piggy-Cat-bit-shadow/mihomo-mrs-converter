@@ -72,6 +72,13 @@ providers:
     behavior: classical
     format: yaml
     fingerprint: ada7ea7c4a2194e467283c0ee8ef4dbf4730dce33a9927ce21da2db8dd41f256
+  me-classical:
+    name: me-classical
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/me.yaml
+    path: ./ruleset/merged-dedup/me-classical.yaml
+    behavior: classical
+    format: yaml
+    fingerprint: c74996129c9386ab0dc7f45cf2e205b4cf3c4f4f461037293847f5aa8b041bdb
   AppleProxy-classical:
     name: AppleProxy-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/AppleProxy.yaml
