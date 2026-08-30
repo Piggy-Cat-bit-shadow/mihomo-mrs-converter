@@ -8,28 +8,28 @@ providers:
     path: ./ruleset/unmerged/Scholar-China-domain.mrs
     behavior: domain
     format: mrs
-    fingerprint: 2c79d635a650f2c7bf3593edc9dda2ac053708b785b14577dc19742303d06b1c
+    fingerprint: 6690bd58622af5440045395564ea12b40cd90e235aac7e8c79969a4d33b702fe
   Scholar-Foreign-domain:
     name: Scholar-Foreign-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Scholar-Foreign.mrs
     path: ./ruleset/unmerged/Scholar-Foreign-domain.mrs
     behavior: domain
     format: mrs
-    fingerprint: 991d483cdeb6da64e847bc98b93d95a522dcf9b8362d024c843c6f334b52fd31
+    fingerprint: 3d327874fe5f325cb61532d44ce70c977833ef8d254845728d4661f4ac22a017
   me-domain:
     name: me-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/me.mrs
     path: ./ruleset/unmerged/me-domain.mrs
     behavior: domain
     format: mrs
-    fingerprint: c6185b0bd3d4f556ed55116de36ae2fe26ad42457d934d14cee89b30dbd28527
+    fingerprint: 599d8c29d3823d0387ad99506e8c425faa5ad11958f8c852a5e7c0aeb5966664
   me-classical:
     name: me-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/me.yaml
     path: ./ruleset/unmerged/me-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: bf7d9baa1c0938ac8182ae0d0b1478bfa835057d6a59f87e87d072bfeadeeb93
+    fingerprint: c13be09de16953e55a57672a5a61bbdfea94248acff8574fcb07be67faea18fa
   Lan-domain:
     name: Lan-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Lan.mrs
@@ -648,8 +648,8 @@ providers:
     fingerprint: 30ff330c94406b401cacd370828cb09749ee7642115fe398b45efe224546aa53
   cn-ip:
     name: cn-ip
-    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/ipcidr/cn-ip.mrs
     path: ./ruleset/unmerged/cn-ip.mrs
     behavior: ipcidr
     format: mrs
-    fingerprint: a7b90060d97aee445b2c3178cb738e86c180f908c51efb780d8d754ef6733a96
+    fingerprint: ac30778328bc5e972678357b5821ef9e6ffc8244d9172ad7fcf6c0f77a521542

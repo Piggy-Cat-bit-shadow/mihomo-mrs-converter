@@ -5,24 +5,28 @@ rule-providers:
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Scholar-China.mrs
     path: ./ruleset/unmerged/Scholar-China-domain.mrs
+    interval: 1209600
   Scholar-Foreign-domain:
     type: http
     behavior: domain
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Scholar-Foreign.mrs
     path: ./ruleset/unmerged/Scholar-Foreign-domain.mrs
+    interval: 1209600
   me-domain:
     type: http
     behavior: domain
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/me.mrs
     path: ./ruleset/unmerged/me-domain.mrs
+    interval: 1209600
   me-classical:
     type: http
     behavior: classical
     format: yaml
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/me.yaml
     path: ./ruleset/unmerged/me-classical.yaml
+    interval: 1209600
   Lan-domain:
     type: http
     behavior: domain
@@ -643,9 +647,9 @@ rule-providers:
     type: http
     behavior: ipcidr
     format: mrs
-    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/ipcidr/cn-ip.mrs
     path: ./ruleset/unmerged/cn-ip.mrs
-    interval: 604800
+    interval: 1209600
 rules:
 - IP-CIDR,0.0.0.0/32,REJECT,no-resolve
 - RULE-SET,Lan-domain,DIRECT

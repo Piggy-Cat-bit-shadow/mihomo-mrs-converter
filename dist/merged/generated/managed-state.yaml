@@ -71,7 +71,7 @@ providers:
     path: ./ruleset/merged/me-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: 0c4e81fbd7738dc99ac9f0ec586b59f6a2e64294ebe390db8bd997d630e9e579
+    fingerprint: 0a49af8f8e4a614530a4ef8eebd157d117e3d061dbfff82a0d686e3865a0f19f
   AppleProxy-classical:
     name: AppleProxy-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/AppleProxy.yaml
@@ -277,8 +277,8 @@ providers:
     fingerprint: aaa64e9a586e9dfc7da8858a506ef537ad736134a352ab2fbf3d7a61ff490851
   cn-ip:
     name: cn-ip
-    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/cn-ip.mrs
     path: ./ruleset/merged/cn-ip.mrs
     behavior: ipcidr
     format: mrs
-    fingerprint: 45f825ed31a08c0b9ac73b9c4b3e4f53be2ec4e98f60e7a55251d5ed38a85f74
+    fingerprint: 9a3b1f35be845994f57cb6c69c792934a332c5a8045f5d36448742e360a62475
