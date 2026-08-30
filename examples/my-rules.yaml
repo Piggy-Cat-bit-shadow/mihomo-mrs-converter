@@ -367,9 +367,6 @@ rules:
 - RULE-SET,OneDrive,⚡ 海外高速
 - RULE-SET,Dropbox,⚡ 海外高速
 - RULE-SET,MEGA,⚡ 海外高速
-- RULE-SET,AWAvenueAds,REJECT-DROP
-- RULE-SET,HageziAds,REJECT-DROP
-- RULE-SET,AntiAD,REJECT-DROP
 - RULE-SET,youtube,⚡ 海外高速
 - RULE-SET,Instagram,⚡ 海外高速
 - RULE-SET,Facebook,⚡ 海外高速
@@ -378,12 +375,15 @@ rules:
 - RULE-SET,Spotify,⚡ 海外高速
 - RULE-SET,tiktok,⚡ 海外高速
 - RULE-SET,google,⚡ 海外高速
+- RULE-SET,global,⚡ 海外高速
+- RULE-SET,AWAvenueAds,REJECT-DROP
+- RULE-SET,HageziAds,REJECT-DROP
+- RULE-SET,AntiAD,REJECT-DROP
 - RULE-SET,DouYin,DIRECT
 - RULE-SET,BiliBili,DIRECT
 - RULE-SET,BaiDuTieBa,DIRECT
 - RULE-SET,alibaba-domain,DIRECT
 - RULE-SET,alibaba,DIRECT
-- RULE-SET,global,🌍 国外流量
 - RULE-SET,chinamax,DIRECT
 - GEOIP,CN,DIRECT,no-resolve
-- MATCH,🌍 国外流量
+- MATCH,⚡ 海外高速
