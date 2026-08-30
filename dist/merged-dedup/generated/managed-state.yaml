@@ -277,8 +277,8 @@ providers:
     fingerprint: b781f74b7e82d577f636a00fe5bb6f686c692d8b73e492c0500c3ef8bf17ee5c
   cn-ip:
     name: cn-ip
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/ipcidr/cn-ip.mrs
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs
     path: ./ruleset/merged-dedup/cn-ip.mrs
     behavior: ipcidr
     format: mrs
-    fingerprint: cc1a0d7dc8c0c776ca1abd7d1f3dbd9c478851f96b31f1e427fb3f8173ca4091
+    fingerprint: 9dd6a83182441f529f99ecb4d1faa33ef1873f9c7f2ebd6e7ab2b8e4f08bb23e

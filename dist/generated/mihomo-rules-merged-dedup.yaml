@@ -276,7 +276,7 @@ rule-providers:
     type: http
     behavior: ipcidr
     format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/ipcidr/cn-ip.mrs
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs
     path: ./ruleset/merged-dedup/cn-ip.mrs
     interval: 1209600
 rules:
