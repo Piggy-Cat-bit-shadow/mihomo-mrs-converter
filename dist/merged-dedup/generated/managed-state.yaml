@@ -58,13 +58,13 @@ providers:
     behavior: ipcidr
     format: mrs
     fingerprint: 6fdcd4ce512e1cf231837ed1d22ae1af448abc478a6416f51eed1fe41971686a
-  AppleUpdate:
-    name: AppleUpdate
-    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/apple-update.mrs
-    path: ./ruleset/merged-dedup/AppleUpdate.mrs
+  AppleUpdate-domain:
+    name: AppleUpdate-domain
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/AppleUpdate-domain.mrs
+    path: ./ruleset/merged-dedup/AppleUpdate-domain.mrs
     behavior: domain
     format: mrs
-    fingerprint: 395147ad2dcc05f35a876c04af6384b183b7fdeb2c252d11789a2c7550170803
+    fingerprint: b9cfdcca7862def6e74cbb0eeb06dd6cdef0ab928d378e98c0fcac52d7a4e0f0
   Lan-classical:
     name: Lan-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/Lan.yaml
