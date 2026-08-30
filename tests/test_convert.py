@@ -404,5 +404,93 @@ class ProviderConversionTest(ConvertTestCase):
             convert.validate_no_orphan_providers(merged)
 
 
+class SafeDedupTest(ConvertTestCase):
+    def test_domain_dedup_removes_exact_duplicates(self) -> None:
+        output, stats = convert.dedup_domain_payload(["example.com", "example.com", "+.example.com"])
+
+        self.assertEqual(output, ["+.example.com"])
+        self.assertEqual(stats.exact_duplicates_removed, 1)
+        self.assertEqual(stats.domain_covered_by_suffix, 1)
+
+    def test_domain_dedup_removes_domains_covered_by_suffix(self) -> None:
+        output, stats = convert.dedup_domain_payload(
+            ["+.example.com", "example.com", "api.example.com", "a.b.example.com"]
+        )
+
+        self.assertEqual(output, ["+.example.com"])
+        self.assertEqual(stats.domain_covered_by_suffix, 3)
+
+    def test_domain_dedup_removes_child_suffixes_covered_by_parent(self) -> None:
+        output, stats = convert.dedup_domain_payload(
+            ["+.example.com", "+.api.example.com", "+.a.b.example.com"]
+        )
+
+        self.assertEqual(output, ["+.example.com"])
+        self.assertEqual(stats.suffix_covered_by_parent_suffix, 2)
+
+    def test_domain_dedup_keeps_uncovered_and_similar_domains(self) -> None:
+        output, stats = convert.dedup_domain_payload(
+            ["+.example.com", "notexample.com", "example.org", "+.other.example.org"]
+        )
+
+        self.assertEqual(output, ["+.example.com", "notexample.com", "example.org", "+.other.example.org"])
+        self.assertEqual(stats.removed, 0)
+
+    def test_ipcidr_dedup_removes_exact_duplicates(self) -> None:
+        output, stats = convert.dedup_ipcidr_payload(["1.1.1.0/24", "1.1.1.0/24"])
+
+        self.assertEqual(output, ["1.1.1.0/24"])
+        self.assertEqual(stats.ipcidr_duplicates_removed, 1)
+
+    def test_ipcidr_dedup_removes_ipv4_subnets_covered_by_parent(self) -> None:
+        output, stats = convert.dedup_ipcidr_payload(
+            ["1.1.0.0/16", "1.1.1.0/24", "1.1.1.1/32"]
+        )
+
+        self.assertEqual(output, ["1.1.0.0/16"])
+        self.assertEqual(stats.ipcidr_covered_by_parent, 2)
+
+    def test_ipcidr_dedup_removes_ipv6_subnets_covered_by_parent(self) -> None:
+        output, stats = convert.dedup_ipcidr_payload(
+            ["2001:db8::/32", "2001:db8:1::/48", "2001:db8:1::1/128"]
+        )
+
+        self.assertEqual(output, ["2001:db8::/32"])
+        self.assertEqual(stats.ipcidr_covered_by_parent, 2)
+
+    def test_ipcidr_dedup_keeps_uncovered_networks(self) -> None:
+        output, stats = convert.dedup_ipcidr_payload(["1.1.1.0/24", "1.1.2.0/24", "2001:db9::/32"])
+
+        self.assertEqual(output, ["1.1.1.0/24", "1.1.2.0/24", "2001:db9::/32"])
+        self.assertEqual(stats.removed, 0)
+
+    def test_dedup_config_keeps_classical_provider_payload_unchanged(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            dist = Path(tmp)
+            classical_path = dist / "merged/classical/sample.yaml"
+            convert.write_yaml_payload(classical_path, ["DOMAIN-SUFFIX,example.com", "PROCESS-NAME,App"])
+            config = {
+                "rule-providers": {
+                    "sample-classical": {
+                        "type": "http",
+                        "behavior": "classical",
+                        "format": "yaml",
+                        "url": f"{BASE_URL}/dist/merged/classical/sample.yaml",
+                        "path": "./ruleset/merged/sample-classical.yaml",
+                    }
+                },
+                "rules": ["RULE-SET,sample-classical,Proxy"],
+            }
+
+            dedup, stats = convert.build_dedup_config(config, self.build_options(dist))
+
+            self.assertEqual(stats, {})
+            self.assertEqual(dedup["rule-providers"]["sample-classical"]["path"], "./ruleset/merged-dedup/sample-classical.yaml")
+            self.assertEqual(
+                yaml.safe_load((dist / "merged-dedup/classical/sample.yaml").read_text()),
+                {"payload": ["DOMAIN-SUFFIX,example.com", "PROCESS-NAME,App"]},
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

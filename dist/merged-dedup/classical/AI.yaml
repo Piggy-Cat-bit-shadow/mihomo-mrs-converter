@@ -1,0 +1,10 @@
+payload:
+- DOMAIN-KEYWORD,alkalimakersuite-pa.clients6.google.com
+- DOMAIN-KEYWORD,anthropic
+- DOMAIN-KEYWORD,claude
+- DOMAIN-KEYWORD,labs.google
+- DOMAIN-KEYWORD,notebooklm.google
+- DOMAIN-KEYWORD,openai
+- DOMAIN-KEYWORD,openaiapi
+- DOMAIN-KEYWORD,openaicom
+- DOMAIN-REGEX,^chatgpt-async-webps-prod-\S+-\d+\.webpubsub\.azure\.com$

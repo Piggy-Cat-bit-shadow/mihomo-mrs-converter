@@ -41,38 +41,48 @@ rules:
 
 ```text
 dist/
-├── domain/
-├── ipcidr/
-├── classical/
-├── source/
+├── unmerged/
 │   ├── domain/
-│   └── ipcidr/
+│   ├── ipcidr/
+│   ├── classical/
+│   ├── source/
+│   └── generated/
 ├── merged/
 │   ├── domain/
 │   ├── ipcidr/
+│   ├── classical/
+│   ├── source/
+│   └── generated/
+├── merged-dedup/
+│   ├── domain/
+│   ├── ipcidr/
+│   ├── classical/
 │   └── source/
-│       ├── domain/
-│       └── ipcidr/
 └── generated/
     ├── mihomo-rules.yaml
-    └── mihomo-rules-merged.yaml
+    ├── mihomo-rules-merged.yaml
+    └── mihomo-rules-merged-dedup.yaml
 ```
 
-默认给 Mihomo 主配置复制使用的是不合并版：
+一次构建会同时保留三套完整产物：
+
+```text
+dist/unmerged/generated/mihomo-rules.yaml
+dist/merged/generated/mihomo-rules.yaml
+dist/merged-dedup/generated/mihomo-rules.yaml
+```
+
+根目录下的 `dist/generated/*.yaml` 是兼容入口，分别指向对应版本的产物：
 
 ```text
 dist/generated/mihomo-rules.yaml
-```
-
-这个文件只包含 `rule-providers` 和 `rules`，保持独立 provider，方便兼容和回退。
-
-同时会额外生成安全合并版：
-
-```text
 dist/generated/mihomo-rules-merged.yaml
+dist/generated/mihomo-rules-merged-dedup.yaml
 ```
 
-合并版只合并原始 `rules` 中连续出现、策略和附加参数完全相同的 `RULE-SET` 区间；`domain` 和 `ipcidr` 分开合并，classical fallback 保持独立，不跨普通规则、不同策略或广告等优先级边界。
+未合并版保持独立 provider，方便兼容和回退。合并版只合并原始 `rules` 中连续出现、策略和附加参数完全相同的 `RULE-SET` 区间；`domain` 和 `ipcidr` 分开合并，classical fallback 保持独立，不跨普通规则、不同策略或广告等优先级边界。
+
+合并+去重版以合并版为基础，只对最终 MRS payload 做安全精简：删除完全重复规则、删除已被已有 `+.` 后缀覆盖的精确 domain、删除已被已有父 `+.` 后缀覆盖的子 suffix、删除重复 CIDR、删除已被已有父网段覆盖的子网段。它不会对 classical 做语义去重，也不会主动生成更大的 domain suffix 或 CIDR。
 
 ## 从完整配置抽取输入
 

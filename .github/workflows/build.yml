@@ -85,9 +85,15 @@ jobs:
 
           validate(Path("dist/generated/mihomo-rules.yaml"))
           validate(Path("dist/generated/mihomo-rules-merged.yaml"), require_no_orphans=True)
+          validate(Path("dist/generated/mihomo-rules-merged-dedup.yaml"), require_no_orphans=True)
+          validate(Path("dist/unmerged/generated/mihomo-rules.yaml"))
+          validate(Path("dist/merged/generated/mihomo-rules.yaml"), require_no_orphans=True)
+          validate(Path("dist/merged-dedup/generated/mihomo-rules.yaml"), require_no_orphans=True)
           PY
           grep -q -- '- +.chatgpt.com' dist/source/domain/openai.yaml
+          grep -q -- '- +.chatgpt.com' dist/unmerged/source/domain/openai.yaml
           ! grep -q -- '- .chatgpt.com' dist/source/domain/openai.yaml
+          ! grep -q -- '- .chatgpt.com' dist/unmerged/source/domain/openai.yaml
 
       - name: Commit generated dist
         uses: stefanzweifel/git-auto-commit-action@v5

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import ipaddress
 import os
 import shutil
 import ssl
@@ -50,6 +51,21 @@ class BuildOptions:
     used_names: set[str]
     used_paths: set[str]
     memory_cache: dict[str, str]
+
+
+@dataclass
+class DedupStats:
+    input_count: int = 0
+    exact_duplicates_removed: int = 0
+    domain_covered_by_suffix: int = 0
+    suffix_covered_by_parent_suffix: int = 0
+    ipcidr_duplicates_removed: int = 0
+    ipcidr_covered_by_parent: int = 0
+    output_count: int = 0
+
+    @property
+    def removed(self) -> int:
+        return self.input_count - self.output_count
 
 
 ALLOWED_PROVIDER_FIELDS = {
@@ -116,14 +132,14 @@ def fetch_text(url: str, headers: dict[str, Any] | None, memory_cache: dict[str,
         else ssl.create_default_context()
     )
     last_error: Exception | None = None
-    for attempt in range(3):
+    for attempt in range(5):
         try:
             with urllib.request.urlopen(request, timeout=60, context=context) as response:
                 body = response.read().decode("utf-8-sig")
             break
         except Exception as exc:  # pragma: no cover - network timing dependent
             last_error = exc
-            if attempt == 2:
+            if attempt == 4:
                 raise
             time.sleep(2 * (attempt + 1))
     else:  # pragma: no cover
@@ -216,12 +232,130 @@ def source_ip_value(rule: RuleLine) -> str | None:
     return rule.parts[1] if rule.kind in IPCIDR_RULES else None
 
 
+def domain_suffix_value(rule: str) -> str | None:
+    value = rule.strip().lower()
+    if value.startswith("+.") and len(value) > 2:
+        return value[2:].rstrip(".")
+    return None
+
+
+def domain_covered_by_suffix(domain: str, suffixes: set[str]) -> bool:
+    value = domain.strip().lower().rstrip(".")
+    if not value:
+        return False
+    labels = value.split(".")
+    for index in range(len(labels)):
+        candidate = ".".join(labels[index:])
+        if candidate in suffixes:
+            return True
+    return False
+
+
+def suffix_covered_by_parent_suffix(suffix: str, suffixes: set[str]) -> bool:
+    labels = suffix.split(".")
+    for index in range(1, len(labels)):
+        parent = ".".join(labels[index:])
+        if parent in suffixes:
+            return True
+    return False
+
+
+def dedup_domain_payload(rules: list[str]) -> tuple[list[str], DedupStats]:
+    stats = DedupStats(input_count=len(rules))
+    unique_rules: list[str] = []
+    seen: set[str] = set()
+    for rule in rules:
+        if rule in seen:
+            stats.exact_duplicates_removed += 1
+            continue
+        seen.add(rule)
+        unique_rules.append(rule)
+
+    suffixes = {
+        suffix
+        for rule in unique_rules
+        if (suffix := domain_suffix_value(rule)) is not None
+    }
+    output: list[str] = []
+    for rule in unique_rules:
+        suffix = domain_suffix_value(rule)
+        if suffix is not None:
+            if suffix_covered_by_parent_suffix(suffix, suffixes):
+                stats.suffix_covered_by_parent_suffix += 1
+                continue
+        elif domain_covered_by_suffix(rule, suffixes):
+            stats.domain_covered_by_suffix += 1
+            continue
+        output.append(rule)
+
+    stats.output_count = len(output)
+    return output, stats
+
+
+def parse_ip_network(rule: str) -> ipaddress._BaseNetwork | None:
+    try:
+        return ipaddress.ip_network(rule.strip(), strict=False)
+    except ValueError:
+        return None
+
+
+def network_covered_by_parent(
+    network: ipaddress._BaseNetwork,
+    networks: set[ipaddress._BaseNetwork],
+) -> bool:
+    for prefix in range(network.prefixlen - 1, -1, -1):
+        parent = network.supernet(new_prefix=prefix)
+        if parent in networks:
+            return True
+    return False
+
+
+def dedup_ipcidr_payload(rules: list[str]) -> tuple[list[str], DedupStats]:
+    stats = DedupStats(input_count=len(rules))
+    unique_rules: list[str] = []
+    seen: set[str] = set()
+    for rule in rules:
+        if rule in seen:
+            stats.ipcidr_duplicates_removed += 1
+            continue
+        seen.add(rule)
+        unique_rules.append(rule)
+
+    networks = {
+        network
+        for rule in unique_rules
+        if (network := parse_ip_network(rule)) is not None
+    }
+    output: list[str] = []
+    for rule in unique_rules:
+        network = parse_ip_network(rule)
+        if network is not None and network_covered_by_parent(network, networks):
+            stats.ipcidr_covered_by_parent += 1
+            continue
+        output.append(rule)
+
+    stats.output_count = len(output)
+    return output, stats
+
+
 def write_yaml_payload(path: Path, rules: list[str]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         yaml.safe_dump({"payload": rules}, allow_unicode=True, sort_keys=False),
         encoding="utf-8",
     )
+
+
+def read_yaml_payload(path: Path) -> list[str]:
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict) or not isinstance(data.get("payload"), list):
+        raise SystemExit(f"{path}: expected YAML payload list")
+    payload: list[str] = []
+    for item in data["payload"]:
+        if not isinstance(item, str):
+            raise SystemExit(f"{path}: payload items must be strings")
+        payload.append(item)
+    return payload
 
 
 def write_text_payload(path: Path, rules: list[str]) -> None:
@@ -301,6 +435,342 @@ def generated_artifact_path(dist: Path, provider: dict[str, Any]) -> Path | None
         return None
     relative = url.split(marker, 1)[1]
     return dist / relative
+
+
+def dist_relative_from_url(url: str) -> Path | None:
+    marker = "/dist/"
+    if marker not in url:
+        return None
+    return Path(url.split(marker, 1)[1])
+
+
+def suite_relative_path(relative: Path, suite: str) -> Path:
+    known_suites = {"unmerged", "merged", "merged-dedup"}
+    parts = relative.parts
+    if parts and parts[0] in known_suites:
+        relative = Path(*parts[1:])
+    return Path(suite) / relative
+
+
+def provider_path_for_suite(provider_name: str, provider: dict[str, Any], suite: str) -> str:
+    extension = ".mrs" if provider.get("format") == "mrs" else ".yaml"
+    return f"./ruleset/{suite}/{provider_name}{extension}"
+
+
+def copy_file(source: Path, destination: Path) -> None:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source, destination)
+
+
+def copy_tree_contents(source: Path, destination: Path) -> None:
+    if not source.exists():
+        return
+    for path in source.rglob("*"):
+        if path.is_file():
+            copy_file(path, destination / path.relative_to(source))
+
+
+def source_path_for_provider(dist: Path, provider: dict[str, Any]) -> Path | None:
+    behavior = provider.get("behavior")
+    if behavior not in {"domain", "ipcidr"}:
+        return None
+    url = provider.get("url")
+    if not isinstance(url, str):
+        return None
+    relative = dist_relative_from_url(url)
+    if relative is None:
+        return None
+    parts = relative.parts
+    source_dir = "ipcidr" if behavior == "ipcidr" else "domain"
+    filename = Path(parts[-1]).with_suffix(".yaml")
+    if len(parts) >= 4 and parts[0] in {"unmerged", "merged", "merged-dedup"} and parts[1] == "source":
+        candidate = dist / relative
+        if candidate.exists():
+            return candidate
+    if len(parts) >= 3 and parts[0] == "source":
+        candidate = dist / relative
+        if candidate.exists():
+            return candidate
+    if len(parts) >= 3 and parts[-3] in {"unmerged", "merged", "merged-dedup"}:
+        candidate = dist / parts[-3] / "source" / source_dir / filename
+        if candidate.exists():
+            return candidate
+    if len(parts) >= 2 and parts[0] in {"domain", "ipcidr"}:
+        candidate = dist / "source" / source_dir / filename
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def rewrite_provider_for_suite(
+    name: str,
+    provider: dict[str, Any],
+    suite: str,
+    base_url: str,
+) -> dict[str, Any]:
+    result = dict(provider)
+    url = result.get("url")
+    if isinstance(url, str):
+        relative = dist_relative_from_url(url)
+        if relative is not None:
+            result["url"] = public_url(base_url, "dist", str(suite_relative_path(relative, suite)))
+    result["path"] = provider_path_for_suite(name, result, suite)
+    return result
+
+
+def copy_provider_artifacts_to_suite(
+    name: str,
+    provider: dict[str, Any],
+    suite: str,
+    dist: Path,
+) -> None:
+    url = provider.get("url")
+    if not isinstance(url, str):
+        return
+    relative = dist_relative_from_url(url)
+    if relative is None:
+        return
+    destination_relative = suite_relative_path(relative, suite)
+    source = dist / relative
+    destination = dist / destination_relative
+    if source.resolve() != destination.resolve() and source.exists():
+        copy_file(source, destination)
+
+    source_path = source_path_for_provider(dist, provider)
+    if source_path is not None:
+        source_dir = "ipcidr" if provider.get("behavior") == "ipcidr" else "domain"
+        source_destination = dist / suite / "source" / source_dir / source_path.name
+        if source_path.resolve() != source_destination.resolve():
+            copy_file(source_path, source_destination)
+
+
+def materialize_suite_config(
+    config: dict[str, Any],
+    suite: str,
+    dist: Path,
+    base_url: str,
+    copy_all_base_outputs: bool = False,
+    require_no_orphans: bool = False,
+) -> dict[str, Any]:
+    suite_root = dist / suite
+    if copy_all_base_outputs:
+        for folder in ("domain", "ipcidr", "classical", "source"):
+            copy_tree_contents(dist / folder, suite_root / folder)
+    else:
+        for name, provider in config["rule-providers"].items():
+            copy_provider_artifacts_to_suite(name, provider, suite, dist)
+
+    suite_config = {
+        "rule-providers": {
+            name: rewrite_provider_for_suite(name, provider, suite, base_url)
+            for name, provider in config["rule-providers"].items()
+        },
+        "rules": config["rules"],
+    }
+    output = suite_root / "generated" / "mihomo-rules.yaml"
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(
+        yaml.safe_dump(suite_config, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
+    )
+    validate_generated_rulesets(suite_config["rules"], set(suite_config["rule-providers"]))
+    validate_generated_artifacts(dist, suite_config["rule-providers"])
+    if require_no_orphans:
+        validate_no_orphan_providers(suite_config)
+    return suite_config
+
+
+def provider_source_dir(behavior: str) -> str:
+    return "ipcidr" if behavior == "ipcidr" else "domain"
+
+
+def build_dedup_config(
+    config: dict[str, Any],
+    options: BuildOptions,
+) -> tuple[dict[str, Any], dict[str, DedupStats]]:
+    suite = "merged-dedup"
+    suite_root = options.dist / suite
+    dedup_providers: dict[str, dict[str, Any]] = {}
+    stats_by_provider: dict[str, DedupStats] = {}
+
+    for name, provider in config["rule-providers"].items():
+        behavior = provider.get("behavior")
+        if behavior not in {"domain", "ipcidr"}:
+            copy_provider_artifacts_to_suite(name, provider, suite, options.dist)
+            dedup_providers[name] = rewrite_provider_for_suite(
+                name,
+                provider,
+                suite,
+                options.base_url,
+            )
+            continue
+
+        source = source_path_for_provider(options.dist, provider)
+        if source is None:
+            copy_provider_artifacts_to_suite(name, provider, suite, options.dist)
+            dedup_providers[name] = rewrite_provider_for_suite(
+                name,
+                provider,
+                suite,
+                options.base_url,
+            )
+            continue
+
+        payload = read_yaml_payload(source)
+        if behavior == "domain":
+            optimized, stats = dedup_domain_payload(payload)
+        else:
+            optimized, stats = dedup_ipcidr_payload(payload)
+        stats_by_provider[name] = stats
+
+        source_dir = provider_source_dir(behavior)
+        source_path = suite_root / "source" / source_dir / f"{name}.yaml"
+        write_yaml_payload(source_path, optimized)
+
+        if options.mihomo:
+            artifact_path = suite_root / source_dir / f"{name}.mrs"
+            convert_source_to_mrs(options.mihomo, behavior, source_path, artifact_path)
+            fmt = "mrs"
+            url = public_url(options.base_url, "dist", suite, source_dir, f"{name}.mrs")
+            path = f"./ruleset/{suite}/{name}.mrs"
+        else:
+            fmt = "yaml"
+            url = public_url(options.base_url, "dist", suite, "source", source_dir, f"{name}.yaml")
+            path = f"./ruleset/{suite}/{name}.yaml"
+
+        dedup_providers[name] = make_provider(
+            behavior,
+            fmt,
+            url,
+            path,
+            provider,
+        )
+
+    dedup_config = {
+        "rule-providers": dedup_providers,
+        "rules": config["rules"],
+    }
+    output = suite_root / "generated" / "mihomo-rules.yaml"
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(
+        yaml.safe_dump(dedup_config, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
+    )
+    validate_generated_rulesets(dedup_config["rules"], set(dedup_config["rule-providers"]))
+    validate_generated_artifacts(options.dist, dedup_config["rule-providers"])
+    validate_no_orphan_providers(dedup_config)
+    return dedup_config, stats_by_provider
+
+
+def format_percent(before: int, after: int) -> str:
+    if before == 0:
+        return "0.00%"
+    return f"{(before - after) / before * 100:.2f}%"
+
+
+def print_dedup_report(
+    config: dict[str, Any],
+    stats_by_provider: dict[str, DedupStats],
+) -> None:
+    totals = DedupStats()
+    domain_before = 0
+    domain_after = 0
+    ip_before = 0
+    ip_after = 0
+
+    for name, stats in stats_by_provider.items():
+        behavior = config["rule-providers"][name]["behavior"]
+        if behavior == "ipcidr":
+            ip_before += stats.input_count
+            ip_after += stats.output_count
+        else:
+            domain_before += stats.input_count
+            domain_after += stats.output_count
+
+        totals.input_count += stats.input_count
+        totals.exact_duplicates_removed += stats.exact_duplicates_removed
+        totals.domain_covered_by_suffix += stats.domain_covered_by_suffix
+        totals.suffix_covered_by_parent_suffix += stats.suffix_covered_by_parent_suffix
+        totals.ipcidr_duplicates_removed += stats.ipcidr_duplicates_removed
+        totals.ipcidr_covered_by_parent += stats.ipcidr_covered_by_parent
+        totals.output_count += stats.output_count
+
+        print(f"[{name}]")
+        print(f"input: {stats.input_count}")
+        if behavior == "ipcidr":
+            print(f"exact duplicates removed: {stats.ipcidr_duplicates_removed}")
+            print(f"subnets covered by parent: {stats.ipcidr_covered_by_parent}")
+        else:
+            print(f"exact duplicates removed: {stats.exact_duplicates_removed}")
+            print(f"domain covered by suffix: {stats.domain_covered_by_suffix}")
+            print(f"suffix covered by parent suffix: {stats.suffix_covered_by_parent_suffix}")
+        print(f"output: {stats.output_count}")
+        print(f"reduction: {format_percent(stats.input_count, stats.output_count)}")
+        print()
+
+    print("========== MRS Optimization Summary ==========")
+    print("Before dedup:")
+    print(f"Domain rules: {domain_before}")
+    print(f"IPCIDR rules: {ip_before}")
+    print(f"Total: {totals.input_count}")
+    print()
+    print("After dedup:")
+    print(f"Domain rules: {domain_after}")
+    print(f"IPCIDR rules: {ip_after}")
+    print(f"Total: {totals.output_count}")
+    print()
+    print("Removed:")
+    print(f"Exact duplicates: {totals.exact_duplicates_removed}")
+    print(f"Domain covered by suffix: {totals.domain_covered_by_suffix}")
+    print(f"Suffix covered by parent suffix: {totals.suffix_covered_by_parent_suffix}")
+    print(f"IPCIDR duplicates: {totals.ipcidr_duplicates_removed}")
+    print(f"IPCIDR covered by parent: {totals.ipcidr_covered_by_parent}")
+    print()
+    print(f"Total removed: {totals.removed}")
+    print(f"Overall reduction: {format_percent(totals.input_count, totals.output_count)}")
+    print("==============================================")
+
+
+def referenced_rule_counts(config: dict[str, Any], dist: Path) -> Counter[str]:
+    counts: Counter[str] = Counter()
+    for provider in config["rule-providers"].values():
+        behavior = provider.get("behavior")
+        if behavior not in {"domain", "ipcidr", "classical"}:
+            continue
+        if behavior == "classical":
+            artifact = generated_artifact_path(dist, provider)
+            if artifact is not None and artifact.exists():
+                counts[behavior] += len(read_yaml_payload(artifact))
+            continue
+        source = source_path_for_provider(dist, provider)
+        if source is not None:
+            counts[behavior] += len(read_yaml_payload(source))
+    return counts
+
+
+def suite_mrs_stats(dist: Path, suite: str) -> tuple[int, int]:
+    root = dist / suite
+    files = [
+        path
+        for folder in ("domain", "ipcidr")
+        for path in (root / folder).glob("*.mrs")
+    ]
+    return len(files), sum(path.stat().st_size for path in files)
+
+
+def print_suite_stats(
+    label: str,
+    suite: str,
+    config: dict[str, Any],
+    dist: Path,
+) -> None:
+    counts = referenced_rule_counts(config, dist)
+    mrs_count, mrs_size = suite_mrs_stats(dist, suite)
+    total_rules = counts["domain"] + counts["ipcidr"] + counts["classical"]
+    print(f"{label}:")
+    print(f"  rules: {total_rules} (domain={counts['domain']}, ipcidr={counts['ipcidr']}, classical={counts['classical']})")
+    print(f"  MRS files: {mrs_count}")
+    print(f"  MRS size: {mrs_size} bytes")
 
 
 def make_generated_provider(
@@ -866,7 +1336,9 @@ def main() -> None:
         args.dist / "generated",
         args.dist / "domain",
         args.dist / "ipcidr",
+        args.dist / "unmerged",
         args.dist / "merged",
+        args.dist / "merged-dedup",
     ]
     for target in clean_targets:
         if target.exists():
@@ -912,11 +1384,19 @@ def main() -> None:
     }
     output = args.dist / "generated" / "mihomo-rules.yaml"
     output.parent.mkdir(parents=True, exist_ok=True)
+    unmerged_suite = materialize_suite_config(
+        generated,
+        "unmerged",
+        args.dist,
+        args.base_url,
+        copy_all_base_outputs=True,
+    )
     output.write_text(
-        yaml.safe_dump(generated, allow_unicode=True, sort_keys=False),
+        yaml.safe_dump(unmerged_suite, allow_unicode=True, sort_keys=False),
         encoding="utf-8",
     )
     print(f"wrote {output}")
+    print(f"wrote {args.dist / 'unmerged/generated/mihomo-rules.yaml'}")
 
     merged = build_merged_config(
         rules,
@@ -929,12 +1409,37 @@ def main() -> None:
     validate_generated_rulesets(merged["rules"], set(merged["rule-providers"]))
     validate_generated_artifacts(args.dist, merged["rule-providers"])
     validate_no_orphan_providers(merged)
+    merged_suite = materialize_suite_config(
+        merged,
+        "merged",
+        args.dist,
+        args.base_url,
+        require_no_orphans=True,
+    )
     merged_output = args.dist / "generated" / "mihomo-rules-merged.yaml"
     merged_output.write_text(
-        yaml.safe_dump(merged, allow_unicode=True, sort_keys=False),
+        yaml.safe_dump(merged_suite, allow_unicode=True, sort_keys=False),
         encoding="utf-8",
     )
     print(f"wrote {merged_output}")
+    print(f"wrote {args.dist / 'merged/generated/mihomo-rules.yaml'}")
+
+    dedup, dedup_stats = build_dedup_config(merged_suite, options)
+    dedup_output = args.dist / "generated" / "mihomo-rules-merged-dedup.yaml"
+    dedup_output.write_text(
+        yaml.safe_dump(dedup, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
+    )
+    print(f"wrote {dedup_output}")
+    print(f"wrote {args.dist / 'merged-dedup/generated/mihomo-rules.yaml'}")
+    print()
+    print_dedup_report(dedup, dedup_stats)
+    print()
+    print("========== MRS Suite Summary ==========")
+    print_suite_stats("Unmerged", "unmerged", unmerged_suite, args.dist)
+    print_suite_stats("Merged", "merged", merged_suite, args.dist)
+    print_suite_stats("Merged + dedup", "merged-dedup", dedup, args.dist)
+    print("=======================================")
 
 
 if __name__ == "__main__":
