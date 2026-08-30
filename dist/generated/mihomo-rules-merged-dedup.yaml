@@ -274,7 +274,7 @@ rule-providers:
     interval: 1209600
 rules:
 - IP-CIDR,0.0.0.0/32,REJECT,no-resolve
-- RULE-SET,AppleUpdate-domain,REJECT
+- RULE-SET,AppleUpdate-domain,REJECT-DROP
 - RULE-SET,merged-segment-02-domain,DIRECT
 - RULE-SET,Lan-classical,DIRECT
 - RULE-SET,merged-segment-03-domain,🤖 AI
