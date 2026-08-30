@@ -1,67 +1,60 @@
 rule-providers:
+  merged-segment-01-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/merged-segment-01-domain.mrs
+    path: ./ruleset/merged-dedup/merged-segment-01-domain.mrs
+    interval: 1209600
   merged-segment-02-domain:
     type: http
     behavior: domain
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/merged-segment-02-domain.mrs
     path: ./ruleset/merged-dedup/merged-segment-02-domain.mrs
-    interval: 1209600
+    interval: 259200
   merged-segment-03-domain:
     type: http
     behavior: domain
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/merged-segment-03-domain.mrs
     path: ./ruleset/merged-dedup/merged-segment-03-domain.mrs
-    interval: 259200
+    interval: 86400
   merged-segment-04-domain:
     type: http
     behavior: domain
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/merged-segment-04-domain.mrs
     path: ./ruleset/merged-dedup/merged-segment-04-domain.mrs
-    interval: 86400
+    interval: 1209600
+  merged-segment-04-ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/ipcidr/merged-segment-04-ip.mrs
+    path: ./ruleset/merged-dedup/merged-segment-04-ip.mrs
+    interval: 1209600
   merged-segment-05-domain:
     type: http
     behavior: domain
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/merged-segment-05-domain.mrs
     path: ./ruleset/merged-dedup/merged-segment-05-domain.mrs
-    interval: 1209600
-  merged-segment-05-ip:
-    type: http
-    behavior: ipcidr
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/ipcidr/merged-segment-05-ip.mrs
-    path: ./ruleset/merged-dedup/merged-segment-05-ip.mrs
-    interval: 1209600
+    interval: 604800
   merged-segment-06-domain:
     type: http
     behavior: domain
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/merged-segment-06-domain.mrs
     path: ./ruleset/merged-dedup/merged-segment-06-domain.mrs
-    interval: 604800
-  merged-segment-07-domain:
-    type: http
-    behavior: domain
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/merged-segment-07-domain.mrs
-    path: ./ruleset/merged-dedup/merged-segment-07-domain.mrs
     interval: 86400
-  merged-segment-07-ip:
+  merged-segment-06-ip:
     type: http
     behavior: ipcidr
     format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/ipcidr/merged-segment-07-ip.mrs
-    path: ./ruleset/merged-dedup/merged-segment-07-ip.mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/ipcidr/merged-segment-06-ip.mrs
+    path: ./ruleset/merged-dedup/merged-segment-06-ip.mrs
     interval: 86400
-  AppleUpdate-domain:
-    type: http
-    behavior: domain
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/AppleUpdate-domain.mrs
-    path: ./ruleset/merged-dedup/AppleUpdate-domain.mrs
-    interval: 1209600
   Lan-classical:
     type: http
     behavior: classical
@@ -280,10 +273,9 @@ rule-providers:
     interval: 1209600
 rules:
 - IP-CIDR,0.0.0.0/32,REJECT,no-resolve
-- RULE-SET,AppleUpdate-domain,REJECT-DROP
-- RULE-SET,merged-segment-02-domain,DIRECT
+- RULE-SET,merged-segment-01-domain,DIRECT
 - RULE-SET,Lan-classical,DIRECT
-- RULE-SET,merged-segment-03-domain,🤖 AI
+- RULE-SET,merged-segment-02-domain,🤖 AI
 - RULE-SET,me-classical,🤖 AI
 - RULE-SET,AppleProxy-classical,🤖 AI
 - RULE-SET,openai-ip,🤖 AI
@@ -292,10 +284,10 @@ rules:
 - RULE-SET,AI-classical,🤖 AI
 - RULE-SET,Crypto-classical,🤖 AI
 - RULE-SET,paypal-classical,🤖 AI
-- RULE-SET,merged-segment-04-domain,DIRECT
+- RULE-SET,merged-segment-03-domain,DIRECT
 - RULE-SET,wechat-classical,DIRECT
-- RULE-SET,merged-segment-05-domain,⚡ 海外高速
-- RULE-SET,merged-segment-05-ip,⚡ 海外高速
+- RULE-SET,merged-segment-04-domain,⚡ 海外高速
+- RULE-SET,merged-segment-04-ip,⚡ 海外高速
 - RULE-SET,Telegram-classical,⚡ 海外高速
 - RULE-SET,github-classical,⚡ 海外高速
 - RULE-SET,WhatsApp-classical,⚡ 海外高速
@@ -313,10 +305,10 @@ rules:
 - RULE-SET,tiktok-classical,⚡ 海外高速
 - RULE-SET,google-classical,⚡ 海外高速
 - RULE-SET,global-classical,⚡ 海外高速
-- RULE-SET,merged-segment-06-domain,REJECT-DROP
+- RULE-SET,merged-segment-05-domain,REJECT-DROP
 - RULE-SET,AWAvenueAds-classical,REJECT-DROP
-- RULE-SET,merged-segment-07-domain,DIRECT
-- RULE-SET,merged-segment-07-ip,DIRECT
+- RULE-SET,merged-segment-06-domain,DIRECT
+- RULE-SET,merged-segment-06-ip,DIRECT
 - RULE-SET,BiliBili-classical,DIRECT
 - RULE-SET,alibaba-classical,DIRECT
 - RULE-SET,chinamax-classical,DIRECT

@@ -2,13 +2,6 @@ version: 1
 suite: unmerged
 base_url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main
 providers:
-  AppleUpdate-domain:
-    name: AppleUpdate-domain
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/AppleUpdate.mrs
-    path: ./ruleset/unmerged/AppleUpdate-domain.mrs
-    behavior: domain
-    format: mrs
-    fingerprint: 6dbb4fd61d7d5902432befb9d6c47704793fe4732b1e0ace62a5208ad01d556b
   Scholar-China-domain:
     name: Scholar-China-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Scholar-China.mrs
