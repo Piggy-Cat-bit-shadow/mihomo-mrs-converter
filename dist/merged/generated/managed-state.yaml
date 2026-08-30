@@ -275,3 +275,10 @@ providers:
     behavior: classical
     format: yaml
     fingerprint: aaa64e9a586e9dfc7da8858a506ef537ad736134a352ab2fbf3d7a61ff490851
+  cn-ip:
+    name: cn-ip
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs
+    path: ./ruleset/merged/cn-ip.mrs
+    behavior: ipcidr
+    format: mrs
+    fingerprint: 45f825ed31a08c0b9ac73b9c4b3e4f53be2ec4e98f60e7a55251d5ed38a85f74

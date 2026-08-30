@@ -639,6 +639,13 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/chinamax.yaml
     path: ./ruleset/unmerged/chinamax-classical.yaml
     interval: 1209600
+  cn-ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs
+    path: ./ruleset/unmerged/cn-ip.mrs
+    interval: 604800
 rules:
 - IP-CIDR,0.0.0.0/32,REJECT,no-resolve
 - RULE-SET,Lan-domain,DIRECT
@@ -733,5 +740,5 @@ rules:
 - RULE-SET,chinamax-domain,DIRECT
 - RULE-SET,chinamax-ip,DIRECT
 - RULE-SET,chinamax-classical,DIRECT
-- GEOIP,CN,DIRECT,no-resolve
+- RULE-SET,cn-ip,DIRECT,no-resolve
 - MATCH,⚡ 海外高速
