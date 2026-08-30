@@ -331,6 +331,13 @@ rule-providers:
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/ChinaMax/ChinaMax_Classical.yaml
     path: ./ruleset/chinamax.yaml
     interval: 1209600
+  cn-ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs
+    path: ./ruleset/cn-ip.mrs
+    interval: 604800
 rules:
 - IP-CIDR,0.0.0.0/32,REJECT,no-resolve
 - RULE-SET,Lan,DIRECT
@@ -385,5 +392,5 @@ rules:
 - RULE-SET,alibaba-domain,DIRECT
 - RULE-SET,alibaba,DIRECT
 - RULE-SET,chinamax,DIRECT
-- GEOIP,CN,DIRECT,no-resolve
+- RULE-SET,cn-ip,DIRECT,no-resolve
 - MATCH,⚡ 海外高速
