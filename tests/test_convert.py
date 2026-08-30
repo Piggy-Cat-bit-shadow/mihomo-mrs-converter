@@ -1,5 +1,8 @@
 import tempfile
+import sys
 import unittest
+import contextlib
+import io
 from collections import Counter
 from pathlib import Path
 from unittest.mock import patch
@@ -493,6 +496,70 @@ class SafeDedupTest(ConvertTestCase):
 
 
 class CompleteConfigRefreshTest(unittest.TestCase):
+    def provider(self, name: str, behavior: str = "domain") -> dict[str, object]:
+        return {
+            "type": "http",
+            "behavior": behavior,
+            "format": "yaml",
+            "url": f"https://example.com/{name}.yaml",
+            "path": f"./rule-providers/{name}.yaml",
+        }
+
+    def run_convert_cli(
+        self,
+        input_path: Path,
+        dist: Path,
+        remotes: dict[str, str],
+        complete_config: Path | None = None,
+    ) -> None:
+        argv = [
+            "convert.py",
+            str(input_path),
+            "--dist",
+            str(dist),
+            "--base-url",
+            BASE_URL,
+            "--allow-no-mihomo",
+        ]
+        if complete_config is not None:
+            argv.extend(
+                [
+                    "--complete-config",
+                    str(complete_config),
+                    "--complete-output",
+                    str(complete_config),
+                    "--complete-suite",
+                    "merged-dedup",
+                ]
+            )
+
+        def fetch(url: str, headers: dict[str, object] | None, memory_cache: dict[str, str]) -> str:
+            return remotes[url]
+
+        with (
+            patch.object(sys, "argv", argv),
+            patch.object(convert, "fetch_text", side_effect=fetch),
+            contextlib.redirect_stdout(io.StringIO()),
+        ):
+            convert.main()
+
+    def write_input(self, path: Path, provider_names: list[str], rules: list[str]) -> None:
+        data = {
+            "rule-providers": {
+                name: self.provider(name, "classical" if name in {"xxx", "s7a", "s7b"} else "domain")
+                for name in provider_names
+            },
+            "rules": rules,
+        }
+        path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+
+    def snapshot_files(self, root: Path) -> dict[str, bytes]:
+        return {
+            str(path.relative_to(root)): path.read_bytes()
+            for path in sorted(root.rglob("*"))
+            if path.is_file()
+        }
+
     def test_refresh_removes_stale_managed_providers_and_rules(self) -> None:
         complete = {
             "proxies": [{"name": "keep-proxy", "type": "direct"}],
@@ -556,7 +623,20 @@ class CompleteConfigRefreshTest(unittest.TestCase):
             "rules": ["RULE-SET,merged-segment-06-domain,DIRECT"],
         }
 
-        refreshed = convert.refresh_complete_config(complete, generated)
+        old_managed = {
+            name: provider
+            for name, provider in complete["rule-providers"].items()
+            if name != "custom-provider"
+        }
+        manifest = convert.build_managed_manifest("merged-dedup", BASE_URL, old_managed)
+
+        refreshed = convert.refresh_complete_config(
+            complete,
+            generated,
+            manifest,
+            BASE_URL,
+            "merged-dedup",
+        )
 
         self.assertEqual(refreshed["proxies"], complete["proxies"])
         self.assertIn("custom-provider", refreshed["rule-providers"])
@@ -573,6 +653,374 @@ class CompleteConfigRefreshTest(unittest.TestCase):
                 "MATCH,Proxy",
             ],
         )
+
+    def test_refresh_does_not_inject_generated_plain_rules(self) -> None:
+        complete = {
+            "rule-providers": {
+                "old-managed": {
+                    "type": "http",
+                    "behavior": "domain",
+                    "format": "mrs",
+                    "url": f"{BASE_URL}/dist/merged-dedup/domain/old-managed.mrs",
+                    "path": "./ruleset/merged-dedup/old-managed.mrs",
+                }
+            },
+            "rules": [
+                "RULE-SET,old-managed,Proxy",
+                "IP-CIDR,1.1.1.1/32,DIRECT,no-resolve",
+                "GEOIP,CN,DIRECT",
+                "MATCH,Proxy",
+            ],
+        }
+        generated = {
+            "rule-providers": {
+                "new-managed": {
+                    "type": "http",
+                    "behavior": "domain",
+                    "format": "mrs",
+                    "url": f"{BASE_URL}/dist/merged-dedup/domain/new-managed.mrs",
+                    "path": "./ruleset/merged-dedup/new-managed.mrs",
+                }
+            },
+            "rules": [
+                "RULE-SET,new-managed,Proxy",
+                "IP-CIDR,1.1.1.1/32,DIRECT,no-resolve",
+                "GEOIP,CN,DIRECT",
+                "MATCH,Proxy",
+            ],
+        }
+        manifest = convert.build_managed_manifest(
+            "merged-dedup",
+            BASE_URL,
+            {"old-managed": complete["rule-providers"]["old-managed"]},
+        )
+
+        refreshed = convert.refresh_complete_config(
+            complete,
+            generated,
+            manifest,
+            BASE_URL,
+            "merged-dedup",
+        )
+
+        self.assertEqual(refreshed["rules"].count("IP-CIDR,1.1.1.1/32,DIRECT,no-resolve"), 1)
+        self.assertEqual(refreshed["rules"].count("GEOIP,CN,DIRECT"), 1)
+        self.assertEqual(refreshed["rules"].count("MATCH,Proxy"), 1)
+
+    def test_refresh_preserves_custom_provider_with_dist_url_or_ruleset_path(self) -> None:
+        complete = {
+            "rule-providers": {
+                "custom-url": {
+                    "type": "http",
+                    "behavior": "domain",
+                    "format": "mrs",
+                    "url": "https://raw.githubusercontent.com/other/repo/main/dist/domain/custom.mrs",
+                    "path": "./rule-providers/custom-url.mrs",
+                },
+                "custom-path": {
+                    "type": "http",
+                    "behavior": "domain",
+                    "format": "mrs",
+                    "url": "https://example.com/custom-path.mrs",
+                    "path": "./ruleset/merged-dedup/custom-path.mrs",
+                },
+                "old-managed": {
+                    "type": "http",
+                    "behavior": "domain",
+                    "format": "mrs",
+                    "url": f"{BASE_URL}/dist/merged-dedup/domain/old-managed.mrs",
+                    "path": "./ruleset/merged-dedup/old-managed.mrs",
+                },
+            },
+            "rules": [
+                "RULE-SET,custom-url,Proxy",
+                "RULE-SET,old-managed,Proxy",
+                "RULE-SET,custom-path,Proxy",
+            ],
+        }
+        generated = {
+            "rule-providers": {
+                "new-managed": {
+                    "type": "http",
+                    "behavior": "domain",
+                    "format": "mrs",
+                    "url": f"{BASE_URL}/dist/merged-dedup/domain/new-managed.mrs",
+                    "path": "./ruleset/merged-dedup/new-managed.mrs",
+                }
+            },
+            "rules": ["RULE-SET,new-managed,Proxy"],
+        }
+        manifest = convert.build_managed_manifest(
+            "merged-dedup",
+            BASE_URL,
+            {"old-managed": complete["rule-providers"]["old-managed"]},
+        )
+
+        refreshed = convert.refresh_complete_config(
+            complete,
+            generated,
+            manifest,
+            BASE_URL,
+            "merged-dedup",
+        )
+
+        self.assertIn("custom-url", refreshed["rule-providers"])
+        self.assertIn("custom-path", refreshed["rule-providers"])
+        self.assertIn("RULE-SET,custom-url,Proxy", refreshed["rules"])
+        self.assertIn("RULE-SET,custom-path,Proxy", refreshed["rules"])
+
+    def test_first_migration_uses_base_url_suite_url_not_path_guess(self) -> None:
+        complete = {
+            "rule-providers": {
+                "custom-path": {
+                    "type": "http",
+                    "behavior": "domain",
+                    "format": "mrs",
+                    "url": "https://example.com/custom-path.mrs",
+                    "path": "./ruleset/merged-dedup/custom-path.mrs",
+                },
+                "old-managed": {
+                    "type": "http",
+                    "behavior": "domain",
+                    "format": "mrs",
+                    "url": f"{BASE_URL}/dist/merged-dedup/domain/old-managed.mrs",
+                    "path": "./ruleset/merged-dedup/old-managed.mrs",
+                },
+            },
+            "rules": ["RULE-SET,old-managed,Proxy", "RULE-SET,custom-path,Proxy"],
+        }
+        generated = {
+            "rule-providers": {
+                "new-managed": {
+                    "type": "http",
+                    "behavior": "domain",
+                    "format": "mrs",
+                    "url": f"{BASE_URL}/dist/merged-dedup/domain/new-managed.mrs",
+                    "path": "./ruleset/merged-dedup/new-managed.mrs",
+                }
+            },
+            "rules": ["RULE-SET,new-managed,Proxy"],
+        }
+
+        refreshed = convert.refresh_complete_config(
+            complete,
+            generated,
+            None,
+            BASE_URL,
+            "merged-dedup",
+        )
+
+        self.assertNotIn("old-managed", refreshed["rule-providers"])
+        self.assertIn("custom-path", refreshed["rule-providers"])
+        self.assertIn("RULE-SET,custom-path,Proxy", refreshed["rules"])
+
+    def test_refresh_fails_when_generated_provider_collides_with_custom_provider(self) -> None:
+        complete = {
+            "rule-providers": {
+                "new-managed": {
+                    "type": "http",
+                    "behavior": "domain",
+                    "format": "mrs",
+                    "url": "https://example.com/custom.mrs",
+                    "path": "./rule-providers/custom.mrs",
+                },
+                "old-managed": {
+                    "type": "http",
+                    "behavior": "domain",
+                    "format": "mrs",
+                    "url": f"{BASE_URL}/dist/merged-dedup/domain/old-managed.mrs",
+                    "path": "./ruleset/merged-dedup/old-managed.mrs",
+                },
+            },
+            "rules": ["RULE-SET,old-managed,Proxy", "RULE-SET,new-managed,Proxy"],
+        }
+        generated = {
+            "rule-providers": {
+                "new-managed": {
+                    "type": "http",
+                    "behavior": "domain",
+                    "format": "mrs",
+                    "url": f"{BASE_URL}/dist/merged-dedup/domain/new-managed.mrs",
+                    "path": "./ruleset/merged-dedup/new-managed.mrs",
+                }
+            },
+            "rules": ["RULE-SET,new-managed,Proxy"],
+        }
+        manifest = convert.build_managed_manifest(
+            "merged-dedup",
+            BASE_URL,
+            {"old-managed": complete["rule-providers"]["old-managed"]},
+        )
+
+        with self.assertRaises(SystemExit):
+            convert.refresh_complete_config(
+                complete,
+                generated,
+                manifest,
+                BASE_URL,
+                "merged-dedup",
+            )
+
+    def test_two_cli_runs_remove_stale_state_and_are_idempotent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            dist = root / "dist"
+            first_input = root / "first.yaml"
+            second_input = root / "second.yaml"
+            complete = root / "complete.yaml"
+
+            first_names = [
+                *[f"s{index}{suffix}" for index in range(1, 7) for suffix in ("a", "b")],
+                "xxx",
+                "s7a",
+                "s7b",
+            ]
+            first_rules = [
+                rule
+                for index in range(1, 7)
+                for rule in (
+                    f"RULE-SET,s{index}a,P{index}",
+                    f"RULE-SET,s{index}b,P{index}",
+                    *(("RULE-SET,xxx,P6",) if index == 6 else ()),
+                )
+            ]
+            first_rules.extend(["RULE-SET,s7a,P7,no-resolve", "RULE-SET,s7b,P7,no-resolve"])
+            self.write_input(first_input, first_names, first_rules)
+            first_remotes = {
+                f"https://example.com/{name}.yaml": f"payload:\n- DOMAIN,{name}.example\n"
+                for name in first_names
+                if name not in {"xxx", "s7a", "s7b"}
+            }
+            first_remotes["https://example.com/xxx.yaml"] = "payload:\n- PROCESS-NAME,OldApp\n"
+            first_remotes["https://example.com/s7a.yaml"] = "payload:\n- DOMAIN,s7a.example\n- IP-CIDR,10.7.1.0/24\n"
+            first_remotes["https://example.com/s7b.yaml"] = "payload:\n- DOMAIN,s7b.example\n- IP-CIDR,10.7.2.0/24\n"
+
+            self.run_convert_cli(first_input, dist, first_remotes)
+
+            first_generated = yaml.safe_load((dist / "merged-dedup/generated/mihomo-rules.yaml").read_text())
+            old_complete = {
+                "proxies": [{"name": "Custom", "type": "direct"}],
+                "rule-providers": {
+                    **first_generated["rule-providers"],
+                    "custom-provider": {
+                        "type": "http",
+                        "behavior": "domain",
+                        "format": "mrs",
+                        "url": "https://raw.githubusercontent.com/other/repo/main/dist/domain/custom.mrs",
+                        "path": "./ruleset/merged-dedup/custom.mrs",
+                    },
+                },
+                "rules": [
+                    *first_generated["rules"],
+                    "RULE-SET,custom-provider,Custom",
+                    "IP-CIDR,1.1.1.1/32,DIRECT,no-resolve",
+                    "GEOIP,CN,DIRECT",
+                    "MATCH,Custom",
+                ],
+            }
+            complete.write_text(yaml.safe_dump(old_complete, sort_keys=False), encoding="utf-8")
+
+            second_names = [
+                *[f"s{index}{suffix}" for index in range(1, 7) for suffix in ("a", "b")],
+                "xxx",
+            ]
+            second_rules = [
+                rule
+                for index in range(1, 7)
+                for rule in (
+                    f"RULE-SET,s{index}a,P{index}",
+                    f"RULE-SET,s{index}b,P{index}",
+                    *(("RULE-SET,xxx,P6",) if index == 6 else ()),
+                )
+            ]
+            self.write_input(second_input, second_names, second_rules)
+            second_remotes = {
+                f"https://example.com/{name}.yaml": f"payload:\n- DOMAIN,{name}.example\n"
+                for name in second_names
+            }
+
+            self.run_convert_cli(second_input, dist, second_remotes, complete)
+
+            refreshed = yaml.safe_load(complete.read_text(encoding="utf-8"))
+            providers = refreshed["rule-providers"]
+            rules = refreshed["rules"]
+            self.assertNotIn("xxx-classical", providers)
+            self.assertNotIn("merged-segment-07-domain", providers)
+            self.assertNotIn("merged-segment-07-ip", providers)
+            self.assertFalse(any("xxx-classical" in rule for rule in rules if isinstance(rule, str)))
+            self.assertFalse(any("merged-segment-07" in rule for rule in rules if isinstance(rule, str)))
+            self.assertFalse((dist / "merged-dedup/classical/xxx.yaml").exists())
+            self.assertFalse((dist / "merged-dedup/source/domain/merged-segment-07-domain.yaml").exists())
+            self.assertFalse((dist / "merged-dedup/source/ipcidr/merged-segment-07-ip.yaml").exists())
+            self.assertIn("custom-provider", providers)
+            self.assertIn("RULE-SET,custom-provider,Custom", rules)
+            self.assertEqual(rules.count("IP-CIDR,1.1.1.1/32,DIRECT,no-resolve"), 1)
+            self.assertEqual(rules.count("GEOIP,CN,DIRECT"), 1)
+            self.assertEqual(rules.count("MATCH,Custom"), 1)
+            self.assertLess(
+                rules.index("RULE-SET,custom-provider,Custom"),
+                rules.index("IP-CIDR,1.1.1.1/32,DIRECT,no-resolve"),
+            )
+            self.assertLess(
+                rules.index("GEOIP,CN,DIRECT"),
+                rules.index("MATCH,Custom"),
+            )
+
+            managed_rules = {
+                convert.ruleset_provider_name(rule)
+                for rule in rules
+                if convert.ruleset_provider_name(rule) in providers
+                and str(providers[convert.ruleset_provider_name(rule)]["url"]).startswith(f"{BASE_URL}/dist/merged-dedup/")
+            }
+            managed_providers = {
+                name
+                for name, provider in providers.items()
+                if str(provider["url"]).startswith(f"{BASE_URL}/dist/merged-dedup/")
+            }
+            self.assertEqual(managed_providers, managed_rules)
+
+            paths = [provider["path"] for provider in providers.values()]
+            self.assertEqual(len(paths), len(set(paths)))
+            for provider in managed_providers:
+                artifact = dist / providers[provider]["url"].split("/dist/", 1)[1]
+                self.assertTrue(artifact.exists(), artifact)
+
+            complete_snapshot = complete.read_bytes()
+            dist_snapshot = self.snapshot_files(dist)
+            self.run_convert_cli(second_input, dist, second_remotes, complete)
+            self.assertEqual(complete.read_bytes(), complete_snapshot)
+            self.assertEqual(self.snapshot_files(dist), dist_snapshot)
+
+    def test_refresh_fails_when_managed_provider_was_modified(self) -> None:
+        old_managed = {
+            "old-managed": {
+                "type": "http",
+                "behavior": "domain",
+                "format": "mrs",
+                "url": f"{BASE_URL}/dist/merged-dedup/domain/old-managed.mrs",
+                "path": "./ruleset/merged-dedup/old-managed.mrs",
+            }
+        }
+        manifest = convert.build_managed_manifest("merged-dedup", BASE_URL, old_managed)
+        complete = {
+            "rule-providers": {
+                "old-managed": {
+                    **old_managed["old-managed"],
+                    "url": f"{BASE_URL}/dist/merged-dedup/domain/hand-edited.mrs",
+                }
+            },
+            "rules": ["RULE-SET,old-managed,Proxy"],
+        }
+        generated = {"rule-providers": {}, "rules": []}
+
+        with self.assertRaises(SystemExit):
+            convert.refresh_complete_config(
+                complete,
+                generated,
+                manifest,
+                BASE_URL,
+                "merged-dedup",
+            )
 
 
 if __name__ == "__main__":

@@ -127,6 +127,12 @@ python scripts/convert.py examples/my-rules.yaml \
 
 刷新完整配置时，本轮转换器生成的 `rule-providers` 和 `RULE-SET` 会作为转换器管理区域的唯一真源；上一轮存在但本轮不存在的旧 provider 和旧 `RULE-SET` 会被删除。其它非转换器管理的配置字段、普通规则和自定义 provider 会保留。
 
+每套生成结果都会写入 `generated/managed-state.yaml`，记录本轮由转换器管理的 provider 及其 fingerprint。下一轮刷新完整配置时，只有上一轮 manifest 明确认领且定义未被手工改动的 provider 才会被删除或替换；同名自定义 provider 会直接报错，不会静默覆盖。没有 manifest 的首次迁移只按当前 `base-url + suite` 的 URL 做兼容识别，不会根据 `path` 猜测归属。
+
+完整配置刷新只替换转换器管理的 `RULE-SET` 区块，不会把 generated 配置里的 `IP-CIDR`、`GEOIP`、`MATCH` 等普通规则再次注入完整配置。普通规则保持原顺序和原出现次数。如果旧 managed `RULE-SET` 不是一个连续区块，刷新会失败，避免猜测插入位置。
+
+默认构建要求零 orphan：每个 `RULE-SET` 必须有 provider，每个生成 provider 必须被 `RULE-SET` 使用，provider `path` 不得重复，指向 `dist/` 的 URL 必须有对应 artifact。只有显式传入 `--allow-orphan-providers` 才允许保留未引用的生成 provider。
+
 ## GitHub Actions
 
 推送到 GitHub 后，工作流会：

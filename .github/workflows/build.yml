@@ -41,6 +41,9 @@ jobs:
       - name: Run tests
         run: python -m unittest discover -s tests
 
+      - name: Run complete-config integration test
+        run: python -m unittest tests.test_convert.CompleteConfigRefreshTest.test_two_cli_runs_remove_stale_state_and_are_idempotent
+
       - name: Build MRS rules
         run: |
           python scripts/convert.py examples/my-rules.yaml \
@@ -83,12 +86,16 @@ jobs:
                   if orphaned:
                       raise SystemExit(f"{path}: orphan providers {sorted(orphaned)}")
 
-          validate(Path("dist/generated/mihomo-rules.yaml"))
+          validate(Path("dist/generated/mihomo-rules.yaml"), require_no_orphans=True)
           validate(Path("dist/generated/mihomo-rules-merged.yaml"), require_no_orphans=True)
           validate(Path("dist/generated/mihomo-rules-merged-dedup.yaml"), require_no_orphans=True)
-          validate(Path("dist/unmerged/generated/mihomo-rules.yaml"))
+          validate(Path("dist/unmerged/generated/mihomo-rules.yaml"), require_no_orphans=True)
           validate(Path("dist/merged/generated/mihomo-rules.yaml"), require_no_orphans=True)
           validate(Path("dist/merged-dedup/generated/mihomo-rules.yaml"), require_no_orphans=True)
+          for suite in ("unmerged", "merged", "merged-dedup"):
+              manifest = Path("dist") / suite / "generated" / "managed-state.yaml"
+              if not manifest.exists():
+                  raise SystemExit(f"missing managed state {manifest}")
           PY
           grep -q -- '- +.chatgpt.com' dist/source/domain/openai.yaml
           grep -q -- '- +.chatgpt.com' dist/unmerged/source/domain/openai.yaml

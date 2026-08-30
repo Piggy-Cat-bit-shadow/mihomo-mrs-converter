@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 import argparse
+import hashlib
 import ipaddress
+import json
 import os
 import shutil
 import ssl
 import subprocess
 import sys
 import time
+import tempfile
 import urllib.request
 from collections import Counter
 from dataclasses import dataclass
@@ -24,6 +27,8 @@ except ImportError:  # pragma: no cover - optional runtime fallback
 
 DOMAIN_RULES = {"DOMAIN", "DOMAIN-SUFFIX"}
 IPCIDR_RULES = {"IP-CIDR", "IP-CIDR6"}
+SUITES = {"unmerged", "merged", "merged-dedup"}
+MANAGED_STATE_FILENAME = "managed-state.yaml"
 
 
 @dataclass(frozen=True)
@@ -368,6 +373,26 @@ def write_text_payload(path: Path, rules: list[str]) -> None:
     path.write_text("\n".join(rules) + "\n", encoding="utf-8")
 
 
+def write_yaml_atomic(path: Path, data: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    encoded = yaml.safe_dump(data, allow_unicode=True, sort_keys=False)
+    with tempfile.NamedTemporaryFile(
+        "w",
+        encoding="utf-8",
+        dir=path.parent,
+        delete=False,
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+    ) as handle:
+        handle.write(encoded)
+        temporary = Path(handle.name)
+    try:
+        os.replace(temporary, path)
+    except Exception:
+        temporary.unlink(missing_ok=True)
+        raise
+
+
 def convert_source_to_mrs(mihomo: str, behavior: str, source: Path, output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run(
@@ -450,9 +475,8 @@ def dist_relative_from_url(url: str) -> Path | None:
 
 
 def suite_relative_path(relative: Path, suite: str) -> Path:
-    known_suites = {"unmerged", "merged", "merged-dedup"}
     parts = relative.parts
-    if parts and parts[0] in known_suites:
+    if parts and parts[0] in SUITES:
         relative = Path(*parts[1:])
     return Path(suite) / relative
 
@@ -488,7 +512,7 @@ def source_path_for_provider(dist: Path, provider: dict[str, Any]) -> Path | Non
     parts = relative.parts
     source_dir = "ipcidr" if behavior == "ipcidr" else "domain"
     filename = Path(parts[-1]).with_suffix(".yaml")
-    if len(parts) >= 4 and parts[0] in {"unmerged", "merged", "merged-dedup"} and parts[1] == "source":
+    if len(parts) >= 4 and parts[0] in SUITES and parts[1] == "source":
         candidate = dist / relative
         if candidate.exists():
             return candidate
@@ -496,7 +520,7 @@ def source_path_for_provider(dist: Path, provider: dict[str, Any]) -> Path | Non
         candidate = dist / relative
         if candidate.exists():
             return candidate
-    if len(parts) >= 3 and parts[-3] in {"unmerged", "merged", "merged-dedup"}:
+    if len(parts) >= 3 and parts[-3] in SUITES:
         candidate = dist / parts[-3] / "source" / source_dir / filename
         if candidate.exists():
             return candidate
@@ -549,6 +573,67 @@ def copy_provider_artifacts_to_suite(
             copy_file(source_path, source_destination)
 
 
+def provider_fingerprint(provider: dict[str, Any]) -> str:
+    payload = json.dumps(
+        provider,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def build_managed_manifest(
+    suite: str,
+    base_url: str,
+    providers: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    return {
+        "version": 1,
+        "suite": suite,
+        "base_url": base_url.rstrip("/"),
+        "providers": {
+            name: {
+                "name": name,
+                "url": provider.get("url"),
+                "path": provider.get("path"),
+                "behavior": provider.get("behavior"),
+                "format": provider.get("format"),
+                "fingerprint": provider_fingerprint(provider),
+            }
+            for name, provider in providers.items()
+        },
+    }
+
+
+def managed_manifest_path(dist: Path, suite: str) -> Path:
+    return dist / suite / "generated" / MANAGED_STATE_FILENAME
+
+
+def read_managed_manifest(dist: Path, suite: str) -> dict[str, Any] | None:
+    path = managed_manifest_path(dist, suite)
+    if not path.exists():
+        return None
+    manifest = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(manifest, dict):
+        raise SystemExit(f"{path}: managed state must be a YAML mapping")
+    providers = manifest.get("providers")
+    if not isinstance(providers, dict):
+        raise SystemExit(f"{path}: managed state missing providers mapping")
+    return manifest
+
+
+def write_managed_manifest(
+    dist: Path,
+    suite: str,
+    base_url: str,
+    providers: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    manifest = build_managed_manifest(suite, base_url, providers)
+    write_yaml_atomic(managed_manifest_path(dist, suite), manifest)
+    return manifest
+
+
 def materialize_suite_config(
     config: dict[str, Any],
     suite: str,
@@ -573,15 +658,9 @@ def materialize_suite_config(
         "rules": config["rules"],
     }
     output = suite_root / "generated" / "mihomo-rules.yaml"
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(
-        yaml.safe_dump(suite_config, allow_unicode=True, sort_keys=False),
-        encoding="utf-8",
-    )
-    validate_generated_rulesets(suite_config["rules"], set(suite_config["rule-providers"]))
-    validate_generated_artifacts(dist, suite_config["rule-providers"])
-    if require_no_orphans:
-        validate_no_orphan_providers(suite_config)
+    validate_generated_config(dist, suite_config, require_no_orphans=require_no_orphans)
+    write_yaml_atomic(output, suite_config)
+    write_managed_manifest(dist, suite, base_url, suite_config["rule-providers"])
     return suite_config
 
 
@@ -592,6 +671,7 @@ def provider_source_dir(behavior: str) -> str:
 def build_dedup_config(
     config: dict[str, Any],
     options: BuildOptions,
+    require_no_orphans: bool = True,
 ) -> tuple[dict[str, Any], dict[str, DedupStats]]:
     suite = "merged-dedup"
     suite_root = options.dist / suite
@@ -656,14 +736,9 @@ def build_dedup_config(
         "rules": config["rules"],
     }
     output = suite_root / "generated" / "mihomo-rules.yaml"
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(
-        yaml.safe_dump(dedup_config, allow_unicode=True, sort_keys=False),
-        encoding="utf-8",
-    )
-    validate_generated_rulesets(dedup_config["rules"], set(dedup_config["rule-providers"]))
-    validate_generated_artifacts(options.dist, dedup_config["rule-providers"])
-    validate_no_orphan_providers(dedup_config)
+    validate_generated_config(options.dist, dedup_config, require_no_orphans=require_no_orphans)
+    write_yaml_atomic(output, dedup_config)
+    write_managed_manifest(options.dist, suite, options.base_url, dedup_config["rule-providers"])
     return dedup_config, stats_by_provider
 
 
@@ -1290,6 +1365,17 @@ def validate_generated_artifacts(dist: Path, providers: dict[str, dict[str, Any]
             raise SystemExit(f"{name}: generated URL artifact does not exist: {artifact}")
 
 
+def validate_unique_provider_paths(config: dict[str, Any]) -> None:
+    paths: dict[str, str] = {}
+    for name, provider in config["rule-providers"].items():
+        path = provider.get("path")
+        if not isinstance(path, str):
+            continue
+        if path in paths:
+            raise SystemExit(f"duplicate provider path {path}: {paths[path]}, {name}")
+        paths[path] = name
+
+
 def validate_no_orphan_providers(config: dict[str, Any]) -> None:
     providers = set(config["rule-providers"])
     used: set[str] = set()
@@ -1302,6 +1388,18 @@ def validate_no_orphan_providers(config: dict[str, Any]) -> None:
         raise SystemExit(f"unused generated providers: {', '.join(sorted(orphaned))}")
 
 
+def validate_generated_config(
+    dist: Path,
+    config: dict[str, Any],
+    require_no_orphans: bool = True,
+) -> None:
+    validate_unique_provider_paths(config)
+    validate_generated_rulesets(config["rules"], set(config["rule-providers"]))
+    validate_generated_artifacts(dist, config["rule-providers"])
+    if require_no_orphans:
+        validate_no_orphan_providers(config)
+
+
 def validate_rule_counts(name: str, original: Counter[str], rebuilt: Counter[str]) -> None:
     missing = original - rebuilt
     unexpected = rebuilt - original
@@ -1311,34 +1409,11 @@ def validate_rule_counts(name: str, original: Counter[str], rebuilt: Counter[str
         )
 
 
-def is_converter_managed_provider(provider: dict[str, Any]) -> bool:
+def is_provider_from_base_suite(provider: dict[str, Any], base_url: str, suite: str) -> bool:
     url = provider.get("url")
-    if isinstance(url, str):
-        relative = dist_relative_from_url(url)
-        if relative is not None and relative.parts:
-            if relative.parts[0] in {
-                "classical",
-                "domain",
-                "generated",
-                "ipcidr",
-                "merged",
-                "merged-dedup",
-                "source",
-                "unmerged",
-            }:
-                return True
-
-    path = provider.get("path")
-    if isinstance(path, str) and path.startswith(
-        (
-            "./ruleset/merged/",
-            "./ruleset/merged-dedup/",
-            "./ruleset/unmerged/",
-        )
-    ):
-        return True
-
-    return False
+    return isinstance(url, str) and url.startswith(
+        public_url(base_url, "dist", suite) + "/"
+    )
 
 
 def ruleset_provider_name(rule: Any) -> str | None:
@@ -1351,6 +1426,9 @@ def ruleset_provider_name(rule: Any) -> str | None:
 def refresh_complete_config(
     complete_config: dict[str, Any],
     generated_config: dict[str, Any],
+    previous_manifest: dict[str, Any] | None,
+    base_url: str,
+    suite: str,
 ) -> dict[str, Any]:
     old_providers = complete_config.get("rule-providers") or {}
     old_rules = complete_config.get("rules") or []
@@ -1362,11 +1440,41 @@ def refresh_complete_config(
     if not isinstance(new_providers, dict) or not isinstance(new_rules, list):
         raise SystemExit("generated config must contain rule-providers mapping and rules list")
 
-    managed_old_names = {
-        name
-        for name, provider in old_providers.items()
-        if isinstance(provider, dict) and is_converter_managed_provider(provider)
-    }
+    managed_old_names: set[str] = set()
+    if previous_manifest is not None:
+        manifest_providers = previous_manifest.get("providers")
+        if not isinstance(manifest_providers, dict):
+            raise SystemExit("previous managed state missing providers mapping")
+        for name, state in manifest_providers.items():
+            if not isinstance(state, dict):
+                raise SystemExit(f"previous managed state for {name} must be a mapping")
+            provider = old_providers.get(name)
+            if provider is None:
+                managed_old_names.add(name)
+                continue
+            if not isinstance(provider, dict):
+                raise SystemExit(f"{name}: managed provider definition must be a mapping")
+            expected_fingerprint = state.get("fingerprint")
+            if provider_fingerprint(provider) != expected_fingerprint:
+                raise SystemExit(
+                    f"{name}: managed provider was modified outside converter; refusing to overwrite"
+                )
+            managed_old_names.add(name)
+    else:
+        managed_old_names = {
+            name
+            for name, provider in old_providers.items()
+            if isinstance(provider, dict) and is_provider_from_base_suite(provider, base_url, suite)
+        }
+
+    collisions = sorted((set(new_providers) & set(old_providers)) - managed_old_names)
+    if collisions:
+        raise SystemExit(
+            "generated providers collide with unmanaged complete-config providers: "
+            + ", ".join(collisions)
+        )
+
+    new_rulesets = [rule for rule in new_rules if ruleset_parts(rule) is not None]
 
     refreshed = dict(complete_config)
     refreshed_providers = {
@@ -1377,32 +1485,36 @@ def refresh_complete_config(
     refreshed_providers.update(new_providers)
     refreshed["rule-providers"] = refreshed_providers
 
-    first_managed_index: int | None = None
+    managed_rule_indexes: list[int] = []
     retained_rules: list[Any] = []
-    for rule in old_rules:
+    for index, rule in enumerate(old_rules):
         provider_name = ruleset_provider_name(rule)
         if provider_name is not None and provider_name in managed_old_names:
-            if first_managed_index is None:
-                first_managed_index = len(retained_rules)
+            managed_rule_indexes.append(index)
             continue
         retained_rules.append(rule)
 
-    insert_at = first_managed_index if first_managed_index is not None else len(retained_rules)
+    if not managed_rule_indexes and new_rulesets:
+        raise SystemExit("complete config contains no previous managed RULE-SET block")
+    if managed_rule_indexes:
+        expected = list(range(managed_rule_indexes[0], managed_rule_indexes[-1] + 1))
+        if managed_rule_indexes != expected:
+            raise SystemExit("complete config managed RULE-SET block is not contiguous")
+        insert_at = managed_rule_indexes[0]
+    else:
+        insert_at = len(retained_rules)
+
     refreshed["rules"] = [
         *retained_rules[:insert_at],
-        *new_rules,
+        *new_rulesets,
         *retained_rules[insert_at:],
     ]
     validate_generated_rulesets(refreshed["rules"], set(refreshed_providers))
     return refreshed
 
 
-def write_yaml_mapping(path: Path, data: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        yaml.safe_dump(data, allow_unicode=True, sort_keys=False),
-        encoding="utf-8",
-    )
+def write_yaml_mapping_atomic(path: Path, data: dict[str, Any]) -> None:
+    write_yaml_atomic(path, data)
 
 
 def main() -> None:
@@ -1432,6 +1544,11 @@ def main() -> None:
         default="merged-dedup",
         help="Generated suite to merge into --complete-config.",
     )
+    parser.add_argument(
+        "--allow-orphan-providers",
+        action="store_true",
+        help="Allow generated providers that are not referenced by rules. Defaults to strict zero-orphan output.",
+    )
     args = parser.parse_args()
 
     if not args.mihomo and not args.allow_no_mihomo:
@@ -1444,20 +1561,15 @@ def main() -> None:
         raise SystemExit("input must contain rule-providers mapping and rules list")
     validate_top_level_rulesets(rules, set(providers))
 
+    previous_manifests = {
+        suite: read_managed_manifest(args.dist, suite)
+        for suite in SUITES
+    }
+    complete_config = load_yaml_mapping(args.complete_config) if args.complete_config else None
+
+    if args.dist.exists():
+        shutil.rmtree(args.dist)
     args.dist.mkdir(parents=True, exist_ok=True)
-    clean_targets = [
-        args.dist / "classical",
-        args.dist / "source",
-        args.dist / "generated",
-        args.dist / "domain",
-        args.dist / "ipcidr",
-        args.dist / "unmerged",
-        args.dist / "merged",
-        args.dist / "merged-dedup",
-    ]
-    for target in clean_targets:
-        if target.exists():
-            shutil.rmtree(target)
 
     generated_providers: dict[str, dict[str, Any]] = {}
     provider_behaviors: dict[str, str] = {}
@@ -1491,25 +1603,22 @@ def main() -> None:
         print(f"{name}: ok ({len(result.original_rules)} rules -> {', '.join(result.generated_names)})")
 
     rewritten_rules = rewrite_rules(rules, replacements, provider_behaviors)
-    validate_generated_rulesets(rewritten_rules, set(generated_providers))
-    validate_generated_artifacts(args.dist, generated_providers)
     generated = {
         "rule-providers": generated_providers,
         "rules": rewritten_rules,
     }
+    require_no_orphans = not args.allow_orphan_providers
+    validate_generated_config(args.dist, generated, require_no_orphans=require_no_orphans)
     output = args.dist / "generated" / "mihomo-rules.yaml"
-    output.parent.mkdir(parents=True, exist_ok=True)
     unmerged_suite = materialize_suite_config(
         generated,
         "unmerged",
         args.dist,
         args.base_url,
         copy_all_base_outputs=True,
+        require_no_orphans=require_no_orphans,
     )
-    output.write_text(
-        yaml.safe_dump(unmerged_suite, allow_unicode=True, sort_keys=False),
-        encoding="utf-8",
-    )
+    write_yaml_atomic(output, unmerged_suite)
     print(f"wrote {output}")
     print(f"wrote {args.dist / 'unmerged/generated/mihomo-rules.yaml'}")
 
@@ -1521,30 +1630,22 @@ def main() -> None:
         source_payloads,
         options,
     )
-    validate_generated_rulesets(merged["rules"], set(merged["rule-providers"]))
-    validate_generated_artifacts(args.dist, merged["rule-providers"])
-    validate_no_orphan_providers(merged)
+    validate_generated_config(args.dist, merged, require_no_orphans=require_no_orphans)
     merged_suite = materialize_suite_config(
         merged,
         "merged",
         args.dist,
         args.base_url,
-        require_no_orphans=True,
+        require_no_orphans=require_no_orphans,
     )
     merged_output = args.dist / "generated" / "mihomo-rules-merged.yaml"
-    merged_output.write_text(
-        yaml.safe_dump(merged_suite, allow_unicode=True, sort_keys=False),
-        encoding="utf-8",
-    )
+    write_yaml_atomic(merged_output, merged_suite)
     print(f"wrote {merged_output}")
     print(f"wrote {args.dist / 'merged/generated/mihomo-rules.yaml'}")
 
-    dedup, dedup_stats = build_dedup_config(merged_suite, options)
+    dedup, dedup_stats = build_dedup_config(merged_suite, options, require_no_orphans=require_no_orphans)
     dedup_output = args.dist / "generated" / "mihomo-rules-merged-dedup.yaml"
-    dedup_output.write_text(
-        yaml.safe_dump(dedup, allow_unicode=True, sort_keys=False),
-        encoding="utf-8",
-    )
+    write_yaml_atomic(dedup_output, dedup)
     print(f"wrote {dedup_output}")
     print(f"wrote {args.dist / 'merged-dedup/generated/mihomo-rules.yaml'}")
     print()
@@ -1562,10 +1663,15 @@ def main() -> None:
             "merged": merged_suite,
             "merged-dedup": dedup,
         }
-        complete = load_yaml_mapping(args.complete_config)
-        refreshed = refresh_complete_config(complete, suite_configs[args.complete_suite])
+        refreshed = refresh_complete_config(
+            complete_config,
+            suite_configs[args.complete_suite],
+            previous_manifests[args.complete_suite],
+            args.base_url,
+            args.complete_suite,
+        )
         complete_output = args.complete_output or args.complete_config
-        write_yaml_mapping(complete_output, refreshed)
+        write_yaml_mapping_atomic(complete_output, refreshed)
         print(f"wrote refreshed complete config {complete_output}")
 
 
