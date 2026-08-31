@@ -9,6 +9,13 @@ providers:
     behavior: domain
     format: mrs
     fingerprint: 6690bd58622af5440045395564ea12b40cd90e235aac7e8c79969a4d33b702fe
+  Scholar-China-classical:
+    name: Scholar-China-classical
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/Scholar-China.yaml
+    path: ./ruleset/unmerged/Scholar-China-classical.yaml
+    behavior: classical
+    format: yaml
+    fingerprint: 7d3b03cbd8573314788fbab6e4798cd7bbde13516c865daabf766ea041a3c0ba
   Scholar-Foreign-domain:
     name: Scholar-Foreign-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Scholar-Foreign.mrs

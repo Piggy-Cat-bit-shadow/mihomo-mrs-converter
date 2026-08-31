@@ -128,6 +128,13 @@ providers:
     behavior: classical
     format: yaml
     fingerprint: cbdf292c6c08d25d63860c1ce61414a908a21746f0393886f3beefa5ab1acc6d
+  Scholar-China-classical:
+    name: Scholar-China-classical
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/Scholar-China.yaml
+    path: ./ruleset/merged-dedup/Scholar-China-classical.yaml
+    behavior: classical
+    format: yaml
+    fingerprint: 9fa590c74821f9cb1be6ee0672c6b94f4c832fe0e64a07fce125a8b97e13b5ea
   Telegram-classical:
     name: Telegram-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/Telegram.yaml
