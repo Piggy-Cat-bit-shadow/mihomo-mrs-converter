@@ -401,13 +401,6 @@ providers:
     behavior: classical
     format: yaml
     fingerprint: 48b147ceffe34142745a34cf69b7cf0ed5e84e307fcad04a943554ce2c4b22e2
-  HageziAds:
-    name: HageziAds
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/HageziAds.mrs
-    path: ./ruleset/unmerged/HageziAds.mrs
-    behavior: domain
-    format: mrs
-    fingerprint: addacff2cf21e0babbb49697c27219416b8d9a48fe2881efeb9b80438731eb12
   AntiAD:
     name: AntiAD
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/AntiAD.mrs

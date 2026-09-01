@@ -398,13 +398,6 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/AWAvenueAds.yaml
     path: ./ruleset/unmerged/AWAvenueAds-classical.yaml
     interval: 604800
-  HageziAds:
-    type: http
-    behavior: domain
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/HageziAds.mrs
-    path: ./ruleset/unmerged/HageziAds.mrs
-    interval: 604800
   AntiAD:
     type: http
     behavior: domain
@@ -739,7 +732,6 @@ rules:
 - RULE-SET,global-classical,⚡ 海外高速
 - RULE-SET,AWAvenueAds-domain,REJECT-DROP
 - RULE-SET,AWAvenueAds-classical,REJECT-DROP
-- RULE-SET,HageziAds,REJECT-DROP
 - RULE-SET,AntiAD,REJECT-DROP
 - RULE-SET,DouYin-domain,DIRECT
 - RULE-SET,BiliBili-domain,DIRECT
