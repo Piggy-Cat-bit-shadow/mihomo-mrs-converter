@@ -34,13 +34,6 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/merged-segment-04-ip.mrs
     path: ./ruleset/merged/merged-segment-04-ip.mrs
     interval: 1209600
-  merged-segment-05-domain:
-    type: http
-    behavior: domain
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/merged-segment-05-domain.mrs
-    path: ./ruleset/merged/merged-segment-05-domain.mrs
-    interval: 604800
   merged-segment-06-domain:
     type: http
     behavior: domain
@@ -251,12 +244,12 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/global.yaml
     path: ./ruleset/merged/global-classical.yaml
     interval: 1209600
-  AWAvenueAds-classical:
+  AntiAD:
     type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/AWAvenueAds.yaml
-    path: ./ruleset/merged/AWAvenueAds-classical.yaml
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/AntiAD.mrs
+    path: ./ruleset/merged/AntiAD.mrs
     interval: 604800
   BiliBili-classical:
     type: http
@@ -288,6 +281,9 @@ rule-providers:
     interval: 1209600
 rules:
 - IP-CIDR,0.0.0.0/32,REJECT,no-resolve
+- IP-CIDR,1.12.226.144/32,DIRECT,no-resolve
+- IP-CIDR,195.245.241.114/32,DIRECT,no-resolve
+- IP-CIDR,95.169.6.169/32,DIRECT,no-resolve
 - RULE-SET,merged-segment-01-domain,DIRECT
 - RULE-SET,Lan-classical,DIRECT
 - RULE-SET,merged-segment-02-domain,🤖 AI
@@ -321,8 +317,7 @@ rules:
 - RULE-SET,tiktok-classical,⚡ 海外高速
 - RULE-SET,google-classical,⚡ 海外高速
 - RULE-SET,global-classical,⚡ 海外高速
-- RULE-SET,merged-segment-05-domain,REJECT-DROP
-- RULE-SET,AWAvenueAds-classical,REJECT-DROP
+- RULE-SET,AntiAD,REJECT-DROP
 - RULE-SET,merged-segment-06-domain,DIRECT
 - RULE-SET,merged-segment-06-ip,DIRECT
 - RULE-SET,BiliBili-classical,DIRECT

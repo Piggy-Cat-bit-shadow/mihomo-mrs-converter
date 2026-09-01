@@ -1,31 +1,4 @@
 payload:
-- a0.app.xiaomi.com
-- api.statsig.com
-- audid-api.taobao.com
-- c.evidon.com
-- c.gj.qq.com
-- kepler.jd.com
-- log-upload.mihoyo.com
-- metrics.icloud.com
-- mobilelog.kugou.com
-- orbit.jd.com
-- pkoplink.com
-- shouji.sogou.com
-- snowflake.qq.com
-- tagtic.cn
-- tracker.ai.xiaomi.com
-- update.avlyun.sec.miui.com
-- ws-keyboard.shouji.sogou.com
-- +.1rtb.com
-- +.a.market.xiaomi.com
-- +.ad.gameley.com
-- +.adintl.cn
-- +.adx.adwangmai.com
-- +.data.hicloud.com
-- +.ubixioe.com
-- +.vlion.cn
-- +.yfanads.com
-- +.zhangyuyidong.cn
 - +.000491b06a.com
 - +.000dn.com
 - +.0013.cc
@@ -919,6 +892,7 @@ payload:
 - +.1rljzo9nt.com
 - +.adebis1.1rnavi.com
 - +.1rtb.cn
+- +.1rtb.com
 - +.1rtb.net
 - +.1rwa5e8a6.com
 - +.1rx.io
@@ -1589,6 +1563,7 @@ payload:
 - +.s.so.360.cn
 - +.s.union.360.cn
 - +.se.360.cn
+- +.act.commercial.shouji.360.cn
 - +.ad.dev.360.cn
 - +.gamebox.360.cn
 - +.adapi.shouji.360.cn
@@ -1622,7 +1597,9 @@ payload:
 - +.softdl4.360.cn
 - +.stat.m.360.cn
 - +.stat.tf.360.cn
+- +.stats.guess.tf.360.cn
 - +.tr.p.360.cn
+- +.tracking.v.tf.360.cn
 - +.u.api.look.360.cn
 - +.v.tf.360.cn
 - +.mclean.f.360.cn
@@ -5193,6 +5170,7 @@ payload:
 - +.adinte.jp
 - +.adintend.com
 - +.adinterax.com
+- +.adintl.cn
 - +.adinvigorate.com
 - +.adipolo.com
 - +.adipolosolutions.com
@@ -6105,6 +6083,7 @@ payload:
 - +.advtise.net
 - +.adw9.com
 - +.adwalte.info
+- +.adx.adwangmai.com
 - +.sdk.mobads.adwangmai.com
 - +.adway.org
 - +.adways.com
@@ -35862,6 +35841,7 @@ payload:
 - +.worldh5.gamehz.cn
 - +.l.gamekult.com
 - +.utiq.gamekult.com
+- +.ad.gameley.com
 - +.mailer.gameloft.com
 - +.ingameads.gameloft.com
 - +.tracker.gamemonkey.org
@@ -40691,6 +40671,7 @@ payload:
 - +.hibuncishawy.shop
 - +.hickory27.top
 - +.sstats.hickoryfarms.com
+- +.data.hicloud.com
 - +.datacollector-dra.dt.hicloud.com
 - +.grs.hicloud.com
 - +.logbak.hicloud.com
@@ -87785,6 +87766,7 @@ payload:
 - +.ubiquitoussea.com
 - +.wop-bio.ubiwhere.com
 - +.stats.ubiwiz.com
+- +.ubixioe.com
 - +.adserver.ubiyoo.com
 - +.ubjgaemorrgfx.online
 - +.ubjzmnbnhtdjj.site
@@ -91462,6 +91444,7 @@ payload:
 - +.vlfpptelkjkssy.com
 - +.vlhovwvwwcpdz.space
 - +.ssc.vliegwinkel.nl
+- +.vlion.cn
 - +.vlitag.com
 - +.vlkvviufipfsw.website
 - +.vlmjm1.com
@@ -96399,6 +96382,7 @@ payload:
 - +.sec.xiaojiji.nl
 - +.xiaomeihq.info
 - +.xiaomengquan.cn
+- +.a.market.xiaomi.com
 - +.abtest.mistat.xiaomi.com
 - +.ad.intl.xiaomi.com
 - +.ad.xiaomi.com
@@ -97961,6 +97945,7 @@ payload:
 - +.yezilm.com
 - +.baby.yf898.com
 - +.yfanads.cn
+- +.yfanads.com
 - +.e.yfano.com
 - +.m.yfano.com
 - +.yfbgacwpgteln.site
@@ -99832,6 +99817,7 @@ payload:
 - +.smad.ms.zhangyue.net
 - +.zhangyumo.top
 - +.zhangyunxiawinner.top
+- +.zhangyuyidong.cn
 - +.zhantai.com
 - +.zhanzhang.net
 - +.mg09.zhaopin.com

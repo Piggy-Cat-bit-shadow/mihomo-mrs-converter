@@ -384,20 +384,6 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/MEGA.yaml
     path: ./ruleset/unmerged/MEGA-classical.yaml
     interval: 1209600
-  AWAvenueAds-domain:
-    type: http
-    behavior: domain
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/AWAvenueAds.mrs
-    path: ./ruleset/unmerged/AWAvenueAds-domain.mrs
-    interval: 604800
-  AWAvenueAds-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/AWAvenueAds.yaml
-    path: ./ruleset/unmerged/AWAvenueAds-classical.yaml
-    interval: 604800
   AntiAD:
     type: http
     behavior: domain
@@ -652,6 +638,9 @@ rule-providers:
     interval: 1209600
 rules:
 - IP-CIDR,0.0.0.0/32,REJECT,no-resolve
+- IP-CIDR,1.12.226.144/32,DIRECT,no-resolve
+- IP-CIDR,195.245.241.114/32,DIRECT,no-resolve
+- IP-CIDR,95.169.6.169/32,DIRECT,no-resolve
 - RULE-SET,Lan-domain,DIRECT
 - RULE-SET,Lan-classical,DIRECT
 - RULE-SET,private,DIRECT
@@ -730,8 +719,6 @@ rules:
 - RULE-SET,global-domain,⚡ 海外高速
 - RULE-SET,global-ip,⚡ 海外高速
 - RULE-SET,global-classical,⚡ 海外高速
-- RULE-SET,AWAvenueAds-domain,REJECT-DROP
-- RULE-SET,AWAvenueAds-classical,REJECT-DROP
 - RULE-SET,AntiAD,REJECT-DROP
 - RULE-SET,DouYin-domain,DIRECT
 - RULE-SET,BiliBili-domain,DIRECT

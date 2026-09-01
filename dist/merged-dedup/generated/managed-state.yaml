@@ -37,13 +37,6 @@ providers:
     behavior: ipcidr
     format: mrs
     fingerprint: ad1234ab0112befe87cb5fbcc7583b9d8ea2d89718a9218fbc7ca6f5dd1ab1ff
-  merged-segment-05-domain:
-    name: merged-segment-05-domain
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/merged-segment-05-domain.mrs
-    path: ./ruleset/merged-dedup/merged-segment-05-domain.mrs
-    behavior: domain
-    format: mrs
-    fingerprint: f01db5fcc7019c6cb077dcc8e8c6e7a33fcf50e313745520c314f7397fb21359
   merged-segment-06-domain:
     name: merged-segment-06-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/merged-segment-06-domain.mrs
@@ -254,13 +247,13 @@ providers:
     behavior: classical
     format: yaml
     fingerprint: 1d7c5f3e738c97da9175ce7657bd29af5d5876e9ddd818e12fcca38d0c1eeb09
-  AWAvenueAds-classical:
-    name: AWAvenueAds-classical
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/AWAvenueAds.yaml
-    path: ./ruleset/merged-dedup/AWAvenueAds-classical.yaml
-    behavior: classical
-    format: yaml
-    fingerprint: 66257b0b6c027cb3d7c9706a43ca2c0d1b7d2d1ed43330a6bd10874c4f4442d3
+  AntiAD:
+    name: AntiAD
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/AntiAD.mrs
+    path: ./ruleset/merged-dedup/AntiAD.mrs
+    behavior: domain
+    format: mrs
+    fingerprint: c660fdd534613a6e8f3dae76fa316483014483407c0cda8ba60cc531ddffc967
   BiliBili-classical:
     name: BiliBili-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/BiliBili.yaml

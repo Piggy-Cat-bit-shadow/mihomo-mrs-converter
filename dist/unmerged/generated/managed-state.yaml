@@ -387,20 +387,6 @@ providers:
     behavior: classical
     format: yaml
     fingerprint: bb91de27211fed2121ddfd266e58845a9680056f3179fd51f5684ec2063742c3
-  AWAvenueAds-domain:
-    name: AWAvenueAds-domain
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/AWAvenueAds.mrs
-    path: ./ruleset/unmerged/AWAvenueAds-domain.mrs
-    behavior: domain
-    format: mrs
-    fingerprint: 96ab1c85f574f807ef4163d6e548439fb718499466e6fd2cc01201dc60d1ecab
-  AWAvenueAds-classical:
-    name: AWAvenueAds-classical
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/AWAvenueAds.yaml
-    path: ./ruleset/unmerged/AWAvenueAds-classical.yaml
-    behavior: classical
-    format: yaml
-    fingerprint: 48b147ceffe34142745a34cf69b7cf0ed5e84e307fcad04a943554ce2c4b22e2
   AntiAD:
     name: AntiAD
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/AntiAD.mrs
