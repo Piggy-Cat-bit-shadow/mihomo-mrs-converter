@@ -213,13 +213,6 @@ rule-providers:
     url: https://raw.githubusercontent.com/TG-Twilight/AWAvenue-Ads-Rule/main/Filters/AWAvenue-Ads-Rule-Clash-Classical.yaml
     path: ./ruleset/AWAvenueAds.yaml
     interval: 604800
-  HageziAds:
-    type: http
-    behavior: domain
-    format: text
-    url: https://raw.githubusercontent.com/hagezi/dns-blocklists-legacy/main/domains/light.txt
-    path: ./ruleset/HageziAds.txt
-    interval: 604800
   AntiAD:
     type: http
     behavior: domain
@@ -387,7 +380,6 @@ rules:
 - RULE-SET,google,⚡ 海外高速
 - RULE-SET,global,⚡ 海外高速
 - RULE-SET,AWAvenueAds,REJECT-DROP
-- RULE-SET,HageziAds,REJECT-DROP
 - RULE-SET,AntiAD,REJECT-DROP
 - RULE-SET,DouYin,DIRECT
 - RULE-SET,BiliBili,DIRECT
