@@ -372,7 +372,6 @@ rules:
 - RULE-SET,tiktok,⚡ 海外高速
 - RULE-SET,google,⚡ 海外高速
 - RULE-SET,global,⚡ 海外高速
-- RULE-SET,AntiAD,REJECT-DROP
 - RULE-SET,DouYin,DIRECT
 - RULE-SET,BiliBili,DIRECT
 - RULE-SET,BaiDuTieBa,DIRECT
