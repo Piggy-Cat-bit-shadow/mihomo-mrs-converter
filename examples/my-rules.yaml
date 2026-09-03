@@ -370,3 +370,59 @@ rule-providers:
     url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs
     path: ./ruleset/cn-ip.mrs
     interval: 1209600
+rules:
+- IP-CIDR,0.0.0.0/32,REJECT,no-resolve
+- IP-CIDR,1.12.226.144/32,DIRECT,no-resolve
+- IP-CIDR,195.245.241.114/32,DIRECT,no-resolve
+- IP-CIDR,95.169.6.169/32,DIRECT,no-resolve
+- RULE-SET,Lan,DIRECT
+- RULE-SET,private,DIRECT
+- RULE-SET,me,🤖 AI
+- RULE-SET,AppleProxy,🤖 AI
+- RULE-SET,AppleIntelligence,🤖 AI
+- RULE-SET,openai,🤖 AI
+- RULE-SET,claude,🤖 AI
+- RULE-SET,Anthropic,🤖 AI
+- RULE-SET,gemini,🤖 AI
+- RULE-SET,AI,🤖 AI
+- RULE-SET,cloudflare,🤖 AI
+- RULE-SET,GoogleVoice,🤖 AI
+- RULE-SET,Crypto,🤖 AI
+- RULE-SET,IPCheck,🤖 AI
+- RULE-SET,paypal,🤖 AI
+- RULE-SET,wechat,DIRECT
+- RULE-SET,apple,DIRECT
+- RULE-SET,icloud,DIRECT
+- RULE-SET,qcloud,DIRECT
+- RULE-SET,Scholar-China,DIRECT
+- RULE-SET,Scholar-Foreign,⚡ 海外高速
+- RULE-SET,Scholar,⚡ 海外高速
+- RULE-SET,Telegram,⚡ 海外高速
+- RULE-SET,github,⚡ 海外高速
+- RULE-SET,GoogleEarth,⚡ 海外高速
+- RULE-SET,WhatsApp,⚡ 海外高速
+- RULE-SET,Discord,⚡ 海外高速
+- RULE-SET,netflix,⚡ 海外高速
+- RULE-SET,disney,⚡ 海外高速
+- RULE-SET,primevideo,⚡ 海外高速
+- RULE-SET,GoogleDrive,⚡ 海外高速
+- RULE-SET,OneDrive,⚡ 海外高速
+- RULE-SET,Dropbox,⚡ 海外高速
+- RULE-SET,MEGA,⚡ 海外高速
+- RULE-SET,youtube,⚡ 海外高速
+- RULE-SET,Instagram,⚡ 海外高速
+- RULE-SET,Facebook,⚡ 海外高速
+- RULE-SET,Twitter,⚡ 海外高速
+- RULE-SET,Reddit,⚡ 海外高速
+- RULE-SET,Spotify,⚡ 海外高速
+- RULE-SET,tiktok,⚡ 海外高速
+- RULE-SET,google,⚡ 海外高速
+- RULE-SET,global,⚡ 海外高速
+- RULE-SET,DouYin,DIRECT
+- RULE-SET,BiliBili,DIRECT
+- RULE-SET,BaiDuTieBa,DIRECT
+- RULE-SET,alibaba-domain,DIRECT
+- RULE-SET,alibaba,DIRECT
+- RULE-SET,chinamax,DIRECT
+- RULE-SET,cn-ip,DIRECT,no-resolve
+- MATCH,⚡ 海外高速
