@@ -1,6 +1,7 @@
 rule-providers:
   Scholar-China:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     format: yaml
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/Scholar-China
@@ -8,6 +9,7 @@ rule-providers:
     interval: 1209600
   Scholar-Foreign:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     format: yaml
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/Scholar-Foreign
@@ -15,6 +17,7 @@ rule-providers:
     interval: 1209600
   me:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     format: yaml
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/me
@@ -22,6 +25,7 @@ rule-providers:
     interval: 1209600
   Lan:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     format: yaml
     path: ./ruleset/Lan_No_Resolve.yaml
@@ -29,18 +33,21 @@ rule-providers:
     interval: 1209600
   private:
     type: http
+    proxy: ⚡ 海外高速
     behavior: domain
     url: https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/private.txt
     path: ./ruleset/private.yaml
     interval: 1209600
   Scholar:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Scholar/Scholar.yaml
     path: ./ruleset/Scholar.yaml
     interval: 1209600
   AppleIntelligence:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     format: text
     url: https://raw.githubusercontent.com/ddgksf2013/Filter/refs/heads/master/AppleIntelligence.list
@@ -48,30 +55,35 @@ rule-providers:
     interval: 259200
   openai:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/OpenAI/OpenAI.yaml
     path: ./ruleset/openai.yaml
     interval: 259200
   claude:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Claude/Claude.yaml
     path: ./ruleset/claude.yaml
     interval: 259200
   Anthropic:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Anthropic/Anthropic.yaml
     path: ./ruleset/Anthropic.yaml
     interval: 259200
   gemini:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Gemini/Gemini.yaml
     path: ./ruleset/gemini.yaml
     interval: 259200
   AI:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     format: text
     url: https://raw.githubusercontent.com/QuixoticHeart/rule-set/refs/heads/ruleset/meta/ai.list
@@ -79,12 +91,14 @@ rule-providers:
     interval: 259200
   GoogleVoice:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/GoogleVoice/GoogleVoice.yaml
     path: ./ruleset/GoogleVoice.yaml
     interval: 259200
   Crypto:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     format: yaml
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Crypto/Crypto.yaml
@@ -92,6 +106,7 @@ rule-providers:
     interval: 1209600
   IPCheck:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     format: text
     url: https://raw.githubusercontent.com/iab0x00/ProxyRules/main/Rule/IPCheck.txt
@@ -99,24 +114,28 @@ rule-providers:
     interval: 1209600
   paypal:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/PayPal/PayPal.yaml
     path: ./ruleset/paypal.yaml
     interval: 1209600
   wechat:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/WeChat/WeChat_No_Resolve.yaml
     path: ./ruleset/wechat.yaml
     interval: 1209600
   cloudflare:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     url: https://raw.githubusercontent.com/LM-Firefly/Rules/master/Clash-RuleSet-Classical/PROXY/Cloudflare.yaml
     path: ./ruleset/cloudflare.yaml
     interval: 1209600
   AppleProxy:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     format: yaml
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/AppleProxy/AppleProxy.yaml
@@ -124,24 +143,28 @@ rule-providers:
     interval: 1209600
   Telegram:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Telegram/Telegram_No_Resolve.yaml
     path: ./ruleset/Telegram.yaml
     interval: 1209600
   github:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/GitHub/GitHub_No_Resolve.yaml
     path: ./ruleset/github.yaml
     interval: 1209600
   youtube:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/YouTube/YouTube_No_Resolve.yaml
     path: ./ruleset/youtube.yaml
     interval: 1209600
   GoogleEarth:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     format: yaml
     path: ./ruleset/GoogleEarth_No_Resolve.yaml
@@ -149,6 +172,7 @@ rule-providers:
     interval: 1209600
   Instagram:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     format: yaml
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Instagram/Instagram.yaml
@@ -156,6 +180,7 @@ rule-providers:
     interval: 1209600
   Facebook:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     format: yaml
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Facebook/Facebook.yaml
@@ -163,6 +188,7 @@ rule-providers:
     interval: 1209600
   Twitter:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     format: yaml
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Twitter/Twitter.yaml
@@ -170,6 +196,7 @@ rule-providers:
     interval: 1209600
   Reddit:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     format: yaml
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Reddit/Reddit.yaml
@@ -177,6 +204,7 @@ rule-providers:
     interval: 1209600
   Discord:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     format: yaml
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Discord/Discord.yaml
@@ -184,30 +212,35 @@ rule-providers:
     interval: 1209600
   GoogleDrive:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/GoogleDrive/GoogleDrive.yaml
     path: ./ruleset/GoogleDrive.yaml
     interval: 1209600
   OneDrive:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/OneDrive/OneDrive.yaml
     path: ./ruleset/OneDrive.yaml
     interval: 1209600
   Dropbox:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Dropbox/Dropbox.yaml
     path: ./ruleset/Dropbox.yaml
     interval: 1209600
   MEGA:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/MEGA/MEGA.yaml
     path: ./ruleset/MEGA.yaml
     interval: 1209600
   Spotify:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     format: yaml
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Spotify/Spotify.yaml
@@ -215,6 +248,7 @@ rule-providers:
     interval: 1209600
   WhatsApp:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     format: yaml
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Whatsapp/Whatsapp.yaml
@@ -222,66 +256,77 @@ rule-providers:
     interval: 1209600
   tiktok:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/TikTok/TikTok.yaml
     path: ./ruleset/tiktok.yaml
     interval: 1209600
   netflix:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Netflix/Netflix.yaml
     path: ./ruleset/netflix.yaml
     interval: 1209600
   disney:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Disney/Disney.yaml
     path: ./ruleset/disney.yaml
     interval: 1209600
   primevideo:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/AmazonPrimeVideo/AmazonPrimeVideo.yaml
     path: ./ruleset/primevideo.yaml
     interval: 1209600
   google:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Google/Google.yaml
     path: ./ruleset/google.yaml
     interval: 1209600
   apple:
     type: http
+    proxy: ⚡ 海外高速
     behavior: domain
     url: https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/apple.txt
     path: ./ruleset/apple.yaml
     interval: 1209600
   icloud:
     type: http
+    proxy: ⚡ 海外高速
     behavior: domain
     url: https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/icloud.txt
     path: ./ruleset/icloud.yaml
     interval: 1209600
   DouYin:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/DouYin/DouYin.yaml
     path: ./ruleset/DouYin.yaml
     interval: 1209600
   BiliBili:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/BiliBili/BiliBili.yaml
     path: ./ruleset/BiliBili.yaml
     interval: 1209600
   BaiDuTieBa:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/BaiDuTieBa/BaiDuTieBa.yaml
     path: ./ruleset/BaiDuTieBa.yaml
     interval: 1209600
   alibaba-domain:
     type: http
+    proxy: ⚡ 海外高速
     behavior: domain
     format: yaml
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Alibaba/Alibaba_Domain.yaml
@@ -289,6 +334,7 @@ rule-providers:
     interval: 86400
   alibaba:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     format: yaml
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Alibaba/Alibaba.yaml
@@ -296,6 +342,7 @@ rule-providers:
     interval: 86400
   qcloud:
     type: http
+    proxy: ⚡ 海外高速
     behavior: domain
     format: yaml
     url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/qcloud.yaml
@@ -303,73 +350,23 @@ rule-providers:
     interval: 86400
   global:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Global/Global_Classical.yaml
     path: ./ruleset/global.yaml
     interval: 1209600
   chinamax:
     type: http
+    proxy: ⚡ 海外高速
     behavior: classical
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/ChinaMax/ChinaMax_Classical.yaml
     path: ./ruleset/chinamax.yaml
     interval: 1209600
   cn-ip:
     type: http
+    proxy: ⚡ 海外高速
     behavior: ipcidr
     format: mrs
     url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs
     path: ./ruleset/cn-ip.mrs
     interval: 1209600
-rules:
-- IP-CIDR,0.0.0.0/32,REJECT,no-resolve
-- RULE-SET,Lan,DIRECT
-- RULE-SET,private,DIRECT
-- RULE-SET,me,🤖 AI
-- RULE-SET,AppleProxy,🤖 AI
-- RULE-SET,AppleIntelligence,🤖 AI
-- RULE-SET,openai,🤖 AI
-- RULE-SET,claude,🤖 AI
-- RULE-SET,Anthropic,🤖 AI
-- RULE-SET,gemini,🤖 AI
-- RULE-SET,AI,🤖 AI
-- RULE-SET,cloudflare,🤖 AI
-- RULE-SET,GoogleVoice,🤖 AI
-- RULE-SET,Crypto,🤖 AI
-- RULE-SET,IPCheck,🤖 AI
-- RULE-SET,paypal,🤖 AI
-- RULE-SET,wechat,DIRECT
-- RULE-SET,apple,DIRECT
-- RULE-SET,icloud,DIRECT
-- RULE-SET,qcloud,DIRECT
-- RULE-SET,Scholar-China,DIRECT
-- RULE-SET,Scholar-Foreign,⚡ 海外高速
-- RULE-SET,Scholar,⚡ 海外高速
-- RULE-SET,Telegram,⚡ 海外高速
-- RULE-SET,github,⚡ 海外高速
-- RULE-SET,GoogleEarth,⚡ 海外高速
-- RULE-SET,WhatsApp,⚡ 海外高速
-- RULE-SET,Discord,⚡ 海外高速
-- RULE-SET,netflix,⚡ 海外高速
-- RULE-SET,disney,⚡ 海外高速
-- RULE-SET,primevideo,⚡ 海外高速
-- RULE-SET,GoogleDrive,⚡ 海外高速
-- RULE-SET,OneDrive,⚡ 海外高速
-- RULE-SET,Dropbox,⚡ 海外高速
-- RULE-SET,MEGA,⚡ 海外高速
-- RULE-SET,youtube,⚡ 海外高速
-- RULE-SET,Instagram,⚡ 海外高速
-- RULE-SET,Facebook,⚡ 海外高速
-- RULE-SET,Twitter,⚡ 海外高速
-- RULE-SET,Reddit,⚡ 海外高速
-- RULE-SET,Spotify,⚡ 海外高速
-- RULE-SET,tiktok,⚡ 海外高速
-- RULE-SET,google,⚡ 海外高速
-- RULE-SET,global,⚡ 海外高速
-- RULE-SET,DouYin,DIRECT
-- RULE-SET,BiliBili,DIRECT
-- RULE-SET,BaiDuTieBa,DIRECT
-- RULE-SET,alibaba-domain,DIRECT
-- RULE-SET,alibaba,DIRECT
-- RULE-SET,chinamax,DIRECT
-- RULE-SET,cn-ip,DIRECT,no-resolve
-- MATCH,⚡ 海外高速
