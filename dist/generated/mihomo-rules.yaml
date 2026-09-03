@@ -6,6 +6,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Scholar-China.mrs
     path: ./ruleset/unmerged/Scholar-China-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   Scholar-China-classical:
     type: http
     behavior: classical
@@ -13,6 +14,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/Scholar-China.yaml
     path: ./ruleset/unmerged/Scholar-China-classical.yaml
     interval: 1209600
+    proxy: ⚡ 海外高速
   Scholar-Foreign-domain:
     type: http
     behavior: domain
@@ -20,6 +22,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Scholar-Foreign.mrs
     path: ./ruleset/unmerged/Scholar-Foreign-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   me-domain:
     type: http
     behavior: domain
@@ -27,6 +30,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/me.mrs
     path: ./ruleset/unmerged/me-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   me-classical:
     type: http
     behavior: classical
@@ -34,6 +38,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/me.yaml
     path: ./ruleset/unmerged/me-classical.yaml
     interval: 1209600
+    proxy: ⚡ 海外高速
   Lan-domain:
     type: http
     behavior: domain
@@ -41,6 +46,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Lan.mrs
     path: ./ruleset/unmerged/Lan-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   Lan-classical:
     type: http
     behavior: classical
@@ -48,6 +54,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/Lan.yaml
     path: ./ruleset/unmerged/Lan-classical.yaml
     interval: 1209600
+    proxy: ⚡ 海外高速
   private:
     type: http
     behavior: domain
@@ -55,6 +62,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/private.mrs
     path: ./ruleset/unmerged/private.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   Scholar-domain:
     type: http
     behavior: domain
@@ -62,6 +70,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Scholar.mrs
     path: ./ruleset/unmerged/Scholar-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   AppleIntelligence-domain:
     type: http
     behavior: domain
@@ -69,6 +78,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/AppleIntelligence.mrs
     path: ./ruleset/unmerged/AppleIntelligence-domain.mrs
     interval: 259200
+    proxy: ⚡ 海外高速
   openai-domain:
     type: http
     behavior: domain
@@ -76,6 +86,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/openai.mrs
     path: ./ruleset/unmerged/openai-domain.mrs
     interval: 259200
+    proxy: ⚡ 海外高速
   openai-ip:
     type: http
     behavior: ipcidr
@@ -83,6 +94,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/ipcidr/openai.mrs
     path: ./ruleset/unmerged/openai-ip.mrs
     interval: 259200
+    proxy: ⚡ 海外高速
   openai-classical:
     type: http
     behavior: classical
@@ -90,6 +102,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/openai.yaml
     path: ./ruleset/unmerged/openai-classical.yaml
     interval: 259200
+    proxy: ⚡ 海外高速
   claude-domain:
     type: http
     behavior: domain
@@ -97,6 +110,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/claude.mrs
     path: ./ruleset/unmerged/claude-domain.mrs
     interval: 259200
+    proxy: ⚡ 海外高速
   Anthropic-domain:
     type: http
     behavior: domain
@@ -104,6 +118,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Anthropic.mrs
     path: ./ruleset/unmerged/Anthropic-domain.mrs
     interval: 259200
+    proxy: ⚡ 海外高速
   gemini-domain:
     type: http
     behavior: domain
@@ -111,6 +126,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/gemini.mrs
     path: ./ruleset/unmerged/gemini-domain.mrs
     interval: 259200
+    proxy: ⚡ 海外高速
   gemini-classical:
     type: http
     behavior: classical
@@ -118,6 +134,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/gemini.yaml
     path: ./ruleset/unmerged/gemini-classical.yaml
     interval: 259200
+    proxy: ⚡ 海外高速
   AI-domain:
     type: http
     behavior: domain
@@ -125,6 +142,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/AI.mrs
     path: ./ruleset/unmerged/AI-domain.mrs
     interval: 259200
+    proxy: ⚡ 海外高速
   AI-classical:
     type: http
     behavior: classical
@@ -132,6 +150,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/AI.yaml
     path: ./ruleset/unmerged/AI-classical.yaml
     interval: 259200
+    proxy: ⚡ 海外高速
   GoogleVoice-domain:
     type: http
     behavior: domain
@@ -139,6 +158,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/GoogleVoice.mrs
     path: ./ruleset/unmerged/GoogleVoice-domain.mrs
     interval: 259200
+    proxy: ⚡ 海外高速
   Crypto-domain:
     type: http
     behavior: domain
@@ -146,6 +166,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Crypto.mrs
     path: ./ruleset/unmerged/Crypto-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   Crypto-classical:
     type: http
     behavior: classical
@@ -153,6 +174,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/Crypto.yaml
     path: ./ruleset/unmerged/Crypto-classical.yaml
     interval: 1209600
+    proxy: ⚡ 海外高速
   IPCheck-domain:
     type: http
     behavior: domain
@@ -160,6 +182,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/IPCheck.mrs
     path: ./ruleset/unmerged/IPCheck-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   paypal-domain:
     type: http
     behavior: domain
@@ -167,6 +190,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/paypal.mrs
     path: ./ruleset/unmerged/paypal-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   paypal-classical:
     type: http
     behavior: classical
@@ -174,6 +198,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/paypal.yaml
     path: ./ruleset/unmerged/paypal-classical.yaml
     interval: 1209600
+    proxy: ⚡ 海外高速
   wechat-domain:
     type: http
     behavior: domain
@@ -181,6 +206,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/wechat.mrs
     path: ./ruleset/unmerged/wechat-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   wechat-classical:
     type: http
     behavior: classical
@@ -188,6 +214,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/wechat.yaml
     path: ./ruleset/unmerged/wechat-classical.yaml
     interval: 1209600
+    proxy: ⚡ 海外高速
   cloudflare-domain:
     type: http
     behavior: domain
@@ -195,6 +222,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/cloudflare.mrs
     path: ./ruleset/unmerged/cloudflare-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   AppleProxy-domain:
     type: http
     behavior: domain
@@ -202,6 +230,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/AppleProxy.mrs
     path: ./ruleset/unmerged/AppleProxy-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   AppleProxy-classical:
     type: http
     behavior: classical
@@ -209,6 +238,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/AppleProxy.yaml
     path: ./ruleset/unmerged/AppleProxy-classical.yaml
     interval: 1209600
+    proxy: ⚡ 海外高速
   Telegram-domain:
     type: http
     behavior: domain
@@ -216,6 +246,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Telegram.mrs
     path: ./ruleset/unmerged/Telegram-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   Telegram-classical:
     type: http
     behavior: classical
@@ -223,6 +254,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/Telegram.yaml
     path: ./ruleset/unmerged/Telegram-classical.yaml
     interval: 1209600
+    proxy: ⚡ 海外高速
   github-domain:
     type: http
     behavior: domain
@@ -230,6 +262,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/github.mrs
     path: ./ruleset/unmerged/github-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   github-classical:
     type: http
     behavior: classical
@@ -237,6 +270,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/github.yaml
     path: ./ruleset/unmerged/github-classical.yaml
     interval: 1209600
+    proxy: ⚡ 海外高速
   youtube-domain:
     type: http
     behavior: domain
@@ -244,6 +278,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/youtube.mrs
     path: ./ruleset/unmerged/youtube-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   youtube-classical:
     type: http
     behavior: classical
@@ -251,6 +286,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/youtube.yaml
     path: ./ruleset/unmerged/youtube-classical.yaml
     interval: 1209600
+    proxy: ⚡ 海外高速
   GoogleEarth-domain:
     type: http
     behavior: domain
@@ -258,6 +294,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/GoogleEarth.mrs
     path: ./ruleset/unmerged/GoogleEarth-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   Instagram-domain:
     type: http
     behavior: domain
@@ -265,6 +302,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Instagram.mrs
     path: ./ruleset/unmerged/Instagram-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   Instagram-classical:
     type: http
     behavior: classical
@@ -272,6 +310,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/Instagram.yaml
     path: ./ruleset/unmerged/Instagram-classical.yaml
     interval: 1209600
+    proxy: ⚡ 海外高速
   Facebook-domain:
     type: http
     behavior: domain
@@ -279,6 +318,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Facebook.mrs
     path: ./ruleset/unmerged/Facebook-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   Facebook-ip:
     type: http
     behavior: ipcidr
@@ -286,6 +326,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/ipcidr/Facebook.mrs
     path: ./ruleset/unmerged/Facebook-ip.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   Facebook-classical:
     type: http
     behavior: classical
@@ -293,6 +334,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/Facebook.yaml
     path: ./ruleset/unmerged/Facebook-classical.yaml
     interval: 1209600
+    proxy: ⚡ 海外高速
   Twitter-domain:
     type: http
     behavior: domain
@@ -300,6 +342,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Twitter.mrs
     path: ./ruleset/unmerged/Twitter-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   Twitter-ip:
     type: http
     behavior: ipcidr
@@ -307,6 +350,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/ipcidr/Twitter.mrs
     path: ./ruleset/unmerged/Twitter-ip.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   Twitter-classical:
     type: http
     behavior: classical
@@ -314,6 +358,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/Twitter.yaml
     path: ./ruleset/unmerged/Twitter-classical.yaml
     interval: 1209600
+    proxy: ⚡ 海外高速
   Reddit-domain:
     type: http
     behavior: domain
@@ -321,6 +366,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Reddit.mrs
     path: ./ruleset/unmerged/Reddit-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   Discord-domain:
     type: http
     behavior: domain
@@ -328,6 +374,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Discord.mrs
     path: ./ruleset/unmerged/Discord-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   GoogleDrive-domain:
     type: http
     behavior: domain
@@ -335,6 +382,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/GoogleDrive.mrs
     path: ./ruleset/unmerged/GoogleDrive-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   GoogleDrive-classical:
     type: http
     behavior: classical
@@ -342,6 +390,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/GoogleDrive.yaml
     path: ./ruleset/unmerged/GoogleDrive-classical.yaml
     interval: 1209600
+    proxy: ⚡ 海外高速
   OneDrive-domain:
     type: http
     behavior: domain
@@ -349,6 +398,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/OneDrive.mrs
     path: ./ruleset/unmerged/OneDrive-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   OneDrive-classical:
     type: http
     behavior: classical
@@ -356,6 +406,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/OneDrive.yaml
     path: ./ruleset/unmerged/OneDrive-classical.yaml
     interval: 1209600
+    proxy: ⚡ 海外高速
   Dropbox-domain:
     type: http
     behavior: domain
@@ -363,6 +414,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Dropbox.mrs
     path: ./ruleset/unmerged/Dropbox-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   MEGA-domain:
     type: http
     behavior: domain
@@ -370,6 +422,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/MEGA.mrs
     path: ./ruleset/unmerged/MEGA-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   MEGA-ip:
     type: http
     behavior: ipcidr
@@ -377,6 +430,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/ipcidr/MEGA.mrs
     path: ./ruleset/unmerged/MEGA-ip.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   MEGA-classical:
     type: http
     behavior: classical
@@ -384,6 +438,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/MEGA.yaml
     path: ./ruleset/unmerged/MEGA-classical.yaml
     interval: 1209600
+    proxy: ⚡ 海外高速
   Spotify-domain:
     type: http
     behavior: domain
@@ -391,6 +446,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Spotify.mrs
     path: ./ruleset/unmerged/Spotify-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   Spotify-ip:
     type: http
     behavior: ipcidr
@@ -398,6 +454,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/ipcidr/Spotify.mrs
     path: ./ruleset/unmerged/Spotify-ip.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   Spotify-classical:
     type: http
     behavior: classical
@@ -405,6 +462,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/Spotify.yaml
     path: ./ruleset/unmerged/Spotify-classical.yaml
     interval: 1209600
+    proxy: ⚡ 海外高速
   WhatsApp-domain:
     type: http
     behavior: domain
@@ -412,6 +470,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/WhatsApp.mrs
     path: ./ruleset/unmerged/WhatsApp-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   WhatsApp-ip:
     type: http
     behavior: ipcidr
@@ -419,6 +478,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/ipcidr/WhatsApp.mrs
     path: ./ruleset/unmerged/WhatsApp-ip.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   WhatsApp-classical:
     type: http
     behavior: classical
@@ -426,6 +486,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/WhatsApp.yaml
     path: ./ruleset/unmerged/WhatsApp-classical.yaml
     interval: 1209600
+    proxy: ⚡ 海外高速
   tiktok-domain:
     type: http
     behavior: domain
@@ -433,6 +494,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/tiktok.mrs
     path: ./ruleset/unmerged/tiktok-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   tiktok-classical:
     type: http
     behavior: classical
@@ -440,6 +502,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/tiktok.yaml
     path: ./ruleset/unmerged/tiktok-classical.yaml
     interval: 1209600
+    proxy: ⚡ 海外高速
   netflix-domain:
     type: http
     behavior: domain
@@ -447,6 +510,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/netflix.mrs
     path: ./ruleset/unmerged/netflix-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   netflix-classical:
     type: http
     behavior: classical
@@ -454,6 +518,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/netflix.yaml
     path: ./ruleset/unmerged/netflix-classical.yaml
     interval: 1209600
+    proxy: ⚡ 海外高速
   disney-domain:
     type: http
     behavior: domain
@@ -461,6 +526,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/disney.mrs
     path: ./ruleset/unmerged/disney-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   disney-classical:
     type: http
     behavior: classical
@@ -468,6 +534,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/disney.yaml
     path: ./ruleset/unmerged/disney-classical.yaml
     interval: 1209600
+    proxy: ⚡ 海外高速
   primevideo-domain:
     type: http
     behavior: domain
@@ -475,6 +542,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/primevideo.mrs
     path: ./ruleset/unmerged/primevideo-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   primevideo-classical:
     type: http
     behavior: classical
@@ -482,6 +550,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/primevideo.yaml
     path: ./ruleset/unmerged/primevideo-classical.yaml
     interval: 1209600
+    proxy: ⚡ 海外高速
   google-domain:
     type: http
     behavior: domain
@@ -489,6 +558,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/google.mrs
     path: ./ruleset/unmerged/google-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   google-ip:
     type: http
     behavior: ipcidr
@@ -496,6 +566,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/ipcidr/google.mrs
     path: ./ruleset/unmerged/google-ip.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   google-classical:
     type: http
     behavior: classical
@@ -503,6 +574,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/google.yaml
     path: ./ruleset/unmerged/google-classical.yaml
     interval: 1209600
+    proxy: ⚡ 海外高速
   apple:
     type: http
     behavior: domain
@@ -510,6 +582,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/apple.mrs
     path: ./ruleset/unmerged/apple.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   icloud:
     type: http
     behavior: domain
@@ -517,6 +590,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/icloud.mrs
     path: ./ruleset/unmerged/icloud.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   DouYin-domain:
     type: http
     behavior: domain
@@ -524,6 +598,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/DouYin.mrs
     path: ./ruleset/unmerged/DouYin-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   BiliBili-domain:
     type: http
     behavior: domain
@@ -531,6 +606,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/BiliBili.mrs
     path: ./ruleset/unmerged/BiliBili-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   BiliBili-ip:
     type: http
     behavior: ipcidr
@@ -538,6 +614,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/ipcidr/BiliBili.mrs
     path: ./ruleset/unmerged/BiliBili-ip.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   BiliBili-classical:
     type: http
     behavior: classical
@@ -545,6 +622,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/BiliBili.yaml
     path: ./ruleset/unmerged/BiliBili-classical.yaml
     interval: 1209600
+    proxy: ⚡ 海外高速
   BaiDuTieBa-domain:
     type: http
     behavior: domain
@@ -552,6 +630,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/BaiDuTieBa.mrs
     path: ./ruleset/unmerged/BaiDuTieBa-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   alibaba-domain:
     type: http
     behavior: domain
@@ -559,6 +638,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/alibaba-domain.mrs
     path: ./ruleset/unmerged/alibaba-domain.mrs
     interval: 86400
+    proxy: ⚡ 海外高速
   alibaba-ip:
     type: http
     behavior: ipcidr
@@ -566,6 +646,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/ipcidr/alibaba.mrs
     path: ./ruleset/unmerged/alibaba-ip.mrs
     interval: 86400
+    proxy: ⚡ 海外高速
   alibaba-classical:
     type: http
     behavior: classical
@@ -573,6 +654,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/alibaba.yaml
     path: ./ruleset/unmerged/alibaba-classical.yaml
     interval: 86400
+    proxy: ⚡ 海外高速
   qcloud:
     type: http
     behavior: domain
@@ -580,6 +662,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/qcloud.mrs
     path: ./ruleset/unmerged/qcloud.mrs
     interval: 86400
+    proxy: ⚡ 海外高速
   global-domain:
     type: http
     behavior: domain
@@ -587,6 +670,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/global.mrs
     path: ./ruleset/unmerged/global-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   global-ip:
     type: http
     behavior: ipcidr
@@ -594,6 +678,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/ipcidr/global.mrs
     path: ./ruleset/unmerged/global-ip.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   global-classical:
     type: http
     behavior: classical
@@ -601,6 +686,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/global.yaml
     path: ./ruleset/unmerged/global-classical.yaml
     interval: 1209600
+    proxy: ⚡ 海外高速
   chinamax-domain:
     type: http
     behavior: domain
@@ -608,6 +694,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/chinamax.mrs
     path: ./ruleset/unmerged/chinamax-domain.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   chinamax-ip:
     type: http
     behavior: ipcidr
@@ -615,6 +702,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/ipcidr/chinamax.mrs
     path: ./ruleset/unmerged/chinamax-ip.mrs
     interval: 1209600
+    proxy: ⚡ 海外高速
   chinamax-classical:
     type: http
     behavior: classical
@@ -622,8 +710,10 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/chinamax.yaml
     path: ./ruleset/unmerged/chinamax-classical.yaml
     interval: 1209600
+    proxy: ⚡ 海外高速
   cn-ip:
     type: http
+    proxy: ⚡ 海外高速
     behavior: ipcidr
     format: mrs
     url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs
@@ -631,6 +721,9 @@ rule-providers:
     interval: 1209600
 rules:
 - IP-CIDR,0.0.0.0/32,REJECT,no-resolve
+- IP-CIDR,1.12.226.144/32,DIRECT,no-resolve
+- IP-CIDR,195.245.241.114/32,DIRECT,no-resolve
+- IP-CIDR,95.169.6.169/32,DIRECT,no-resolve
 - RULE-SET,Lan-domain,DIRECT
 - RULE-SET,Lan-classical,DIRECT
 - RULE-SET,private,DIRECT
