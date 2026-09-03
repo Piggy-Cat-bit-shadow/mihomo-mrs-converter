@@ -34,19 +34,19 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/merged-segment-04-ip.mrs
     path: ./ruleset/merged/merged-segment-04-ip.mrs
     interval: 1209600
-  merged-segment-06-domain:
+  merged-segment-05-domain:
     type: http
     behavior: domain
     format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/merged-segment-06-domain.mrs
-    path: ./ruleset/merged/merged-segment-06-domain.mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/merged-segment-05-domain.mrs
+    path: ./ruleset/merged/merged-segment-05-domain.mrs
     interval: 86400
-  merged-segment-06-ip:
+  merged-segment-05-ip:
     type: http
     behavior: ipcidr
     format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/merged-segment-06-ip.mrs
-    path: ./ruleset/merged/merged-segment-06-ip.mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/merged-segment-05-ip.mrs
+    path: ./ruleset/merged/merged-segment-05-ip.mrs
     interval: 86400
   Lan-classical:
     type: http
@@ -244,13 +244,6 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/global.yaml
     path: ./ruleset/merged/global-classical.yaml
     interval: 1209600
-  AntiAD:
-    type: http
-    behavior: domain
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/AntiAD.mrs
-    path: ./ruleset/merged/AntiAD.mrs
-    interval: 604800
   BiliBili-classical:
     type: http
     behavior: classical
@@ -314,9 +307,8 @@ rules:
 - RULE-SET,tiktok-classical,⚡ 海外高速
 - RULE-SET,google-classical,⚡ 海外高速
 - RULE-SET,global-classical,⚡ 海外高速
-- RULE-SET,AntiAD,REJECT-DROP
-- RULE-SET,merged-segment-06-domain,DIRECT
-- RULE-SET,merged-segment-06-ip,DIRECT
+- RULE-SET,merged-segment-05-domain,DIRECT
+- RULE-SET,merged-segment-05-ip,DIRECT
 - RULE-SET,BiliBili-classical,DIRECT
 - RULE-SET,alibaba-classical,DIRECT
 - RULE-SET,chinamax-classical,DIRECT

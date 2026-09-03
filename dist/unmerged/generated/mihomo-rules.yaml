@@ -384,13 +384,6 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/MEGA.yaml
     path: ./ruleset/unmerged/MEGA-classical.yaml
     interval: 1209600
-  AntiAD:
-    type: http
-    behavior: domain
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/AntiAD.mrs
-    path: ./ruleset/unmerged/AntiAD.mrs
-    interval: 604800
   Spotify-domain:
     type: http
     behavior: domain
@@ -716,7 +709,6 @@ rules:
 - RULE-SET,global-domain,⚡ 海外高速
 - RULE-SET,global-ip,⚡ 海外高速
 - RULE-SET,global-classical,⚡ 海外高速
-- RULE-SET,AntiAD,REJECT-DROP
 - RULE-SET,DouYin-domain,DIRECT
 - RULE-SET,BiliBili-domain,DIRECT
 - RULE-SET,BiliBili-ip,DIRECT

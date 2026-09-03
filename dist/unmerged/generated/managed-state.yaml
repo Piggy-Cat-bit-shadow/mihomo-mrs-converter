@@ -387,13 +387,6 @@ providers:
     behavior: classical
     format: yaml
     fingerprint: bb91de27211fed2121ddfd266e58845a9680056f3179fd51f5684ec2063742c3
-  AntiAD:
-    name: AntiAD
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/AntiAD.mrs
-    path: ./ruleset/unmerged/AntiAD.mrs
-    behavior: domain
-    format: mrs
-    fingerprint: 7f8864419de7a29fd75f2ca19c52a6ee99ee40a6640241f5a9bdc125a44e9e9c
   Spotify-domain:
     name: Spotify-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Spotify.mrs

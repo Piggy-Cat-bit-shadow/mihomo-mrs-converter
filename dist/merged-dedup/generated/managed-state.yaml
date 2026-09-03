@@ -37,20 +37,20 @@ providers:
     behavior: ipcidr
     format: mrs
     fingerprint: ad1234ab0112befe87cb5fbcc7583b9d8ea2d89718a9218fbc7ca6f5dd1ab1ff
-  merged-segment-06-domain:
-    name: merged-segment-06-domain
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/merged-segment-06-domain.mrs
-    path: ./ruleset/merged-dedup/merged-segment-06-domain.mrs
+  merged-segment-05-domain:
+    name: merged-segment-05-domain
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/merged-segment-05-domain.mrs
+    path: ./ruleset/merged-dedup/merged-segment-05-domain.mrs
     behavior: domain
     format: mrs
-    fingerprint: 0a31bad8b77400baa1ede736382d33d8b7b26ecb22b288f3a2ba8fdce50427e0
-  merged-segment-06-ip:
-    name: merged-segment-06-ip
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/ipcidr/merged-segment-06-ip.mrs
-    path: ./ruleset/merged-dedup/merged-segment-06-ip.mrs
+    fingerprint: 0246f6a3b7f6dbd3d958d4e0c2d6fd3aded88f245184c3fffa3178859c56a8cb
+  merged-segment-05-ip:
+    name: merged-segment-05-ip
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/ipcidr/merged-segment-05-ip.mrs
+    path: ./ruleset/merged-dedup/merged-segment-05-ip.mrs
     behavior: ipcidr
     format: mrs
-    fingerprint: c99c82e06033ee2fa5d4a68fb385611e1dc630690031c732ab7f88b8191225b8
+    fingerprint: 16db4869f2496ecba78b1a315911724f81d1d14117516bea384daa344df0add1
   Lan-classical:
     name: Lan-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/Lan.yaml
@@ -247,13 +247,6 @@ providers:
     behavior: classical
     format: yaml
     fingerprint: 1d7c5f3e738c97da9175ce7657bd29af5d5876e9ddd818e12fcca38d0c1eeb09
-  AntiAD:
-    name: AntiAD
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/AntiAD.mrs
-    path: ./ruleset/merged-dedup/AntiAD.mrs
-    behavior: domain
-    format: mrs
-    fingerprint: c660fdd534613a6e8f3dae76fa316483014483407c0cda8ba60cc531ddffc967
   BiliBili-classical:
     name: BiliBili-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/BiliBili.yaml

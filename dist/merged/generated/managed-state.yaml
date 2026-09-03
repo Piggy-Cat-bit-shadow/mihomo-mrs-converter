@@ -37,20 +37,20 @@ providers:
     behavior: ipcidr
     format: mrs
     fingerprint: 5ed5eb54e0341a2fe5320ac5004c54a47e3106a9dfcc7d1f7e77f6d432c166e2
-  merged-segment-06-domain:
-    name: merged-segment-06-domain
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/merged-segment-06-domain.mrs
-    path: ./ruleset/merged/merged-segment-06-domain.mrs
+  merged-segment-05-domain:
+    name: merged-segment-05-domain
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/merged-segment-05-domain.mrs
+    path: ./ruleset/merged/merged-segment-05-domain.mrs
     behavior: domain
     format: mrs
-    fingerprint: 324a538177bc5989045b19b376145884d64d8039c1c2b75d265c04cec0e04461
-  merged-segment-06-ip:
-    name: merged-segment-06-ip
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/merged-segment-06-ip.mrs
-    path: ./ruleset/merged/merged-segment-06-ip.mrs
+    fingerprint: acde64dd74a192ab496b4cab51bfed000a4ef9c6491449847c9a70bf367f8835
+  merged-segment-05-ip:
+    name: merged-segment-05-ip
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/merged-segment-05-ip.mrs
+    path: ./ruleset/merged/merged-segment-05-ip.mrs
     behavior: ipcidr
     format: mrs
-    fingerprint: 85a51ac924bf112d58dd7415b4ba0eb5dffa0caaefa31ca4093de8005e72474e
+    fingerprint: 7a56742b74776e0a4232808d79b9f5d9f84af00115b49196569ed2e0943e949b
   Lan-classical:
     name: Lan-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/Lan.yaml
@@ -247,13 +247,6 @@ providers:
     behavior: classical
     format: yaml
     fingerprint: 66894c67d8f0a9aa0f61130f092cf564e7e40ec9dc0ecbfc839b5f5eefec819c
-  AntiAD:
-    name: AntiAD
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/AntiAD.mrs
-    path: ./ruleset/merged/AntiAD.mrs
-    behavior: domain
-    format: mrs
-    fingerprint: a418aa597d62d4183fe4ab3d5bd773b41ba88a07e547c82114660884ae9716d1
   BiliBili-classical:
     name: BiliBili-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/BiliBili.yaml
