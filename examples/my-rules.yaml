@@ -376,6 +376,7 @@ rules:
 - IP-CIDR,1.12.226.144/32,DIRECT,no-resolve
 - IP-CIDR,195.245.241.114/32,DIRECT,no-resolve
 - IP-CIDR,95.169.1.53/32,DIRECT,no-resolve
+- DOMAIN-SUFFIX,zhuzhu.jiejie12131.top,🌍 国外流量
 - RULE-SET,Lan,DIRECT
 - RULE-SET,private,DIRECT
 - SUB-RULE,(RULE-SET,me),AI-Routing
