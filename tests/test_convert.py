@@ -87,7 +87,51 @@ class SourceDomainValueTest(unittest.TestCase):
         self.assertIsNone(convert.source_domain_value(convert.parse_rule("DOMAIN-SUFFIX,example.com,no-resolve")))
 
     def test_domain_suffix_with_multiple_extra_fields_is_not_convertible(self) -> None:
-        self.assertIsNone(convert.source_domain_value(convert.parse_rule("DOMAIN-SUFFIX,example.com,foo,bar")))
+            self.assertIsNone(convert.source_domain_value(convert.parse_rule("DOMAIN-SUFFIX,example.com,foo,bar")))
+
+
+class NestedRulesetCompatibilityTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.replacements = {"A": ["A-domain", "A-ip", "A-classical"], "B": ["B-domain"]}
+        self.behaviors = {"A-domain": "domain", "A-ip": "ipcidr", "A-classical": "classical", "B-domain": "domain"}
+
+    def test_parenthesis_safe_tokenizer(self) -> None:
+        self.assertEqual(convert.split_top_level_commas("SUB-RULE,(RULE-SET,A),Foo"), ["SUB-RULE", "(RULE-SET,A)", "Foo"])
+        self.assertEqual(convert.split_top_level_commas("AND,((RULE-SET,A),(NETWORK,tcp)),DIRECT"), ["AND", "((RULE-SET,A),(NETWORK,tcp))", "DIRECT"])
+
+    def test_finds_nested_references(self) -> None:
+        self.assertEqual(convert.find_ruleset_refs("OR,((RULE-SET,A),(RULE-SET,B)),PROXY"), ["A", "B"])
+        self.assertEqual(convert.find_ruleset_refs("SUB-RULE,(AND,((RULE-SET,A),(NETWORK,tcp))),Foo"), ["A"])
+
+    def test_sub_rule_expands_and_keeps_modifier_behavior(self) -> None:
+        self.assertEqual(
+            convert.rewrite_rules(["SUB-RULE,(RULE-SET,A,no-resolve),Foo"], self.replacements, self.behaviors),
+            ["SUB-RULE,(RULE-SET,A-domain),Foo", "SUB-RULE,(RULE-SET,A-ip,no-resolve),Foo", "SUB-RULE,(RULE-SET,A-classical),Foo"],
+        )
+
+    def test_complex_expression_uses_or_instead_of_copying_boolean_rule(self) -> None:
+        rewritten = convert.rewrite_rules(["NOT,((RULE-SET,A)),DIRECT"], self.replacements, self.behaviors)[0]
+        self.assertIn("OR,(", rewritten)
+        self.assertNotIn("RULE-SET,A)", rewritten)
+        self.assertEqual(convert.find_ruleset_refs(rewritten), ["A-domain", "A-ip", "A-classical"])
+
+    def test_nested_references_count_as_used_and_validate(self) -> None:
+        config = {"rule-providers": {"A": {}}, "rules": ["AND,((RULE-SET,A),(NETWORK,tcp)),DIRECT"]}
+        convert.validate_no_orphan_providers(config)
+        with self.assertRaises(SystemExit):
+            convert.validate_generated_rulesets(["SUB-RULE,(RULE-SET,missing),Foo"], {"A"})
+
+    def test_extra_top_level_fields_are_preserved_in_suite_materialization(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            config = {
+                "sub-rules": {"Foo": ["NETWORK,udp,REJECT"]},
+                "some-future-key": {"a": 1},
+                "rule-providers": {},
+                "rules": [],
+            }
+            output = convert.materialize_suite_config(config, "unmerged", Path(tmp), BASE_URL)
+            self.assertEqual(output["sub-rules"], config["sub-rules"])
+            self.assertEqual(output["some-future-key"], config["some-future-key"])
 
 
 class ProviderConversionTest(ConvertTestCase):

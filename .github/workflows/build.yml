@@ -54,6 +54,7 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           import yaml
+          from scripts.convert import find_ruleset_refs
 
           root = Path("dist")
 
@@ -68,13 +69,10 @@ jobs:
                       raise SystemExit(f"{path}: duplicate provider path {provider_path}")
                   paths[provider_path] = name
               for rule in data["rules"]:
-                  if not isinstance(rule, str):
-                      continue
-                  parts = [part.strip() for part in rule.split(",")]
-                  if parts and parts[0].upper() == "RULE-SET":
-                      if parts[1] not in providers:
-                          raise SystemExit(f"{path}: missing provider {parts[1]}")
-                      used.add(parts[1])
+                  for provider_name in find_ruleset_refs(rule):
+                      if provider_name not in providers:
+                          raise SystemExit(f"{path}: missing provider {provider_name}")
+                      used.add(provider_name)
               for name, provider in providers.items():
                   url = provider["url"]
                   if "/dist/" in url:

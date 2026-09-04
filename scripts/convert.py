@@ -105,12 +105,10 @@ def load_yaml_mapping(path: Path) -> dict[str, Any]:
 
 def load_yaml(path: Path) -> dict[str, Any]:
     data = load_yaml_mapping(path)
-    allowed = {"rule-providers", "rules"}
-    extra = sorted(set(data) - allowed)
-    if extra:
-        raise SystemExit(
-            f"{path} contains unsupported top-level keys: {', '.join(extra)}"
-        )
+    if "rule-providers" in data and not isinstance(data["rule-providers"], dict):
+        raise SystemExit(f"{path}: rule-providers must be a YAML mapping")
+    if "rules" in data and not isinstance(data["rules"], list):
+        raise SystemExit(f"{path}: rules must be a YAML list")
     return data
 
 
@@ -201,14 +199,165 @@ def payload_from_remote(name: str, text: str, fmt: str) -> list[str]:
     raise SystemExit(f"{name}: unsupported source format {fmt!r}")
 
 
+def split_top_level_commas(text: str) -> list[str]:
+    """Split a Mihomo rule without treating commas in expressions or quotes as fields."""
+    parts: list[str] = []
+    start = 0
+    depth = 0
+    quote: str | None = None
+    escaped = False
+    for index, char in enumerate(text):
+        if escaped:
+            escaped = False
+            continue
+        if quote:
+            if char == "\\":
+                escaped = True
+            elif char == quote:
+                quote = None
+            continue
+        if char in {"'", '"'}:
+            quote = char
+        elif char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if depth < 0:
+                raise SystemExit(f"unbalanced parentheses in rule: {text}")
+        elif char == "," and depth == 0:
+            parts.append(text[start:index].strip())
+            start = index + 1
+    if quote:
+        raise SystemExit(f"unterminated quote in rule: {text}")
+    if depth:
+        raise SystemExit(f"unbalanced parentheses in rule: {text}")
+    parts.append(text[start:].strip())
+    return parts
+
+
+def strip_balanced_outer_parentheses(text: str) -> tuple[str, bool]:
+    value = text.strip()
+    if not (value.startswith("(") and value.endswith(")")):
+        return value, False
+    depth = 0
+    quote: str | None = None
+    escaped = False
+    for index, char in enumerate(value):
+        if escaped:
+            escaped = False
+        elif quote:
+            if char == "\\":
+                escaped = True
+            elif char == quote:
+                quote = None
+        elif char in {"'", '"'}:
+            quote = char
+        elif char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if depth == 0:
+                return (value[1:-1].strip(), True) if index == len(value) - 1 else (value, False)
+    # Also validates and gives the caller a useful error for malformed rules.
+    split_top_level_commas(value)
+    return value, False
+
+
+def _ruleset_parts_in_expression(text: str) -> list[str] | None:
+    inner, _ = strip_balanced_outer_parentheses(text)
+    parts = split_top_level_commas(inner)
+    if parts and parts[0].upper() == "RULE-SET":
+        if len(parts) < 2 or not parts[1]:
+            raise SystemExit(f"RULE-SET is missing a provider name in rule: {text}")
+        return parts
+    return None
+
+
+def find_ruleset_refs(rule: Any) -> list[str]:
+    """Find provider names in a rule, including parenthesized Mihomo expressions."""
+    if not isinstance(rule, str):
+        return []
+
+    def visit(expression: str) -> list[str]:
+        direct = _ruleset_parts_in_expression(expression)
+        if direct is not None:
+            return [direct[1]]
+        inner, wrapped = strip_balanced_outer_parentheses(expression)
+        parts = split_top_level_commas(inner if wrapped else expression)
+        result: list[str] = []
+        for part in parts:
+            nested, is_wrapped = strip_balanced_outer_parentheses(part)
+            if is_wrapped:
+                result.extend(visit(part))
+        return result
+
+    return visit(rule)
+
+
+def _rewrite_expression(
+    expression: str, replacements: dict[str, list[str]], provider_behaviors: dict[str, str]
+) -> str:
+    _, was_wrapped = strip_balanced_outer_parentheses(expression)
+    direct = _ruleset_parts_in_expression(expression)
+    if direct is not None:
+        name, suffix = direct[1], tuple(direct[2:])
+        names = replacements.get(name)
+        if not names:
+            return expression.strip()
+        variants = [
+            ",".join(["RULE-SET", generated, *ruleset_suffix_for_behavior(suffix, provider_behaviors[generated])])
+            for generated in names
+        ]
+        if len(variants) == 1:
+            return f"({variants[0]})" if was_wrapped else variants[0]
+        # A provider split is a union.  Within a boolean expression it must remain
+        # one predicate, rather than copying its containing AND/NOT/etc. rule.
+        rewritten = "OR,(" + ",".join(f"({variant})" for variant in variants) + ")"
+        return f"({rewritten})" if was_wrapped else rewritten
+
+    inner, wrapped = strip_balanced_outer_parentheses(expression)
+    parts = split_top_level_commas(inner if wrapped else expression)
+    rewritten = []
+    for part in parts:
+        _, is_wrapped = strip_balanced_outer_parentheses(part)
+        rewritten.append(_rewrite_expression(part, replacements, provider_behaviors) if is_wrapped else part)
+    result = ",".join(rewritten)
+    return f"({result})" if wrapped else result
+
+
+def simple_ruleset_wrapper(rule: Any) -> tuple[list[str], str, str] | None:
+    """Return direct RULE-SET parts plus a replaceable wrapper template, if simple."""
+    if not isinstance(rule, str):
+        return None
+    direct = _ruleset_parts_in_expression(rule)
+    if direct is not None:
+        return direct, "", ""
+    parts = split_top_level_commas(rule)
+    for index, part in enumerate(parts):
+        inner, wrapped = strip_balanced_outer_parentheses(part)
+        inner_parts = split_top_level_commas(inner) if wrapped else []
+        if wrapped and inner_parts and inner_parts[0].upper() == "RULE-SET":
+            direct = _ruleset_parts_in_expression(inner)
+            assert direct is not None  # checked above without stripping another layer
+            return direct, ",".join(parts[:index]), ",".join(parts[index + 1:])
+    return None
+
+
+def wrap_ruleset_rule(rule: str, signature: tuple[str, str]) -> str:
+    prefix, suffix = signature
+    if not prefix and not suffix:
+        return rule
+    return ",".join(field for field in (prefix, f"({rule})", suffix) if field)
+
+
 def parse_rule(raw: str) -> RuleLine:
-    parts = tuple(part.strip() for part in raw.split(","))
+    parts = tuple(split_top_level_commas(raw))
     kind = parts[0].upper() if parts else ""
     return RuleLine(raw=raw, kind=kind, parts=parts)
 
 
 def normalize(rule: str) -> str:
-    return ",".join(part.strip() for part in rule.split(","))
+    return ",".join(split_top_level_commas(rule))
 
 
 def source_domain_value(rule: RuleLine) -> str | None:
@@ -651,6 +800,7 @@ def materialize_suite_config(
             copy_provider_artifacts_to_suite(name, provider, suite, dist)
 
     suite_config = {
+        **{key: value for key, value in config.items() if key not in {"rule-providers", "rules"}},
         "rule-providers": {
             name: rewrite_provider_for_suite(name, provider, suite, base_url)
             for name, provider in config["rule-providers"].items()
@@ -732,6 +882,7 @@ def build_dedup_config(
         )
 
     dedup_config = {
+        **{key: value for key, value in config.items() if key not in {"rule-providers", "rules"}},
         "rule-providers": dedup_providers,
         "rules": config["rules"],
     }
@@ -906,10 +1057,7 @@ def merge_metadata_compatible(providers: list[dict[str, Any]]) -> bool:
 def ruleset_parts(rule: Any) -> list[str] | None:
     if not isinstance(rule, str):
         return None
-    parts = [part.strip() for part in rule.split(",")]
-    if len(parts) >= 3 and parts[0].upper() == "RULE-SET":
-        return parts
-    return None
+    return _ruleset_parts_in_expression(rule)
 
 
 def ruleset_suffix_for_behavior(suffix: tuple[str, ...], behavior: str) -> list[str]:
@@ -1139,16 +1287,18 @@ def rewrite_rules(
         if not isinstance(item, str):
             rewritten.append(item)
             continue
-        parts = [part.strip() for part in item.split(",")]
-        if len(parts) >= 3 and parts[0].upper() == "RULE-SET" and parts[1] in replacements:
+        wrapper = simple_ruleset_wrapper(item)
+        if wrapper is not None and wrapper[0][1] in replacements:
+            parts, prefix, suffix = wrapper
             for replacement in replacements[parts[1]]:
-                inherited = ["RULE-SET", replacement, *parts[2:]]
-                # no-resolve is meaningful for ipcidr providers; keep it only there.
-                if provider_behaviors.get(replacement) != "ipcidr":
-                    inherited = [part for part in inherited if part != "no-resolve"]
-                rewritten.append(",".join(inherited))
-        else:
-            rewritten.append(item)
+                nested = ",".join(["RULE-SET", replacement, *ruleset_suffix_for_behavior(tuple(parts[2:]), provider_behaviors[replacement])])
+                if prefix or suffix:
+                    fields = [field for field in (prefix, f"({nested})", suffix) if field]
+                    rewritten.append(",".join(fields))
+                else:
+                    rewritten.append(nested)
+            continue
+        rewritten.append(_rewrite_expression(item, replacements, provider_behaviors))
     return rewritten
 
 
@@ -1279,20 +1429,31 @@ def build_merged_config(
             used_provider_names.append(name)
 
     while index < len(rules):
-        parts = ruleset_parts(rules[index])
-        if parts is None or parts[1] not in replacements:
-            merged_rules.append(rules[index])
+        wrapper = simple_ruleset_wrapper(rules[index])
+        if wrapper is None or wrapper[0][1] not in replacements:
+            rewritten = _rewrite_expression(rules[index], replacements, provider_behaviors) if isinstance(rules[index], str) else rules[index]
+            merged_rules.append(rewritten)
+            for name in find_ruleset_refs(rewritten):
+                if name in generated_providers:
+                    mark_used(name)
             index += 1
             continue
 
+        parts = wrapper[0]
+        signature = (wrapper[1], wrapper[2])
         segment = [parts]
         suffix = tuple(parts[2:])
         index += 1
         while index < len(rules):
-            next_parts = ruleset_parts(rules[index])
-            if next_parts is None or next_parts[1] not in replacements or tuple(next_parts[2:]) != suffix:
+            next_wrapper = simple_ruleset_wrapper(rules[index])
+            if (
+                next_wrapper is None
+                or next_wrapper[0][1] not in replacements
+                or tuple(next_wrapper[0][2:]) != suffix
+                or (next_wrapper[1], next_wrapper[2]) != signature
+            ):
                 break
-            segment.append(next_parts)
+            segment.append(next_wrapper[0])
             index += 1
 
         segment_rules, segment_providers, replaced = build_merged_segment_rules(
@@ -1307,7 +1468,7 @@ def build_merged_config(
             used_paths,
         )
         segment_index += 1
-        merged_rules.extend(segment_rules)
+        merged_rules.extend(wrap_ruleset_rule(rule, signature) for rule in segment_rules)
         merged_providers.update(segment_providers)
         for rule in segment_rules:
             rule_parts = ruleset_parts(rule)
@@ -1343,15 +1504,10 @@ def contains_ruleset(value: Any) -> bool:
 def validate_top_level_rulesets(rules: list[Any], provider_names: set[str]) -> None:
     for item in rules:
         if not isinstance(item, str):
-            if contains_ruleset(item):
-                raise SystemExit("nested RULE-SET rewriting is not supported")
             continue
-        parts = [part.strip() for part in item.split(",")]
-        if parts and parts[0].upper() == "RULE-SET":
-            if len(parts) < 2 or parts[1] not in provider_names:
-                raise SystemExit(f"RULE-SET references missing provider: {parts[1] if len(parts) > 1 else ''}")
-        elif "RULE-SET" in item.upper():
-            raise SystemExit("nested RULE-SET rewriting is not supported")
+        for name in find_ruleset_refs(item):
+            if name not in provider_names:
+                raise SystemExit(f"RULE-SET references missing provider {name!r} in rule: {item}")
 
 
 def validate_generated_rulesets(rules: list[Any], provider_names: set[str]) -> None:
@@ -1380,9 +1536,7 @@ def validate_no_orphan_providers(config: dict[str, Any]) -> None:
     providers = set(config["rule-providers"])
     used: set[str] = set()
     for rule in config["rules"]:
-        parts = ruleset_parts(rule)
-        if parts is not None:
-            used.add(parts[1])
+        used.update(find_ruleset_refs(rule))
     orphaned = providers - used
     if orphaned:
         raise SystemExit(f"unused generated providers: {', '.join(sorted(orphaned))}")
@@ -1417,10 +1571,8 @@ def is_provider_from_base_suite(provider: dict[str, Any], base_url: str, suite: 
 
 
 def ruleset_provider_name(rule: Any) -> str | None:
-    parts = ruleset_parts(rule)
-    if parts is None:
-        return None
-    return parts[1]
+    refs = find_ruleset_refs(rule)
+    return refs[0] if len(refs) == 1 else None
 
 
 def refresh_complete_config(
@@ -1474,7 +1626,7 @@ def refresh_complete_config(
             + ", ".join(collisions)
         )
 
-    new_rulesets = [rule for rule in new_rules if ruleset_parts(rule) is not None]
+    new_rulesets = [rule for rule in new_rules if find_ruleset_refs(rule)]
 
     refreshed = dict(complete_config)
     refreshed_providers = {
@@ -1488,8 +1640,13 @@ def refresh_complete_config(
     managed_rule_indexes: list[int] = []
     retained_rules: list[Any] = []
     for index, rule in enumerate(old_rules):
-        provider_name = ruleset_provider_name(rule)
-        if provider_name is not None and provider_name in managed_old_names:
+        refs = set(find_ruleset_refs(rule))
+        managed_refs = refs & managed_old_names
+        if managed_refs and refs - managed_old_names:
+            raise SystemExit(
+                f"cannot safely refresh rule with mixed managed and unmanaged providers: {rule}"
+            )
+        if managed_refs:
             managed_rule_indexes.append(index)
             continue
         retained_rules.append(rule)
@@ -1604,6 +1761,7 @@ def main() -> None:
 
     rewritten_rules = rewrite_rules(rules, replacements, provider_behaviors)
     generated = {
+        **{key: value for key, value in data.items() if key not in {"rule-providers", "rules"}},
         "rule-providers": generated_providers,
         "rules": rewritten_rules,
     }
@@ -1630,6 +1788,10 @@ def main() -> None:
         source_payloads,
         options,
     )
+    merged = {
+        **{key: value for key, value in data.items() if key not in {"rule-providers", "rules"}},
+        **merged,
+    }
     validate_generated_config(args.dist, merged, require_no_orphans=require_no_orphans)
     merged_suite = materialize_suite_config(
         merged,
