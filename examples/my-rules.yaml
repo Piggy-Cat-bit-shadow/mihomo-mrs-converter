@@ -375,19 +375,19 @@ rules:
 - IP-CIDR,0.0.0.0/32,REJECT,no-resolve
 - RULE-SET,Lan,DIRECT
 - RULE-SET,private,DIRECT
-- RULE-SET,me,🤖 AI
-- RULE-SET,AppleProxy,🤖 AI
-- RULE-SET,AppleIntelligence,🤖 AI
-- RULE-SET,openai,🤖 AI
-- RULE-SET,claude,🤖 AI
-- RULE-SET,Anthropic,🤖 AI
-- RULE-SET,gemini,🤖 AI
-- RULE-SET,AI,🤖 AI
-- RULE-SET,cloudflare,🤖 AI
-- RULE-SET,GoogleVoice,🤖 AI
-- RULE-SET,Crypto,🤖 AI
-- RULE-SET,IPCheck,🤖 AI
-- RULE-SET,paypal,🤖 AI
+- SUB-RULE,(RULE-SET,me),AI-Routing
+- SUB-RULE,(RULE-SET,AppleProxy),AI-Routing
+- SUB-RULE,(RULE-SET,AppleIntelligence),AI-Routing
+- SUB-RULE,(RULE-SET,openai),AI-Routing
+- SUB-RULE,(RULE-SET,claude),AI-Routing
+- SUB-RULE,(RULE-SET,Anthropic),AI-Routing
+- SUB-RULE,(RULE-SET,gemini),AI-Routing
+- SUB-RULE,(RULE-SET,AI),AI-Routing
+- SUB-RULE,(RULE-SET,cloudflare),AI-Routing
+- SUB-RULE,(RULE-SET,GoogleVoice),AI-Routing
+- SUB-RULE,(RULE-SET,Crypto),AI-Routing
+- SUB-RULE,(RULE-SET,IPCheck),AI-Routing
+- SUB-RULE,(RULE-SET,paypal),AI-Routing
 - RULE-SET,wechat,DIRECT
 - RULE-SET,apple,DIRECT
 - RULE-SET,icloud,DIRECT
