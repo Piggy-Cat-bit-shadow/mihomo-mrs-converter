@@ -6,7 +6,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/merged-segment-01-domain.mrs
     path: ./ruleset/merged/merged-segment-01-domain.mrs
     interval: 1209600
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   merged-segment-02-domain:
     type: http
     behavior: domain
@@ -14,7 +14,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/merged-segment-02-domain.mrs
     path: ./ruleset/merged/merged-segment-02-domain.mrs
     interval: 259200
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   merged-segment-03-domain:
     type: http
     behavior: domain
@@ -22,7 +22,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/merged-segment-03-domain.mrs
     path: ./ruleset/merged/merged-segment-03-domain.mrs
     interval: 86400
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   merged-segment-04-domain:
     type: http
     behavior: domain
@@ -30,7 +30,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/merged-segment-04-domain.mrs
     path: ./ruleset/merged/merged-segment-04-domain.mrs
     interval: 1209600
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   merged-segment-04-ip:
     type: http
     behavior: ipcidr
@@ -38,7 +38,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/merged-segment-04-ip.mrs
     path: ./ruleset/merged/merged-segment-04-ip.mrs
     interval: 1209600
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   merged-segment-05-domain:
     type: http
     behavior: domain
@@ -46,7 +46,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/merged-segment-05-domain.mrs
     path: ./ruleset/merged/merged-segment-05-domain.mrs
     interval: 86400
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   merged-segment-05-ip:
     type: http
     behavior: ipcidr
@@ -54,7 +54,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/merged-segment-05-ip.mrs
     path: ./ruleset/merged/merged-segment-05-ip.mrs
     interval: 86400
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   Lan-classical:
     type: http
     behavior: classical
@@ -62,7 +62,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/Lan.yaml
     path: ./ruleset/merged/Lan-classical.yaml
     interval: 1209600
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   me-classical:
     type: http
     behavior: classical
@@ -70,7 +70,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/me.yaml
     path: ./ruleset/merged/me-classical.yaml
     interval: 1209600
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   AppleProxy-classical:
     type: http
     behavior: classical
@@ -78,7 +78,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/AppleProxy.yaml
     path: ./ruleset/merged/AppleProxy-classical.yaml
     interval: 1209600
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   openai-ip:
     type: http
     behavior: ipcidr
@@ -86,7 +86,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/openai.mrs
     path: ./ruleset/merged/openai-ip.mrs
     interval: 259200
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   openai-classical:
     type: http
     behavior: classical
@@ -94,7 +94,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/openai.yaml
     path: ./ruleset/merged/openai-classical.yaml
     interval: 259200
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   gemini-classical:
     type: http
     behavior: classical
@@ -102,7 +102,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/gemini.yaml
     path: ./ruleset/merged/gemini-classical.yaml
     interval: 259200
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   AI-classical:
     type: http
     behavior: classical
@@ -110,7 +110,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/AI.yaml
     path: ./ruleset/merged/AI-classical.yaml
     interval: 259200
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   Crypto-classical:
     type: http
     behavior: classical
@@ -118,7 +118,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/Crypto.yaml
     path: ./ruleset/merged/Crypto-classical.yaml
     interval: 1209600
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   paypal-classical:
     type: http
     behavior: classical
@@ -126,7 +126,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/paypal.yaml
     path: ./ruleset/merged/paypal-classical.yaml
     interval: 1209600
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   wechat-classical:
     type: http
     behavior: classical
@@ -134,7 +134,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/wechat.yaml
     path: ./ruleset/merged/wechat-classical.yaml
     interval: 1209600
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   Scholar-China-classical:
     type: http
     behavior: classical
@@ -142,7 +142,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/Scholar-China.yaml
     path: ./ruleset/merged/Scholar-China-classical.yaml
     interval: 1209600
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   Telegram-classical:
     type: http
     behavior: classical
@@ -150,7 +150,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/Telegram.yaml
     path: ./ruleset/merged/Telegram-classical.yaml
     interval: 1209600
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   github-classical:
     type: http
     behavior: classical
@@ -158,7 +158,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/github.yaml
     path: ./ruleset/merged/github-classical.yaml
     interval: 1209600
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   WhatsApp-classical:
     type: http
     behavior: classical
@@ -166,7 +166,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/WhatsApp.yaml
     path: ./ruleset/merged/WhatsApp-classical.yaml
     interval: 1209600
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   netflix-classical:
     type: http
     behavior: classical
@@ -174,7 +174,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/netflix.yaml
     path: ./ruleset/merged/netflix-classical.yaml
     interval: 1209600
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   disney-classical:
     type: http
     behavior: classical
@@ -182,7 +182,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/disney.yaml
     path: ./ruleset/merged/disney-classical.yaml
     interval: 1209600
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   primevideo-classical:
     type: http
     behavior: classical
@@ -190,7 +190,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/primevideo.yaml
     path: ./ruleset/merged/primevideo-classical.yaml
     interval: 1209600
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   GoogleDrive-classical:
     type: http
     behavior: classical
@@ -198,7 +198,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/GoogleDrive.yaml
     path: ./ruleset/merged/GoogleDrive-classical.yaml
     interval: 1209600
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   OneDrive-classical:
     type: http
     behavior: classical
@@ -206,7 +206,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/OneDrive.yaml
     path: ./ruleset/merged/OneDrive-classical.yaml
     interval: 1209600
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   MEGA-classical:
     type: http
     behavior: classical
@@ -214,7 +214,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/MEGA.yaml
     path: ./ruleset/merged/MEGA-classical.yaml
     interval: 1209600
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   youtube-classical:
     type: http
     behavior: classical
@@ -222,7 +222,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/youtube.yaml
     path: ./ruleset/merged/youtube-classical.yaml
     interval: 1209600
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   Instagram-classical:
     type: http
     behavior: classical
@@ -230,7 +230,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/Instagram.yaml
     path: ./ruleset/merged/Instagram-classical.yaml
     interval: 1209600
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   Facebook-classical:
     type: http
     behavior: classical
@@ -238,7 +238,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/Facebook.yaml
     path: ./ruleset/merged/Facebook-classical.yaml
     interval: 1209600
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   Twitter-classical:
     type: http
     behavior: classical
@@ -246,7 +246,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/Twitter.yaml
     path: ./ruleset/merged/Twitter-classical.yaml
     interval: 1209600
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   Spotify-classical:
     type: http
     behavior: classical
@@ -254,7 +254,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/Spotify.yaml
     path: ./ruleset/merged/Spotify-classical.yaml
     interval: 1209600
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   tiktok-classical:
     type: http
     behavior: classical
@@ -262,7 +262,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/tiktok.yaml
     path: ./ruleset/merged/tiktok-classical.yaml
     interval: 1209600
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   google-classical:
     type: http
     behavior: classical
@@ -270,7 +270,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/google.yaml
     path: ./ruleset/merged/google-classical.yaml
     interval: 1209600
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   global-classical:
     type: http
     behavior: classical
@@ -278,7 +278,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/global.yaml
     path: ./ruleset/merged/global-classical.yaml
     interval: 1209600
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   BiliBili-classical:
     type: http
     behavior: classical
@@ -286,7 +286,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/BiliBili.yaml
     path: ./ruleset/merged/BiliBili-classical.yaml
     interval: 1209600
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   alibaba-classical:
     type: http
     behavior: classical
@@ -294,10 +294,10 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/alibaba.yaml
     path: ./ruleset/merged/alibaba-classical.yaml
     interval: 86400
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   cn-ip:
     type: http
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
     behavior: ipcidr
     format: mrs
     url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs
@@ -323,28 +323,28 @@ rules:
 - RULE-SET,merged-segment-03-domain,DIRECT
 - RULE-SET,wechat-classical,DIRECT
 - RULE-SET,Scholar-China-classical,DIRECT
-- RULE-SET,merged-segment-04-domain,⚡ 海外高速
-- RULE-SET,merged-segment-04-ip,⚡ 海外高速
-- RULE-SET,Telegram-classical,⚡ 海外高速
-- RULE-SET,github-classical,⚡ 海外高速
-- RULE-SET,WhatsApp-classical,⚡ 海外高速
-- RULE-SET,netflix-classical,⚡ 海外高速
-- RULE-SET,disney-classical,⚡ 海外高速
-- RULE-SET,primevideo-classical,⚡ 海外高速
-- RULE-SET,GoogleDrive-classical,⚡ 海外高速
-- RULE-SET,OneDrive-classical,⚡ 海外高速
-- RULE-SET,MEGA-classical,⚡ 海外高速
-- RULE-SET,youtube-classical,⚡ 海外高速
-- RULE-SET,Instagram-classical,⚡ 海外高速
-- RULE-SET,Facebook-classical,⚡ 海外高速
-- RULE-SET,Twitter-classical,⚡ 海外高速
-- RULE-SET,Spotify-classical,⚡ 海外高速
-- RULE-SET,tiktok-classical,⚡ 海外高速
-- RULE-SET,google-classical,⚡ 海外高速
-- RULE-SET,global-classical,⚡ 海外高速
+- RULE-SET,merged-segment-04-domain,🌍 国外流量
+- RULE-SET,merged-segment-04-ip,🌍 国外流量
+- RULE-SET,Telegram-classical,🌍 国外流量
+- RULE-SET,github-classical,🌍 国外流量
+- RULE-SET,WhatsApp-classical,🌍 国外流量
+- RULE-SET,netflix-classical,🌍 国外流量
+- RULE-SET,disney-classical,🌍 国外流量
+- RULE-SET,primevideo-classical,🌍 国外流量
+- RULE-SET,GoogleDrive-classical,🌍 国外流量
+- RULE-SET,OneDrive-classical,🌍 国外流量
+- RULE-SET,MEGA-classical,🌍 国外流量
+- RULE-SET,youtube-classical,🌍 国外流量
+- RULE-SET,Instagram-classical,🌍 国外流量
+- RULE-SET,Facebook-classical,🌍 国外流量
+- RULE-SET,Twitter-classical,🌍 国外流量
+- RULE-SET,Spotify-classical,🌍 国外流量
+- RULE-SET,tiktok-classical,🌍 国外流量
+- RULE-SET,google-classical,🌍 国外流量
+- RULE-SET,global-classical,🌍 国外流量
 - RULE-SET,merged-segment-05-domain,DIRECT
 - RULE-SET,merged-segment-05-ip,DIRECT
 - RULE-SET,BiliBili-classical,DIRECT
 - RULE-SET,alibaba-classical,DIRECT
 - RULE-SET,cn-ip,DIRECT,no-resolve
-- MATCH,⚡ 海外高速
+- MATCH,🌍 国外流量
