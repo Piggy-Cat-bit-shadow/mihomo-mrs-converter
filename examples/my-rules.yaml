@@ -355,14 +355,14 @@ rule-providers:
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Global/Global_Classical.yaml
     path: ./ruleset/global.yaml
     interval: 1209600
-  chinamax-domain:
+  cn-domain:
     type: http
+    proxy: ⚡ 海外高速
     behavior: domain
     format: yaml
-    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/ChinaMax/ChinaMax_Domain.yaml
-    path: ./ruleset/chinamax-domain.yaml
+    url: https://raw.githubusercontent.com/zydou/domain-list-community-converter/clash/cn.yml
+    path: ./ruleset/cn-domain.yaml
     interval: 1209600
-    proxy: 🌍 国外流量
   cn-ip:
     type: http
     proxy: 🌍 国外流量
@@ -373,6 +373,10 @@ rule-providers:
     interval: 1209600
 rules:
 - IP-CIDR,0.0.0.0/32,REJECT,no-resolve
+- IP-CIDR,1.12.226.144/32,DIRECT,no-resolve
+- IP-CIDR,195.245.241.114/32,DIRECT,no-resolve
+- IP-CIDR,95.169.1.53/32,DIRECT,no-resolve
+- DOMAIN-SUFFIX,zhuzhu.jiejie12131.top,🌍 国外流量
 - RULE-SET,Lan,DIRECT
 - RULE-SET,private,DIRECT
 - RULE-SET,me,🤖 AI
@@ -421,6 +425,6 @@ rules:
 - RULE-SET,BaiDuTieBa,DIRECT
 - RULE-SET,alibaba-domain,DIRECT
 - RULE-SET,alibaba,DIRECT
-- RULE-SET,chinamax-domain,DIRECT
-- RULE-SET,cn-ip,DIRECT,no-resolve
+- RULE-SET,cn-domain,DIRECT
+- RULE-SET,cn-ip,DIRECT
 - MATCH,🌍 国外流量
