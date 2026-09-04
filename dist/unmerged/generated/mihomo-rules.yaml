@@ -705,10 +705,6 @@ rule-providers:
     interval: 1209600
 rules:
 - IP-CIDR,0.0.0.0/32,REJECT,no-resolve
-- IP-CIDR,1.12.226.144/32,DIRECT,no-resolve
-- IP-CIDR,195.245.241.114/32,DIRECT,no-resolve
-- IP-CIDR,95.169.1.53/32,DIRECT,no-resolve
-- DOMAIN-SUFFIX,zhuzhu.jiejie12131.top,🌍 国外流量
 - RULE-SET,Lan-domain,DIRECT
 - RULE-SET,Lan-classical,DIRECT
 - RULE-SET,private,DIRECT
