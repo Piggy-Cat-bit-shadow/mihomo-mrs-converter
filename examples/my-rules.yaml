@@ -357,7 +357,7 @@ rule-providers:
     interval: 1209600
   cn-domain:
     type: http
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
     behavior: domain
     format: yaml
     url: https://raw.githubusercontent.com/zydou/domain-list-community-converter/clash/cn.yml
