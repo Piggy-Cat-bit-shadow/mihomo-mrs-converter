@@ -37,6 +37,13 @@ providers:
     behavior: ipcidr
     format: mrs
     fingerprint: d8076742da79754ba1698d9a8e1f87e86e3f220d21e326dfbc7bee9141e017c4
+  merged-segment-05-domain:
+    name: merged-segment-05-domain
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/merged-segment-05-domain.mrs
+    path: ./ruleset/merged-dedup/merged-segment-05-domain.mrs
+    behavior: domain
+    format: mrs
+    fingerprint: 08cbf32c7cc193cc0cd4d0df49f513e2d773e8456e41635d49e129e41682cd89
   merged-segment-05-ip:
     name: merged-segment-05-ip
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/ipcidr/merged-segment-05-ip.mrs
@@ -240,20 +247,6 @@ providers:
     behavior: classical
     format: yaml
     fingerprint: 4562141653058648ad6c687f5263daf509849202a3834d8ede23df722392153a
-  DouYin-domain:
-    name: DouYin-domain
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/DouYin-domain.mrs
-    path: ./ruleset/merged-dedup/DouYin-domain.mrs
-    behavior: domain
-    format: mrs
-    fingerprint: 36891b1f5903c2dd264bb946bb70524cdbce1f5c978ebaeba4196f02033149ed
-  BiliBili-domain:
-    name: BiliBili-domain
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/BiliBili-domain.mrs
-    path: ./ruleset/merged-dedup/BiliBili-domain.mrs
-    behavior: domain
-    format: mrs
-    fingerprint: 1fc3b1f96abd0cd6d2bc71a54e7d006862ab1080e449b1bc7677f7fda1011c90
   BiliBili-classical:
     name: BiliBili-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/BiliBili.yaml
@@ -261,20 +254,6 @@ providers:
     behavior: classical
     format: yaml
     fingerprint: ac771061268b7f5909c9e4781917f8fdffea7119d6917fba99646f57becc53f0
-  BaiDuTieBa-domain:
-    name: BaiDuTieBa-domain
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/BaiDuTieBa-domain.mrs
-    path: ./ruleset/merged-dedup/BaiDuTieBa-domain.mrs
-    behavior: domain
-    format: mrs
-    fingerprint: 1bbc8aeb42bdbdcb1527fb07c7eeb62046b26790b20216ec955d4a0c121ced50
-  alibaba-domain:
-    name: alibaba-domain
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/alibaba-domain.mrs
-    path: ./ruleset/merged-dedup/alibaba-domain.mrs
-    behavior: domain
-    format: mrs
-    fingerprint: 3b0df118ad07d65c746ae7d43a8395ea20e6d21b4ce537e8da1e9a6f89cb9c07
   alibaba-classical:
     name: alibaba-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/alibaba.yaml
@@ -282,10 +261,3 @@ providers:
     behavior: classical
     format: yaml
     fingerprint: 1e5fdded524b37152bc2eb0c69f6117fdfdd9ea4af58495ff99b0389f41df451
-  cn-domain:
-    name: cn-domain
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/cn-domain.mrs
-    path: ./ruleset/merged-dedup/cn-domain.mrs
-    behavior: domain
-    format: mrs
-    fingerprint: b1473ddb3e3f745e6ba68cfa4b2c2ff53ad8e5e67129608dc9c8f7c56431815b

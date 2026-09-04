@@ -694,7 +694,7 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/cn-domain.mrs
     path: ./ruleset/unmerged/cn-domain.mrs
     interval: 1209600
-    proxy: ⚡ 海外高速
+    proxy: 🌍 国外流量
   cn-ip:
     type: http
     behavior: ipcidr

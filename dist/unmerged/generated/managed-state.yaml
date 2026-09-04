@@ -610,7 +610,7 @@ providers:
     path: ./ruleset/unmerged/cn-domain.mrs
     behavior: domain
     format: mrs
-    fingerprint: 130d3b7e855cece8cca17a8babba5d4e47fb3a7121fba79e3a8cd60c2aea0bfe
+    fingerprint: 078792d50abdde7687649e5fa068b0bb522b0b0b9f2a34a8a0bed7d43cb3dd81
   cn-ip:
     name: cn-ip
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/ipcidr/cn-ip.mrs

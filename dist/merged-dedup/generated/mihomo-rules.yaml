@@ -39,6 +39,14 @@ rule-providers:
     path: ./ruleset/merged-dedup/merged-segment-04-ip.mrs
     interval: 1209600
     proxy: 🌍 国外流量
+  merged-segment-05-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/merged-segment-05-domain.mrs
+    path: ./ruleset/merged-dedup/merged-segment-05-domain.mrs
+    interval: 86400
+    proxy: 🌍 国外流量
   merged-segment-05-ip:
     type: http
     behavior: ipcidr
@@ -271,22 +279,6 @@ rule-providers:
     path: ./ruleset/merged-dedup/global-classical.yaml
     interval: 1209600
     proxy: 🌍 国外流量
-  DouYin-domain:
-    type: http
-    behavior: domain
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/DouYin-domain.mrs
-    path: ./ruleset/merged-dedup/DouYin-domain.mrs
-    interval: 1209600
-    proxy: 🌍 国外流量
-  BiliBili-domain:
-    type: http
-    behavior: domain
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/BiliBili-domain.mrs
-    path: ./ruleset/merged-dedup/BiliBili-domain.mrs
-    interval: 1209600
-    proxy: 🌍 国外流量
   BiliBili-classical:
     type: http
     behavior: classical
@@ -294,22 +286,6 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/BiliBili.yaml
     path: ./ruleset/merged-dedup/BiliBili-classical.yaml
     interval: 1209600
-    proxy: 🌍 国外流量
-  BaiDuTieBa-domain:
-    type: http
-    behavior: domain
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/BaiDuTieBa-domain.mrs
-    path: ./ruleset/merged-dedup/BaiDuTieBa-domain.mrs
-    interval: 1209600
-    proxy: 🌍 国外流量
-  alibaba-domain:
-    type: http
-    behavior: domain
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/alibaba-domain.mrs
-    path: ./ruleset/merged-dedup/alibaba-domain.mrs
-    interval: 86400
     proxy: 🌍 国外流量
   alibaba-classical:
     type: http
@@ -319,14 +295,6 @@ rule-providers:
     path: ./ruleset/merged-dedup/alibaba-classical.yaml
     interval: 86400
     proxy: 🌍 国外流量
-  cn-domain:
-    type: http
-    behavior: domain
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/cn-domain.mrs
-    path: ./ruleset/merged-dedup/cn-domain.mrs
-    interval: 1209600
-    proxy: ⚡ 海外高速
 rules:
 - IP-CIDR,0.0.0.0/32,REJECT,no-resolve
 - RULE-SET,merged-segment-01-domain,DIRECT
@@ -362,12 +330,8 @@ rules:
 - RULE-SET,tiktok-classical,🌍 国外流量
 - RULE-SET,google-classical,🌍 国外流量
 - RULE-SET,global-classical,🌍 国外流量
+- RULE-SET,merged-segment-05-domain,DIRECT
 - RULE-SET,merged-segment-05-ip,DIRECT
-- RULE-SET,DouYin-domain,DIRECT
-- RULE-SET,BiliBili-domain,DIRECT
 - RULE-SET,BiliBili-classical,DIRECT
-- RULE-SET,BaiDuTieBa-domain,DIRECT
-- RULE-SET,alibaba-domain,DIRECT
 - RULE-SET,alibaba-classical,DIRECT
-- RULE-SET,cn-domain,DIRECT
 - MATCH,🌍 国外流量
