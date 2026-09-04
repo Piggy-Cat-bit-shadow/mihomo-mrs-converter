@@ -261,13 +261,6 @@ providers:
     behavior: classical
     format: yaml
     fingerprint: 976a49ebb780a9dac659ae7a3a5a3c6e0131f2d5036632c5abe29549237c0e06
-  chinamax-classical:
-    name: chinamax-classical
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/chinamax.yaml
-    path: ./ruleset/merged/chinamax-classical.yaml
-    behavior: classical
-    format: yaml
-    fingerprint: afabe1a4f23fab25a302044bb006b9b410b5bcc9eb7aa5aac4ddca5bf4cff9dd
   cn-ip:
     name: cn-ip
     url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs

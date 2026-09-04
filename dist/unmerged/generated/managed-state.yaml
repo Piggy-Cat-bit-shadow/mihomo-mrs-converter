@@ -606,25 +606,11 @@ providers:
     fingerprint: 67f86d701152c194d26db6f146a62e4544acbe7a2865bfddd521b10d74113751
   chinamax-domain:
     name: chinamax-domain
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/chinamax.mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/chinamax-domain.mrs
     path: ./ruleset/unmerged/chinamax-domain.mrs
     behavior: domain
     format: mrs
-    fingerprint: 4d2bd590095e564adba0acb45c958ce96bb621175a3a0d06ade6ec39a14e4e87
-  chinamax-ip:
-    name: chinamax-ip
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/ipcidr/chinamax.mrs
-    path: ./ruleset/unmerged/chinamax-ip.mrs
-    behavior: ipcidr
-    format: mrs
-    fingerprint: c3c9a57ba797ca61aa0346bd3ff8e420e5e61632e5524d550e497bc41c05352d
-  chinamax-classical:
-    name: chinamax-classical
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/chinamax.yaml
-    path: ./ruleset/unmerged/chinamax-classical.yaml
-    behavior: classical
-    format: yaml
-    fingerprint: 52c4645a741aefff5ae1c2506370a3855003077d2489555aa7f0903165dc58fa
+    fingerprint: 7859ce9eeed0f0fbbef3c2cb44c7734571b586e9a54756ab2522c488d95d8975
   cn-ip:
     name: cn-ip
     url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs

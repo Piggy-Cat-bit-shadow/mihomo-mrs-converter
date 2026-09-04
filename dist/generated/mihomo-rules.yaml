@@ -691,24 +691,8 @@ rule-providers:
     type: http
     behavior: domain
     format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/chinamax.mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/chinamax-domain.mrs
     path: ./ruleset/unmerged/chinamax-domain.mrs
-    interval: 1209600
-    proxy: ⚡ 海外高速
-  chinamax-ip:
-    type: http
-    behavior: ipcidr
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/ipcidr/chinamax.mrs
-    path: ./ruleset/unmerged/chinamax-ip.mrs
-    interval: 1209600
-    proxy: ⚡ 海外高速
-  chinamax-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/chinamax.yaml
-    path: ./ruleset/unmerged/chinamax-classical.yaml
     interval: 1209600
     proxy: ⚡ 海外高速
   cn-ip:
@@ -723,7 +707,8 @@ rules:
 - IP-CIDR,0.0.0.0/32,REJECT,no-resolve
 - IP-CIDR,1.12.226.144/32,DIRECT,no-resolve
 - IP-CIDR,195.245.241.114/32,DIRECT,no-resolve
-- IP-CIDR,95.169.6.169/32,DIRECT,no-resolve
+- IP-CIDR,95.169.1.53/32,DIRECT,no-resolve
+- DOMAIN-SUFFIX,zhuzhu.jiejie12131.top,🌍 国外流量
 - RULE-SET,Lan-domain,DIRECT
 - RULE-SET,Lan-classical,DIRECT
 - RULE-SET,private,DIRECT
@@ -811,7 +796,5 @@ rules:
 - RULE-SET,alibaba-ip,DIRECT
 - RULE-SET,alibaba-classical,DIRECT
 - RULE-SET,chinamax-domain,DIRECT
-- RULE-SET,chinamax-ip,DIRECT
-- RULE-SET,chinamax-classical,DIRECT
 - RULE-SET,cn-ip,DIRECT,no-resolve
 - MATCH,⚡ 海外高速
