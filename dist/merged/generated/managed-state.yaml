@@ -289,10 +289,3 @@ providers:
     behavior: domain
     format: mrs
     fingerprint: f4e675e601b402b1eec5f912251d330bac2a872c54e6ad3d81597913ae910e03
-  cn-ip:
-    name: cn-ip
-    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs
-    path: ./ruleset/merged/cn-ip.mrs
-    behavior: ipcidr
-    format: mrs
-    fingerprint: f34e1e20688d31b2e00c6130dd6d34fd8e017695804f32a214eaa6ffb13fe60e

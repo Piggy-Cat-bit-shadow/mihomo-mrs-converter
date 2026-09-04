@@ -327,14 +327,6 @@ rule-providers:
     path: ./ruleset/merged-dedup/cn-domain.mrs
     interval: 1209600
     proxy: ⚡ 海外高速
-  cn-ip:
-    type: http
-    proxy: 🌍 国外流量
-    behavior: ipcidr
-    format: mrs
-    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs
-    path: ./ruleset/merged-dedup/cn-ip.mrs
-    interval: 1209600
 rules:
 - IP-CIDR,0.0.0.0/32,REJECT,no-resolve
 - RULE-SET,merged-segment-01-domain,DIRECT
@@ -378,5 +370,4 @@ rules:
 - RULE-SET,alibaba-domain,DIRECT
 - RULE-SET,alibaba-classical,DIRECT
 - RULE-SET,cn-domain,DIRECT
-- RULE-SET,cn-ip,DIRECT
 - MATCH,🌍 国外流量
