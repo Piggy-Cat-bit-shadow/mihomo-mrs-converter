@@ -355,13 +355,14 @@ rule-providers:
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Global/Global_Classical.yaml
     path: ./ruleset/global.yaml
     interval: 1209600
-  chinamax:
+  chinamax-domain:
     type: http
-    proxy: ⚡ 海外高速
-    behavior: classical
-    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/ChinaMax/ChinaMax_Classical.yaml
-    path: ./ruleset/chinamax.yaml
+    behavior: domain
+    format: yaml
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/ChinaMax/ChinaMax_Domain.yaml
+    path: ./ruleset/chinamax-domain.yaml
     interval: 1209600
+    proxy: ⚡ 海外高速
   cn-ip:
     type: http
     proxy: ⚡ 海外高速
