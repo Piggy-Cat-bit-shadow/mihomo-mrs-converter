@@ -604,13 +604,13 @@ providers:
     behavior: classical
     format: yaml
     fingerprint: cb49f17b441516552c49986ca2337a9f9a96b5e87d4c7da9d1bb798773375aa1
-  chinamax-domain:
-    name: chinamax-domain
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/chinamax-domain.mrs
-    path: ./ruleset/unmerged/chinamax-domain.mrs
+  cn-domain:
+    name: cn-domain
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/cn-domain.mrs
+    path: ./ruleset/unmerged/cn-domain.mrs
     behavior: domain
     format: mrs
-    fingerprint: 39db343b13a45b896d17a2615055a551eff6bd2de0e7d62e78d775ac16b73677
+    fingerprint: 130d3b7e855cece8cca17a8babba5d4e47fb3a7121fba79e3a8cd60c2aea0bfe
   cn-ip:
     name: cn-ip
     url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs
