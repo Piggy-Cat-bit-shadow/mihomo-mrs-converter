@@ -297,17 +297,21 @@ rule-providers:
     proxy: 🌍 国外流量
 rules:
 - IP-CIDR,0.0.0.0/32,REJECT,no-resolve
+- IP-CIDR,1.12.226.144/32,DIRECT,no-resolve
+- IP-CIDR,195.245.241.114/32,DIRECT,no-resolve
+- IP-CIDR,95.169.1.53/32,DIRECT,no-resolve
+- DOMAIN-SUFFIX,zhuzhu.jiejie12131.top,🌍 国外流量
 - RULE-SET,merged-segment-01-domain,DIRECT
 - RULE-SET,Lan-classical,DIRECT
-- RULE-SET,merged-segment-02-domain,🤖 AI
-- RULE-SET,me-classical,🤖 AI
-- RULE-SET,AppleProxy-classical,🤖 AI
-- RULE-SET,openai-ip,🤖 AI
-- RULE-SET,openai-classical,🤖 AI
-- RULE-SET,gemini-classical,🤖 AI
-- RULE-SET,AI-classical,🤖 AI
-- RULE-SET,Crypto-classical,🤖 AI
-- RULE-SET,paypal-classical,🤖 AI
+- SUB-RULE,(RULE-SET,merged-segment-02-domain),AI-Routing
+- SUB-RULE,(RULE-SET,me-classical),AI-Routing
+- SUB-RULE,(RULE-SET,AppleProxy-classical),AI-Routing
+- SUB-RULE,(RULE-SET,openai-ip),AI-Routing
+- SUB-RULE,(RULE-SET,openai-classical),AI-Routing
+- SUB-RULE,(RULE-SET,gemini-classical),AI-Routing
+- SUB-RULE,(RULE-SET,AI-classical),AI-Routing
+- SUB-RULE,(RULE-SET,Crypto-classical),AI-Routing
+- SUB-RULE,(RULE-SET,paypal-classical),AI-Routing
 - RULE-SET,merged-segment-03-domain,DIRECT
 - RULE-SET,wechat-classical,DIRECT
 - RULE-SET,Scholar-China-classical,DIRECT

@@ -705,30 +705,34 @@ rule-providers:
     proxy: 🌍 国外流量
 rules:
 - IP-CIDR,0.0.0.0/32,REJECT,no-resolve
+- IP-CIDR,1.12.226.144/32,DIRECT,no-resolve
+- IP-CIDR,195.245.241.114/32,DIRECT,no-resolve
+- IP-CIDR,95.169.1.53/32,DIRECT,no-resolve
+- DOMAIN-SUFFIX,zhuzhu.jiejie12131.top,🌍 国外流量
 - RULE-SET,Lan-domain,DIRECT
 - RULE-SET,Lan-classical,DIRECT
 - RULE-SET,private,DIRECT
-- RULE-SET,me-domain,🤖 AI
-- RULE-SET,me-classical,🤖 AI
-- RULE-SET,AppleProxy-domain,🤖 AI
-- RULE-SET,AppleProxy-classical,🤖 AI
-- RULE-SET,AppleIntelligence-domain,🤖 AI
-- RULE-SET,openai-domain,🤖 AI
-- RULE-SET,openai-ip,🤖 AI
-- RULE-SET,openai-classical,🤖 AI
-- RULE-SET,claude-domain,🤖 AI
-- RULE-SET,Anthropic-domain,🤖 AI
-- RULE-SET,gemini-domain,🤖 AI
-- RULE-SET,gemini-classical,🤖 AI
-- RULE-SET,AI-domain,🤖 AI
-- RULE-SET,AI-classical,🤖 AI
-- RULE-SET,cloudflare-domain,🤖 AI
-- RULE-SET,GoogleVoice-domain,🤖 AI
-- RULE-SET,Crypto-domain,🤖 AI
-- RULE-SET,Crypto-classical,🤖 AI
-- RULE-SET,IPCheck-domain,🤖 AI
-- RULE-SET,paypal-domain,🤖 AI
-- RULE-SET,paypal-classical,🤖 AI
+- SUB-RULE,(RULE-SET,me-domain),AI-Routing
+- SUB-RULE,(RULE-SET,me-classical),AI-Routing
+- SUB-RULE,(RULE-SET,AppleProxy-domain),AI-Routing
+- SUB-RULE,(RULE-SET,AppleProxy-classical),AI-Routing
+- SUB-RULE,(RULE-SET,AppleIntelligence-domain),AI-Routing
+- SUB-RULE,(RULE-SET,openai-domain),AI-Routing
+- SUB-RULE,(RULE-SET,openai-ip),AI-Routing
+- SUB-RULE,(RULE-SET,openai-classical),AI-Routing
+- SUB-RULE,(RULE-SET,claude-domain),AI-Routing
+- SUB-RULE,(RULE-SET,Anthropic-domain),AI-Routing
+- SUB-RULE,(RULE-SET,gemini-domain),AI-Routing
+- SUB-RULE,(RULE-SET,gemini-classical),AI-Routing
+- SUB-RULE,(RULE-SET,AI-domain),AI-Routing
+- SUB-RULE,(RULE-SET,AI-classical),AI-Routing
+- SUB-RULE,(RULE-SET,cloudflare-domain),AI-Routing
+- SUB-RULE,(RULE-SET,GoogleVoice-domain),AI-Routing
+- SUB-RULE,(RULE-SET,Crypto-domain),AI-Routing
+- SUB-RULE,(RULE-SET,Crypto-classical),AI-Routing
+- SUB-RULE,(RULE-SET,IPCheck-domain),AI-Routing
+- SUB-RULE,(RULE-SET,paypal-domain),AI-Routing
+- SUB-RULE,(RULE-SET,paypal-classical),AI-Routing
 - RULE-SET,wechat-domain,DIRECT
 - RULE-SET,wechat-classical,DIRECT
 - RULE-SET,apple,DIRECT
