@@ -6,12 +6,12 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/me-China
     path: ./ruleset/me-China.yaml
     interval: 172800
-  me-Foreign:
+  me-pure:
     type: http
     behavior: classical
     format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/me-Foreign
-    path: ./ruleset/me-Foreign.yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/me-pure
+    path: ./ruleset/me-pure.yaml
     interval: 172800
   Lan:
     type: http
@@ -307,19 +307,12 @@ rule-providers:
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Global/Global_Classical.yaml
     path: ./ruleset/global.yaml
     interval: 172800
-  cn-domain:
+  ChinaMax:
     type: http
-    behavior: domain
+    behavior: classical
     format: yaml
-    url: https://raw.githubusercontent.com/zydou/domain-list-community-converter/clash/cn.yml
-    path: ./ruleset/cn-domain.yaml
-    interval: 172800
-  cn-ip:
-    type: http
-    behavior: ipcidr
-    format: yaml
-    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.yaml
-    path: ./ruleset/cn-ip.yaml
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/ChinaMax/ChinaMax_Classical.yaml
+    path: ./ruleset/ChinaMax.yaml
     interval: 172800
 rules:
 - RULE-SET,Lan,DIRECT
@@ -328,7 +321,7 @@ rules:
 - RULE-SET,wechat,DIRECT
 - RULE-SET,apple,DIRECT
 - RULE-SET,icloud,DIRECT
-- SUB-RULE,(RULE-SET,me-Foreign),AI-Routing
+- SUB-RULE,(RULE-SET,me-pure),AI-Routing
 - SUB-RULE,(RULE-SET,AppleProxy),AI-Routing
 - SUB-RULE,(RULE-SET,AppleIntelligence),AI-Routing
 - SUB-RULE,(RULE-SET,openai),AI-Routing
@@ -370,6 +363,5 @@ rules:
 - RULE-SET,BaiDuTieBa,DIRECT
 - RULE-SET,alibaba-domain,DIRECT
 - RULE-SET,alibaba,DIRECT
-- RULE-SET,cn-domain,DIRECT
-- RULE-SET,cn-ip,DIRECT
+- RULE-SET,ChinaMax,DIRECT
 - MATCH,🌍 国外流量
