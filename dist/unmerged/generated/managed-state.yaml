@@ -2,6 +2,20 @@ version: 1
 suite: unmerged
 base_url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main
 providers:
+  BlockHttpDNS-domain:
+    name: BlockHttpDNS-domain
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/BlockHttpDNS.mrs
+    path: ./ruleset/unmerged/BlockHttpDNS-domain.mrs
+    behavior: domain
+    format: mrs
+    fingerprint: b6977ed0b2a6dd3c1dfc56e67cb95fca88cb5b873a2699e4d2fd23c1bf657fed
+  BlockHttpDNS-ip:
+    name: BlockHttpDNS-ip
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/ipcidr/BlockHttpDNS.mrs
+    path: ./ruleset/unmerged/BlockHttpDNS-ip.mrs
+    behavior: ipcidr
+    format: mrs
+    fingerprint: 365223666b1e8802c584f4eedd30546a2c90ada9d767493a2aac7128040dd968
   me-China-domain:
     name: me-China-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/me-China.mrs

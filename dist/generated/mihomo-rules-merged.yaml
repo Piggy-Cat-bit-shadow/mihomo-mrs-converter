@@ -34,19 +34,19 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/merged-segment-04-ip.mrs
     path: ./ruleset/merged/merged-segment-04-ip.mrs
     interval: 172800
-  merged-segment-05-domain:
+  merged-segment-06-domain:
     type: http
     behavior: domain
     format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/merged-segment-05-domain.mrs
-    path: ./ruleset/merged/merged-segment-05-domain.mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/merged-segment-06-domain.mrs
+    path: ./ruleset/merged/merged-segment-06-domain.mrs
     interval: 86400
-  merged-segment-05-ip:
+  merged-segment-06-ip:
     type: http
     behavior: ipcidr
     format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/merged-segment-05-ip.mrs
-    path: ./ruleset/merged/merged-segment-05-ip.mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/merged-segment-06-ip.mrs
+    path: ./ruleset/merged/merged-segment-06-ip.mrs
     interval: 86400
   Lan-classical:
     type: http
@@ -244,6 +244,20 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/global.yaml
     path: ./ruleset/merged/global-classical.yaml
     interval: 172800
+  BlockHttpDNS-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/BlockHttpDNS.mrs
+    path: ./ruleset/merged/BlockHttpDNS-domain.mrs
+    interval: 172800
+  BlockHttpDNS-ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/BlockHttpDNS.mrs
+    path: ./ruleset/merged/BlockHttpDNS-ip.mrs
+    interval: 172800
   BiliBili-classical:
     type: http
     behavior: classical
@@ -292,8 +306,10 @@ rules:
 - RULE-SET,tiktok-classical,🌍 国外流量
 - RULE-SET,google-classical,🌍 国外流量
 - RULE-SET,global-classical,🌍 国外流量
-- RULE-SET,merged-segment-05-domain,DIRECT
-- RULE-SET,merged-segment-05-ip,DIRECT
+- RULE-SET,BlockHttpDNS-domain,REJECT
+- RULE-SET,BlockHttpDNS-ip,REJECT
+- RULE-SET,merged-segment-06-domain,DIRECT
+- RULE-SET,merged-segment-06-ip,DIRECT
 - RULE-SET,BiliBili-classical,DIRECT
 - RULE-SET,alibaba-classical,DIRECT
 - MATCH,🌍 国外流量

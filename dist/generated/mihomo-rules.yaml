@@ -1,4 +1,18 @@
 rule-providers:
+  BlockHttpDNS-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/BlockHttpDNS.mrs
+    path: ./ruleset/unmerged/BlockHttpDNS-domain.mrs
+    interval: 172800
+  BlockHttpDNS-ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/ipcidr/BlockHttpDNS.mrs
+    path: ./ruleset/unmerged/BlockHttpDNS-ip.mrs
+    interval: 172800
   me-China-domain:
     type: http
     behavior: domain
@@ -694,6 +708,8 @@ rules:
 - RULE-SET,global-domain,🌍 国外流量
 - RULE-SET,global-ip,🌍 国外流量
 - RULE-SET,global-classical,🌍 国外流量
+- RULE-SET,BlockHttpDNS-domain,REJECT
+- RULE-SET,BlockHttpDNS-ip,REJECT
 - RULE-SET,DouYin-domain,DIRECT
 - RULE-SET,BiliBili-domain,DIRECT
 - RULE-SET,BiliBili-ip,DIRECT

@@ -37,20 +37,20 @@ providers:
     behavior: ipcidr
     format: mrs
     fingerprint: 86f46c7bf44d4994cd572269c88c513ee0fd3768474eb629208a788d40fc89d6
-  merged-segment-05-domain:
-    name: merged-segment-05-domain
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/merged-segment-05-domain.mrs
-    path: ./ruleset/merged/merged-segment-05-domain.mrs
+  merged-segment-06-domain:
+    name: merged-segment-06-domain
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/merged-segment-06-domain.mrs
+    path: ./ruleset/merged/merged-segment-06-domain.mrs
     behavior: domain
     format: mrs
-    fingerprint: acde64dd74a192ab496b4cab51bfed000a4ef9c6491449847c9a70bf367f8835
-  merged-segment-05-ip:
-    name: merged-segment-05-ip
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/merged-segment-05-ip.mrs
-    path: ./ruleset/merged/merged-segment-05-ip.mrs
+    fingerprint: 324a538177bc5989045b19b376145884d64d8039c1c2b75d265c04cec0e04461
+  merged-segment-06-ip:
+    name: merged-segment-06-ip
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/merged-segment-06-ip.mrs
+    path: ./ruleset/merged/merged-segment-06-ip.mrs
     behavior: ipcidr
     format: mrs
-    fingerprint: 7a56742b74776e0a4232808d79b9f5d9f84af00115b49196569ed2e0943e949b
+    fingerprint: 85a51ac924bf112d58dd7415b4ba0eb5dffa0caaefa31ca4093de8005e72474e
   Lan-classical:
     name: Lan-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/Lan.yaml
@@ -247,6 +247,20 @@ providers:
     behavior: classical
     format: yaml
     fingerprint: 683b67f12a53eef0e2fa7949e0e852bd64a5bd45456209a9ed15f444ab23f864
+  BlockHttpDNS-domain:
+    name: BlockHttpDNS-domain
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/BlockHttpDNS.mrs
+    path: ./ruleset/merged/BlockHttpDNS-domain.mrs
+    behavior: domain
+    format: mrs
+    fingerprint: 60d828acd8eb9a9f543a18d2849c3a16fc06b8e493c958526069ec27aa9d9ec0
+  BlockHttpDNS-ip:
+    name: BlockHttpDNS-ip
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/BlockHttpDNS.mrs
+    path: ./ruleset/merged/BlockHttpDNS-ip.mrs
+    behavior: ipcidr
+    format: mrs
+    fingerprint: 551f8e51abacc3deff1ee543ffea1396ee7cc390d7d8f3ec0f338956ab6c10c9
   BiliBili-classical:
     name: BiliBili-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/BiliBili.yaml
