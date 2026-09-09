@@ -539,6 +539,109 @@ class SafeDedupTest(ConvertTestCase):
             )
 
 
+class AdjacentClassicalConsolidationTest(ConvertTestCase):
+    def make_config(
+        self,
+        dist: Path,
+        rules: list[str],
+        payloads: dict[str, list[str]],
+        metadata: dict[str, dict[str, object]] | None = None,
+    ) -> dict[str, object]:
+        providers: dict[str, dict[str, object]] = {}
+        for name, payload in payloads.items():
+            convert.write_yaml_payload(dist / "merged-dedup/classical" / f"{name}.yaml", payload)
+            behavior = "domain" if name == "X-domain" else "classical"
+            provider = {
+                "type": "http",
+                "behavior": behavior,
+                "format": "yaml",
+                "url": f"{BASE_URL}/dist/merged-dedup/classical/{name}.yaml",
+                "path": f"./ruleset/merged-dedup/{name}.yaml",
+            }
+            provider.update((metadata or {}).get(name, {}))
+            providers[name] = provider
+        return {"rule-providers": providers, "rules": rules}
+
+    def consolidate(
+        self,
+        rules: list[str],
+        payloads: dict[str, list[str]],
+        metadata: dict[str, dict[str, object]] | None = None,
+    ) -> tuple[dict[str, object], Path]:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        dist = Path(tmp.name)
+        config = self.make_config(dist, rules, payloads, metadata)
+        result = convert.merge_adjacent_classical_providers(config, self.build_options(dist))
+        return result, dist
+
+    def test_adjacent_classical_providers_merge_in_order(self) -> None:
+        result, dist = self.consolidate(
+            ["RULE-SET,A-classical,Proxy", "RULE-SET,B-classical,Proxy"],
+            {"A-classical": ["A1", "A2"], "B-classical": ["B1", "B2"]},
+        )
+
+        self.assertEqual(result["rules"], ["RULE-SET,merged-classical-01,Proxy"])
+        self.assertEqual(
+            yaml.safe_load((dist / "merged-dedup/classical/merged-classical-01.yaml").read_text()),
+            {"payload": ["A1", "A2", "B1", "B2"]},
+        )
+        self.assertNotIn("A-classical", result["rule-providers"])
+        self.assertNotIn("B-classical", result["rule-providers"])
+        self.assertEqual(result["rule-providers"]["merged-classical-01"]["behavior"], "classical")
+        self.assertEqual(result["rule-providers"]["merged-classical-01"]["format"], "yaml")
+
+    def test_classical_merge_preserves_duplicates(self) -> None:
+        result, dist = self.consolidate(
+            ["RULE-SET,A-classical,Proxy", "RULE-SET,B-classical,Proxy"],
+            {"A-classical": ["DOMAIN,a.com", "DOMAIN,a.com"], "B-classical": ["DOMAIN,a.com"]},
+        )
+
+        provider = result["rule-providers"]["merged-classical-01"]
+        payload = yaml.safe_load(
+            (dist / "merged-dedup/classical/merged-classical-01.yaml").read_text()
+        )["payload"]
+        self.assertEqual(payload, ["DOMAIN,a.com", "DOMAIN,a.com", "DOMAIN,a.com"])
+        self.assertEqual(provider["url"], f"{BASE_URL}/dist/merged-dedup/classical/merged-classical-01.yaml")
+
+    def test_barriers_and_different_contexts_prevent_merge(self) -> None:
+        for rules in (
+            ["RULE-SET,A-classical,Proxy", "DOMAIN,barrier.example,Proxy", "RULE-SET,B-classical,Proxy"],
+            ["RULE-SET,A-classical,Proxy", "RULE-SET,X-domain,Proxy", "RULE-SET,B-classical,Proxy"],
+            ["RULE-SET,A-classical,DIRECT", "RULE-SET,B-classical,Proxy"],
+        ):
+            with self.subTest(rules=rules):
+                classical = {"A-classical": ["A1"], "B-classical": ["B1"]}
+                if "X-domain" in rules:
+                    classical["X-domain"] = ["X1"]
+                result, _ = self.consolidate(rules, classical)
+                self.assertNotIn("merged-classical-01", result["rule-providers"])
+                self.assertEqual(result["rules"], rules)
+
+    def test_sub_rule_classical_providers_merge(self) -> None:
+        result, _ = self.consolidate(
+            [
+                "SUB-RULE,(RULE-SET,A-classical),AI-Routing",
+                "SUB-RULE,(RULE-SET,B-classical),AI-Routing",
+            ],
+            {"A-classical": ["A1"], "B-classical": ["B1"]},
+        )
+
+        self.assertEqual(result["rules"], ["SUB-RULE,(RULE-SET,merged-classical-01),AI-Routing"])
+
+    def test_incompatible_metadata_does_not_merge(self) -> None:
+        result, _ = self.consolidate(
+            ["RULE-SET,A-classical,Proxy", "RULE-SET,B-classical,Proxy"],
+            {"A-classical": ["A1"], "B-classical": ["B1"]},
+            {
+                "A-classical": {"proxy": "proxy-a"},
+                "B-classical": {"proxy": "proxy-b"},
+            },
+        )
+
+        self.assertEqual(result["rules"], ["RULE-SET,A-classical,Proxy", "RULE-SET,B-classical,Proxy"])
+
+
 class CompleteConfigRefreshTest(unittest.TestCase):
     def provider(self, name: str, behavior: str = "domain") -> dict[str, object]:
         return {

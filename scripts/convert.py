@@ -818,6 +818,112 @@ def provider_source_dir(behavior: str) -> str:
     return "ipcidr" if behavior == "ipcidr" else "domain"
 
 
+def reserve_classical_merge_name(index: int, used_names: set[str]) -> str:
+    """Reserve a stable name for a generated merged-dedup classical provider."""
+    candidate_index = index
+    while True:
+        candidate = f"merged-classical-{candidate_index:02d}"
+        if candidate not in used_names:
+            used_names.add(candidate)
+            return candidate
+        candidate_index += 1
+
+
+def merge_adjacent_classical_providers(
+    config: dict[str, Any],
+    options: BuildOptions,
+) -> dict[str, Any]:
+    """Concatenate compatible adjacent classical providers for merged-dedup only."""
+    suite = "merged-dedup"
+    suite_root = options.dist / suite
+    providers = dict(config["rule-providers"])
+    rules = config["rules"]
+    used_names = set(providers)
+    used_paths = {provider["path"] for provider in providers.values() if isinstance(provider.get("path"), str)}
+    rewritten_rules: list[Any] = []
+    merge_index = 1
+    rule_index = 0
+
+    def candidate(item: Any) -> tuple[str, tuple[str, ...], tuple[str, str], dict[str, Any]] | None:
+        wrapper = simple_ruleset_wrapper(item)
+        if wrapper is None:
+            return None
+        parts, prefix, suffix = wrapper
+        provider = providers.get(parts[1])
+        if not isinstance(provider, dict) or provider.get("behavior") != "classical":
+            return None
+        return parts[1], tuple(parts[2:]), (prefix, suffix), provider
+
+    while rule_index < len(rules):
+        first = candidate(rules[rule_index])
+        if first is None:
+            rewritten_rules.append(rules[rule_index])
+            rule_index += 1
+            continue
+
+        names = [first[0]]
+        suffix = first[1]
+        signature = first[2]
+        source_providers = [first[3]]
+        source_paths: list[Path] = []
+        first_path = generated_artifact_path(options.dist, first[3])
+        if first_path is None or not first_path.exists():
+            rewritten_rules.append(rules[rule_index])
+            rule_index += 1
+            continue
+        source_paths.append(first_path)
+        next_index = rule_index + 1
+
+        while next_index < len(rules):
+            next_candidate = candidate(rules[next_index])
+            if next_candidate is None or next_candidate[1] != suffix or next_candidate[2] != signature:
+                break
+            next_path = generated_artifact_path(options.dist, next_candidate[3])
+            if next_path is None or not next_path.exists():
+                break
+            if not merge_metadata_compatible([*source_providers, next_candidate[3]]):
+                break
+            names.append(next_candidate[0])
+            source_providers.append(next_candidate[3])
+            source_paths.append(next_path)
+            next_index += 1
+
+        if len(names) < 2:
+            rewritten_rules.append(rules[rule_index])
+            rule_index += 1
+            continue
+
+        merged_name = reserve_classical_merge_name(merge_index, used_names)
+        merge_index += 1
+        payload: list[str] = []
+        for source_path in source_paths:
+            # Deliberately concatenate the existing payload lists. Do not parse,
+            # normalize, sort, or deduplicate classical rules.
+            payload.extend(read_yaml_payload(source_path))
+        artifact = suite_root / "classical" / f"{merged_name}.yaml"
+        write_yaml_payload(artifact, payload)
+        path = f"./ruleset/{suite}/{merged_name}.yaml"
+        reserve_path(path, used_paths)
+        provider = make_merged_provider(
+            "classical",
+            "yaml",
+            public_url(options.base_url, "dist", suite, "classical", f"{merged_name}.yaml"),
+            path,
+            source_providers,
+        )
+        providers[merged_name] = provider
+        for name, old_provider in zip(names, source_providers):
+            providers.pop(name, None)
+            old_artifact = generated_artifact_path(options.dist, old_provider)
+            if old_artifact is not None and old_artifact.parent == suite_root / "classical":
+                old_artifact.unlink(missing_ok=True)
+        nested = ",".join(["RULE-SET", merged_name, *suffix])
+        rewritten_rules.append(wrap_ruleset_rule(nested, signature))
+        rule_index = next_index
+
+    return {**config, "rule-providers": providers, "rules": rewritten_rules}
+
+
 def build_dedup_config(
     config: dict[str, Any],
     options: BuildOptions,
@@ -886,6 +992,7 @@ def build_dedup_config(
         "rule-providers": dedup_providers,
         "rules": config["rules"],
     }
+    dedup_config = merge_adjacent_classical_providers(dedup_config, options)
     output = suite_root / "generated" / "mihomo-rules.yaml"
     validate_generated_config(options.dist, dedup_config, require_no_orphans=require_no_orphans)
     write_yaml_atomic(output, dedup_config)
