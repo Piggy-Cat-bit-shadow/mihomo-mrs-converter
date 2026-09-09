@@ -55,12 +55,12 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/Lan.yaml
     path: ./ruleset/merged-dedup/Lan-classical.yaml
     interval: 172800
-  me-classical:
+  me-Foreign-classical:
     type: http
     behavior: classical
     format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/me.yaml
-    path: ./ruleset/merged-dedup/me-classical.yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/me-Foreign.yaml
+    path: ./ruleset/merged-dedup/me-Foreign-classical.yaml
     interval: 172800
   AppleProxy-classical:
     type: http
@@ -111,19 +111,19 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/paypal.yaml
     path: ./ruleset/merged-dedup/paypal-classical.yaml
     interval: 172800
+  me-China-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/me-China.yaml
+    path: ./ruleset/merged-dedup/me-China-classical.yaml
+    interval: 172800
   wechat-classical:
     type: http
     behavior: classical
     format: yaml
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/wechat.yaml
     path: ./ruleset/merged-dedup/wechat-classical.yaml
-    interval: 172800
-  Scholar-China-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/Scholar-China.yaml
-    path: ./ruleset/merged-dedup/Scholar-China-classical.yaml
     interval: 172800
   Telegram-classical:
     type: http
@@ -262,7 +262,7 @@ rules:
 - RULE-SET,merged-segment-01-domain,DIRECT
 - RULE-SET,Lan-classical,DIRECT
 - SUB-RULE,(RULE-SET,merged-segment-02-domain),AI-Routing
-- SUB-RULE,(RULE-SET,me-classical),AI-Routing
+- SUB-RULE,(RULE-SET,me-Foreign-classical),AI-Routing
 - SUB-RULE,(RULE-SET,AppleProxy-classical),AI-Routing
 - SUB-RULE,(RULE-SET,openai-ip),AI-Routing
 - SUB-RULE,(RULE-SET,openai-classical),AI-Routing
@@ -271,8 +271,8 @@ rules:
 - SUB-RULE,(RULE-SET,Crypto-classical),AI-Routing
 - SUB-RULE,(RULE-SET,paypal-classical),AI-Routing
 - RULE-SET,merged-segment-03-domain,DIRECT
+- RULE-SET,me-China-classical,DIRECT
 - RULE-SET,wechat-classical,DIRECT
-- RULE-SET,Scholar-China-classical,DIRECT
 - RULE-SET,merged-segment-04-domain,🌍 国外流量
 - RULE-SET,merged-segment-04-ip,🌍 国外流量
 - RULE-SET,Telegram-classical,🌍 国外流量

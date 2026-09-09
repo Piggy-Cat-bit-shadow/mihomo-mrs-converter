@@ -2,20 +2,34 @@ version: 1
 suite: unmerged
 base_url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main
 providers:
-  Scholar-China-domain:
-    name: Scholar-China-domain
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Scholar-China.mrs
-    path: ./ruleset/unmerged/Scholar-China-domain.mrs
+  me-China-domain:
+    name: me-China-domain
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/me-China.mrs
+    path: ./ruleset/unmerged/me-China-domain.mrs
     behavior: domain
     format: mrs
-    fingerprint: 0bb025ef48645e02f0b4802e4c3291e1269afcf89d2a057216160659be887746
-  Scholar-China-classical:
-    name: Scholar-China-classical
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/Scholar-China.yaml
-    path: ./ruleset/unmerged/Scholar-China-classical.yaml
+    fingerprint: c89bffac3eb5e62e4e9f9fa43f876457b70c0897c58793b81b639e6dd11521e9
+  me-China-classical:
+    name: me-China-classical
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/me-China.yaml
+    path: ./ruleset/unmerged/me-China-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: 49a6520b6dac620a4ef6b6109c08c40b4906b1df8ad934fe824b2b03dca3135c
+    fingerprint: eba3479c59102681047cb27a3d09befd1852c02bd37c1e6691b5120fcc3ef74a
+  me-Foreign-domain:
+    name: me-Foreign-domain
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/me-Foreign.mrs
+    path: ./ruleset/unmerged/me-Foreign-domain.mrs
+    behavior: domain
+    format: mrs
+    fingerprint: 40bc9ee3458d8b891d37b110ebb8a11e37ba98dd562c9f42c73274080bad4c2e
+  me-Foreign-classical:
+    name: me-Foreign-classical
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/me-Foreign.yaml
+    path: ./ruleset/unmerged/me-Foreign-classical.yaml
+    behavior: classical
+    format: yaml
+    fingerprint: 5adbe9b26e4d5c806c445d6231c034f863932f1d4340d5267feab84a5da0faa0
   Scholar-Foreign-domain:
     name: Scholar-Foreign-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Scholar-Foreign.mrs
@@ -23,20 +37,6 @@ providers:
     behavior: domain
     format: mrs
     fingerprint: 6c2a332fa4a9a8e3f74ebd29cbbaa5bbd9890ddd6fccb49ede0b47aacf1e853c
-  me-domain:
-    name: me-domain
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/me.mrs
-    path: ./ruleset/unmerged/me-domain.mrs
-    behavior: domain
-    format: mrs
-    fingerprint: ca7243926841ae1af715cb031f3d8d13c279a9f9032da1e8f1fef5799cbc0c99
-  me-classical:
-    name: me-classical
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/me.yaml
-    path: ./ruleset/unmerged/me-classical.yaml
-    behavior: classical
-    format: yaml
-    fingerprint: ff6c1f8cc1227a4710418bbea1d9343062ac8aadc608dce264fde3ca986ff0eb
   Lan-domain:
     name: Lan-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Lan.mrs

@@ -1,17 +1,31 @@
 rule-providers:
-  Scholar-China-domain:
+  me-China-domain:
     type: http
     behavior: domain
     format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Scholar-China.mrs
-    path: ./ruleset/unmerged/Scholar-China-domain.mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/me-China.mrs
+    path: ./ruleset/unmerged/me-China-domain.mrs
     interval: 172800
-  Scholar-China-classical:
+  me-China-classical:
     type: http
     behavior: classical
     format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/Scholar-China.yaml
-    path: ./ruleset/unmerged/Scholar-China-classical.yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/me-China.yaml
+    path: ./ruleset/unmerged/me-China-classical.yaml
+    interval: 172800
+  me-Foreign-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/me-Foreign.mrs
+    path: ./ruleset/unmerged/me-Foreign-domain.mrs
+    interval: 172800
+  me-Foreign-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/me-Foreign.yaml
+    path: ./ruleset/unmerged/me-Foreign-classical.yaml
     interval: 172800
   Scholar-Foreign-domain:
     type: http
@@ -19,20 +33,6 @@ rule-providers:
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Scholar-Foreign.mrs
     path: ./ruleset/unmerged/Scholar-Foreign-domain.mrs
-    interval: 172800
-  me-domain:
-    type: http
-    behavior: domain
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/me.mrs
-    path: ./ruleset/unmerged/me-domain.mrs
-    interval: 172800
-  me-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/me.yaml
-    path: ./ruleset/unmerged/me-classical.yaml
     interval: 172800
   Lan-domain:
     type: http
@@ -619,8 +619,8 @@ rules:
 - RULE-SET,Lan-domain,DIRECT
 - RULE-SET,Lan-classical,DIRECT
 - RULE-SET,private,DIRECT
-- SUB-RULE,(RULE-SET,me-domain),AI-Routing
-- SUB-RULE,(RULE-SET,me-classical),AI-Routing
+- SUB-RULE,(RULE-SET,me-Foreign-domain),AI-Routing
+- SUB-RULE,(RULE-SET,me-Foreign-classical),AI-Routing
 - SUB-RULE,(RULE-SET,AppleProxy-domain),AI-Routing
 - SUB-RULE,(RULE-SET,AppleProxy-classical),AI-Routing
 - SUB-RULE,(RULE-SET,AppleIntelligence-domain),AI-Routing
@@ -640,13 +640,13 @@ rules:
 - SUB-RULE,(RULE-SET,IPCheck-domain),AI-Routing
 - SUB-RULE,(RULE-SET,paypal-domain),AI-Routing
 - SUB-RULE,(RULE-SET,paypal-classical),AI-Routing
+- RULE-SET,me-China-domain,DIRECT
+- RULE-SET,me-China-classical,DIRECT
 - RULE-SET,wechat-domain,DIRECT
 - RULE-SET,wechat-classical,DIRECT
 - RULE-SET,apple,DIRECT
 - RULE-SET,icloud,DIRECT
 - RULE-SET,qcloud,DIRECT
-- RULE-SET,Scholar-China-domain,DIRECT
-- RULE-SET,Scholar-China-classical,DIRECT
 - RULE-SET,Scholar-Foreign-domain,🌍 国外流量
 - RULE-SET,Scholar-domain,🌍 国外流量
 - RULE-SET,Telegram-domain,🌍 国外流量

@@ -1,4 +1,11 @@
 payload:
+- +.cnki.net
+- +.cqvip.com
+- +.kuke.com
+- +.pkulaw.com
+- +.wanfangdata.com
+- +.wanfangdata.com.cn
+- +.westlawchina.com
 - btrace.qq.com
 - dldir1.qq.com
 - slife.xy-asia.com
@@ -530,10 +537,3 @@ payload:
 - +.intltencentcos.com
 - +.rumt-sg.com
 - +.rumt-us.com
-- +.cnki.net
-- +.cqvip.com
-- +.kuke.com
-- +.pkulaw.com
-- +.wanfangdata.com
-- +.wanfangdata.com.cn
-- +.westlawchina.com
