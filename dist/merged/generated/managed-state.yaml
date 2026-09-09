@@ -8,256 +8,256 @@ providers:
     path: ./ruleset/merged/merged-segment-01-domain.mrs
     behavior: domain
     format: mrs
-    fingerprint: f23c9f28b29f9a6cdb0074b8cafaff6d3159dfc6e46607ec10fdc764b1489eee
+    fingerprint: f53cdc9e51660d02c3060e1a2f981d104ee96e7d7fc6ab0730d8e61aae3ae608
   merged-segment-02-domain:
     name: merged-segment-02-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/merged-segment-02-domain.mrs
     path: ./ruleset/merged/merged-segment-02-domain.mrs
     behavior: domain
     format: mrs
-    fingerprint: 071a1251b500ec2fee9c50b63ca904f60cf2bdd54dcdfafc2368560f495be4c3
+    fingerprint: 0c30eafcc5767b20df508cd3d1bc93b1ebd111f6c59e36dd90b5f45d8db37e50
   merged-segment-03-domain:
     name: merged-segment-03-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/merged-segment-03-domain.mrs
     path: ./ruleset/merged/merged-segment-03-domain.mrs
     behavior: domain
     format: mrs
-    fingerprint: 77cfc9a7da3bba3ba11197432bbb0f894debf05f7497f76eda3c47333bf7d7f8
+    fingerprint: 5eb1fb5455336a57db913d721c80479bfaf182007dad87744ca36aeeac24799b
   merged-segment-04-domain:
     name: merged-segment-04-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/merged-segment-04-domain.mrs
     path: ./ruleset/merged/merged-segment-04-domain.mrs
     behavior: domain
     format: mrs
-    fingerprint: aaef9fa8df26039e9cd9b082a9ec6cca358a78e98aa68fa7d0ca1d1e074202f7
+    fingerprint: 724bfc3dfd44c20dd26e297ea17350234eb495a2a89c6e0e3005dbd4e6e6d880
   merged-segment-04-ip:
     name: merged-segment-04-ip
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/merged-segment-04-ip.mrs
     path: ./ruleset/merged/merged-segment-04-ip.mrs
     behavior: ipcidr
     format: mrs
-    fingerprint: ef720917f9a5473ab0675144bd330484d6defffbd852240e57778ec975345905
+    fingerprint: 86f46c7bf44d4994cd572269c88c513ee0fd3768474eb629208a788d40fc89d6
   merged-segment-05-domain:
     name: merged-segment-05-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/merged-segment-05-domain.mrs
     path: ./ruleset/merged/merged-segment-05-domain.mrs
     behavior: domain
     format: mrs
-    fingerprint: 8a82c535aac7e33fc624ac295004f112724b70a88a9c4a0d8cd1e3173bda3016
+    fingerprint: acde64dd74a192ab496b4cab51bfed000a4ef9c6491449847c9a70bf367f8835
   merged-segment-05-ip:
     name: merged-segment-05-ip
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/merged-segment-05-ip.mrs
     path: ./ruleset/merged/merged-segment-05-ip.mrs
     behavior: ipcidr
     format: mrs
-    fingerprint: c3466dba5c9571607a78bb85106dafa34e03af86aadaf5585866742386f36e1b
+    fingerprint: 7a56742b74776e0a4232808d79b9f5d9f84af00115b49196569ed2e0943e949b
   Lan-classical:
     name: Lan-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/Lan.yaml
     path: ./ruleset/merged/Lan-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: 81caf7f1ab67de5234402814976d150d0f2a4578673cc05ed07492b430e29b6a
+    fingerprint: 34da68d4a5115f1319c48ae4767be7b01c3b6687e5923db0ace2de039f9123a4
   me-classical:
     name: me-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/me.yaml
     path: ./ruleset/merged/me-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: f529ac9cec669cf7a77726dca67a60e28a6301c630e2027963d48899ae6468fb
+    fingerprint: c2098d70719e50dc8e19bb8a4a5b68c7cc7b9145d78be9224fbfc7d0abda6444
   AppleProxy-classical:
     name: AppleProxy-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/AppleProxy.yaml
     path: ./ruleset/merged/AppleProxy-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: ea464cc2d6060e1b5ff5e7710d2dc01641334439ee80b189b0e2b3822d38c101
+    fingerprint: ea4357362dd89d9053e2dcf27a1b56eab80e3a80bcb8c56885786a09ba5dcfed
   openai-ip:
     name: openai-ip
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/openai.mrs
     path: ./ruleset/merged/openai-ip.mrs
     behavior: ipcidr
     format: mrs
-    fingerprint: 0a7ce45d2b504b72a4f3f305e5628eea8206568f98fb418693d73ad99414bedb
+    fingerprint: df910881374c453884181aeb5d751d45f23a76ccdbf191a41860780b898d5e6d
   openai-classical:
     name: openai-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/openai.yaml
     path: ./ruleset/merged/openai-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: 73402d5fbc07b04513c5882b7ca2c32e860f1ee00ece2482eb29051cf5854bb5
+    fingerprint: bec60afb252eb4c575edbeb09134949ae81d3661e6434d31999b6e577c702c9a
   gemini-classical:
     name: gemini-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/gemini.yaml
     path: ./ruleset/merged/gemini-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: 38b27a22be3815e2be48d2cd72781ce4fd524f6895a0b66683d221a7dfa3877e
+    fingerprint: e1632a77b2520c6e39c386975626e771bc82c2e7012030bcf6cdce7fe79bba9a
   AI-classical:
     name: AI-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/AI.yaml
     path: ./ruleset/merged/AI-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: 51cdc08b233d518f9ba23356b288a7a8db2ff292aadff284b8edff6c94921b1e
+    fingerprint: f3a97c8165b84614ebbde52dc40b56d4a720bd3e92c5612c90d75827da7fb95f
   Crypto-classical:
     name: Crypto-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/Crypto.yaml
     path: ./ruleset/merged/Crypto-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: 1d9f41262e9d15a49802683703778bd3b8f697660bc266aaa1c46114af8c6332
+    fingerprint: 8fe48c5ab2685da90a4eb78f470a14ec00add39d12bf90b18c06f55fbb4f2e0c
   paypal-classical:
     name: paypal-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/paypal.yaml
     path: ./ruleset/merged/paypal-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: 950d04e698955a68bce9db5a20bb9d01f0552ab7448e5382a1a8a415259ee3bc
+    fingerprint: 02f3afb215972d3e3a141298c07926fc9307a798cd38869c9ba8f5a9648ea543
   wechat-classical:
     name: wechat-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/wechat.yaml
     path: ./ruleset/merged/wechat-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: e67c4e64339b1f5b201896f096cee24e2cb5671d65302216281f33b6c921e84a
+    fingerprint: c1f4d59f992f8ac2ffff30189bcc085b1d6a9b138f21db3ec76140e0813f1226
   Scholar-China-classical:
     name: Scholar-China-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/Scholar-China.yaml
     path: ./ruleset/merged/Scholar-China-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: ee72fc99822b224415a834d09461512b5632dbf513df15af1679339f62a1e085
+    fingerprint: 0e2239696fee7b8773b4f38876e75d7ee027d980a1c6c13975b62219d652aaed
   Telegram-classical:
     name: Telegram-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/Telegram.yaml
     path: ./ruleset/merged/Telegram-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: 8021979be6e49c8beccdc5f8255bf39a6f8e98f73a657317e0df71696f808403
+    fingerprint: b4b5e11a4ee12efecadfbabef362a2ae0fc4a46e65be702cd45beb2b945083db
   github-classical:
     name: github-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/github.yaml
     path: ./ruleset/merged/github-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: 92b1517eec8f97fc9ef05b04574ccc01f0a09022f5d450600a73a27ca1d1d2f6
+    fingerprint: 9db07c10e104c79910dddf0a984aba831323287e9cede44111c74ffad759f8d2
   WhatsApp-classical:
     name: WhatsApp-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/WhatsApp.yaml
     path: ./ruleset/merged/WhatsApp-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: 5dc69ddc0aac95f6a142945f71e6ac712c700925edbefd89104981522bc6c2ca
+    fingerprint: 681c97459cad9c1f2ce3c8ed2dfa1620711eb867accc5d2fda064c70d27a2571
   netflix-classical:
     name: netflix-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/netflix.yaml
     path: ./ruleset/merged/netflix-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: e60df0f648b57040741a8aaed1ba2493aab270889bd02f1420922a2715ae91c4
+    fingerprint: f25f1682fd3fce4e76720bb49ee6adacdc17d6adc4a141621ac083300362ac74
   disney-classical:
     name: disney-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/disney.yaml
     path: ./ruleset/merged/disney-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: 3dac7b5e4b93546aeb8ef8e8f1f5ffc8633067e06cfd7cdc78905e8d11bfb5b8
+    fingerprint: c55b5dfb4efe5ba6630e2a4ef4d04d1abba540382221fc837bea33acba20dca0
   primevideo-classical:
     name: primevideo-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/primevideo.yaml
     path: ./ruleset/merged/primevideo-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: e51304d5ef399ea305b1c8bd4fb47d22136f2ceebf849a9766050bcd72ed8cf8
+    fingerprint: cd89b5edb6d80b7684aca821b859664ea8fc7cffc7f0cd6fd3582a63a6ab3be5
   GoogleDrive-classical:
     name: GoogleDrive-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/GoogleDrive.yaml
     path: ./ruleset/merged/GoogleDrive-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: 8c3c3ffbebb8016048fd7b8e7e65f3fe281fdfca7ba7dc9adfc7eb5818929a60
+    fingerprint: afaa9d1f4298b93177dbeb452e2424cccb7675b2ffeb12854fde975a361744c6
   OneDrive-classical:
     name: OneDrive-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/OneDrive.yaml
     path: ./ruleset/merged/OneDrive-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: 72ad3d1a6a2b331581cd8eacbec3a6b283e5fa974ba8a3f85adfb59ef5835d51
+    fingerprint: 924874f5034cd94939b8c5c155d60d3a05884d25b792892f86fb852fde59e794
   MEGA-classical:
     name: MEGA-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/MEGA.yaml
     path: ./ruleset/merged/MEGA-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: df2185ba6c8c938aa797a0ed5e81b2862189c555442c41d6c1e04e452998f7e5
+    fingerprint: 2af26ff7129bea448894fa773cebb89ab9dec02307d25ea9a97acc51449081b6
   youtube-classical:
     name: youtube-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/youtube.yaml
     path: ./ruleset/merged/youtube-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: 3c582d99a4dd761e314616cc9c6a73fdbe70de449056a76e422d9ee32de0b0fb
+    fingerprint: 37f25b9185501f28d3e2ba6d7a358a2137b6add21dea9a8e77c6c433833faac3
   Instagram-classical:
     name: Instagram-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/Instagram.yaml
     path: ./ruleset/merged/Instagram-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: 2449b97d5ed9039dfc25f7658994de28c49f2543441b5517ae06e2208f73552d
+    fingerprint: 9ec4734b14e992294fd2313f7f89b2bad3fc9144ac3286b758e89215ae38aa77
   Facebook-classical:
     name: Facebook-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/Facebook.yaml
     path: ./ruleset/merged/Facebook-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: 8586abc137374e1d6cbe71384a80603338a74f74caee672d6630fa40672141e9
+    fingerprint: cd8eb854cf24058b41342a910764cb7ea2b58bd645fa033349a93790b8bb157f
   Twitter-classical:
     name: Twitter-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/Twitter.yaml
     path: ./ruleset/merged/Twitter-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: 069d248c90304f4c5e3c2c3603391292ac27cd8a2f2acac638830afc70b37ef1
+    fingerprint: 1eedfaa8d0d15b5a59971a90563e89e1b32e02f11502e9a5e0744f3c1a4d9581
   Spotify-classical:
     name: Spotify-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/Spotify.yaml
     path: ./ruleset/merged/Spotify-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: 7924509f8e448a0437cb7fdac38093cc9aa64bfa8c33a658a40c231d2a84d7c0
+    fingerprint: e456a3d365c0bacacda34344c519091e9110c471af2c6d1efa7b022bdf58be7d
   tiktok-classical:
     name: tiktok-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/tiktok.yaml
     path: ./ruleset/merged/tiktok-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: f063b524bd8ae87185b2c9ef99e03ebbf0b5964346411ebed11875c4bc715bb9
+    fingerprint: d961f31362ce024aa120547a6f361bddbca41036545b3dddc91bfcab5bf2eeb2
   google-classical:
     name: google-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/google.yaml
     path: ./ruleset/merged/google-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: d002db2985e44dc70e564ceab1eb9cc37cd1c9204c06935a92f7aa4a190fb86d
+    fingerprint: 206de5b2bdd57c062de3a96311d0409bb0d353cafc276622beb292a8a7e87a05
   global-classical:
     name: global-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/global.yaml
     path: ./ruleset/merged/global-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: b4b71930c6d563a684aa6fa9c315565daba4bc967dea3297d3cadb153b51c90b
+    fingerprint: 683b67f12a53eef0e2fa7949e0e852bd64a5bd45456209a9ed15f444ab23f864
   BiliBili-classical:
     name: BiliBili-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/BiliBili.yaml
     path: ./ruleset/merged/BiliBili-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: 059e9a1c9eb69db18953631cc9b0fb64cce1c22d8810fe9fe0107793d5ac46c3
+    fingerprint: 08a5243a6d012118861fec7c6c0bf38ba1acb4a1237002482641ecc4cdcad325
   alibaba-classical:
     name: alibaba-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/alibaba.yaml
     path: ./ruleset/merged/alibaba-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: aa49ff4c907fb3e83bd33904ccb72f3b7476c96744ba385e570204e388e5a125
+    fingerprint: 00c25708c48ebb0d8dec213ae74810889e4ba2b32f895ae13e664e7f1155c75b
