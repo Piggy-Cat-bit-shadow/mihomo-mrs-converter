@@ -1,24 +1,17 @@
 rule-providers:
-  Scholar-China:
+  me-China:
     type: http    
     behavior: classical
     format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/Scholar-China
-    path: ./ruleset/Scholar-China.yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/me-China
+    path: ./ruleset/me-China.yaml
     interval: 172800
-  Scholar-Foreign:
+  me-Foreign:
     type: http
     behavior: classical
     format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/Scholar-Foreign
-    path: ./ruleset/Scholar-Foreign.yaml
-    interval: 172800
-  me:
-    type: http 
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/me
-    path: ./ruleset/me.yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/me-Foreign
+    path: ./ruleset/me-Foreign.yaml
     interval: 172800
   Lan:
     type: http
@@ -341,8 +334,8 @@ rules:
 - RULE-SET,apple,DIRECT
 - RULE-SET,icloud,DIRECT
 - RULE-SET,qcloud,DIRECT
-- RULE-SET,Scholar-China,DIRECT
-- RULE-SET,Scholar-Foreign,🌍 国外流量
+- RULE-SET,me-China,DIRECT
+- RULE-SET,me-Foreign,🌍 国外流量
 - RULE-SET,Scholar,🌍 国外流量
 - RULE-SET,Telegram,🌍 国外流量
 - RULE-SET,github,🌍 国外流量
