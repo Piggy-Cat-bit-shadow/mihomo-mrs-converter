@@ -6,6 +6,13 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/merged-segment-01-domain.mrs
     path: ./ruleset/merged-dedup/merged-segment-01-domain.mrs
     interval: 172800
+  merged-segment-01-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/merged-segment-01-classical.yaml
+    path: ./ruleset/merged-dedup/merged-segment-01-classical.yaml
+    interval: 172800
   merged-segment-02-domain:
     type: http
     behavior: domain
@@ -13,6 +20,20 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/merged-segment-02-domain.mrs
     path: ./ruleset/merged-dedup/merged-segment-02-domain.mrs
     interval: 172800
+  merged-segment-02-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/merged-segment-02-classical.yaml
+    path: ./ruleset/merged-dedup/merged-segment-02-classical.yaml
+    interval: 172800
+  merged-segment-02-ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/ipcidr/merged-segment-02-ip.mrs
+    path: ./ruleset/merged-dedup/merged-segment-02-ip.mrs
+    interval: 259200
   merged-segment-03-domain:
     type: http
     behavior: domain
@@ -20,12 +41,26 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/merged-segment-03-domain.mrs
     path: ./ruleset/merged-dedup/merged-segment-03-domain.mrs
     interval: 86400
+  merged-segment-03-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/merged-segment-03-classical.yaml
+    path: ./ruleset/merged-dedup/merged-segment-03-classical.yaml
+    interval: 172800
   merged-segment-04-domain:
     type: http
     behavior: domain
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/merged-segment-04-domain.mrs
     path: ./ruleset/merged-dedup/merged-segment-04-domain.mrs
+    interval: 172800
+  merged-segment-04-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/merged-segment-04-classical.yaml
+    path: ./ruleset/merged-dedup/merged-segment-04-classical.yaml
     interval: 172800
   merged-segment-04-ip:
     type: http
@@ -41,54 +76,19 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/merged-segment-05-domain.mrs
     path: ./ruleset/merged-dedup/merged-segment-05-domain.mrs
     interval: 86400
-  merged-segment-05-ip:
-    type: http
-    behavior: ipcidr
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/ipcidr/merged-segment-05-ip.mrs
-    path: ./ruleset/merged-dedup/merged-segment-05-ip.mrs
-    interval: 86400
-  merged-segment-01-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/merged-segment-01-classical.yaml
-    path: ./ruleset/merged-dedup/merged-segment-01-classical.yaml
-    interval: 172800
-  merged-segment-02-ip:
-    type: http
-    behavior: ipcidr
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/ipcidr/merged-segment-02-ip.mrs
-    path: ./ruleset/merged-dedup/merged-segment-02-ip.mrs
-    interval: 259200
-  merged-segment-02-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/merged-segment-02-classical.yaml
-    path: ./ruleset/merged-dedup/merged-segment-02-classical.yaml
-    interval: 172800
-  merged-segment-03-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/merged-segment-03-classical.yaml
-    path: ./ruleset/merged-dedup/merged-segment-03-classical.yaml
-    interval: 172800
-  merged-segment-04-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/merged-segment-04-classical.yaml
-    path: ./ruleset/merged-dedup/merged-segment-04-classical.yaml
-    interval: 172800
   merged-segment-05-classical:
     type: http
     behavior: classical
     format: yaml
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/merged-segment-05-classical.yaml
     path: ./ruleset/merged-dedup/merged-segment-05-classical.yaml
+    interval: 86400
+  merged-segment-05-ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/ipcidr/merged-segment-05-ip.mrs
+    path: ./ruleset/merged-dedup/merged-segment-05-ip.mrs
     interval: 86400
 rules:
 - RULE-SET,merged-segment-01-domain,DIRECT
@@ -99,9 +99,9 @@ rules:
 - RULE-SET,merged-segment-03-domain,DIRECT
 - RULE-SET,merged-segment-03-classical,DIRECT
 - RULE-SET,merged-segment-04-domain,🌍 国外流量
-- RULE-SET,merged-segment-04-ip,🌍 国外流量
 - RULE-SET,merged-segment-04-classical,🌍 国外流量
+- RULE-SET,merged-segment-04-ip,🌍 国外流量
 - RULE-SET,merged-segment-05-domain,DIRECT
-- RULE-SET,merged-segment-05-ip,DIRECT
 - RULE-SET,merged-segment-05-classical,DIRECT
+- RULE-SET,merged-segment-05-ip,DIRECT
 - MATCH,🌍 国外流量

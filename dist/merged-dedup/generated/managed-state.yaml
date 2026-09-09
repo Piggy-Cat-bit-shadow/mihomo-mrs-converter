@@ -9,6 +9,13 @@ providers:
     behavior: domain
     format: mrs
     fingerprint: 6d2b7a38f87b8d1ca5097ed221133c74987ea1b9455dd532c3d34c73c4dbf3a5
+  merged-segment-01-classical:
+    name: merged-segment-01-classical
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/merged-segment-01-classical.yaml
+    path: ./ruleset/merged-dedup/merged-segment-01-classical.yaml
+    behavior: classical
+    format: yaml
+    fingerprint: 25d4d644473289ea61ee34c87def0707a64f4841586e28506938d07eaec8616f
   merged-segment-02-domain:
     name: merged-segment-02-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/merged-segment-02-domain.mrs
@@ -16,6 +23,20 @@ providers:
     behavior: domain
     format: mrs
     fingerprint: 37f33b790e3f92b5aff7b4ea651bfbf1c4a0916712fbaa8c7e57cea0373deabb
+  merged-segment-02-classical:
+    name: merged-segment-02-classical
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/merged-segment-02-classical.yaml
+    path: ./ruleset/merged-dedup/merged-segment-02-classical.yaml
+    behavior: classical
+    format: yaml
+    fingerprint: 8e49b28437441c33bc21d351c2771e0f467f437e3511adce88e3f01934fc3df6
+  merged-segment-02-ip:
+    name: merged-segment-02-ip
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/ipcidr/merged-segment-02-ip.mrs
+    path: ./ruleset/merged-dedup/merged-segment-02-ip.mrs
+    behavior: ipcidr
+    format: mrs
+    fingerprint: 3784c7b88196ac6eb0791d661839e116c92b625398af233661b652436ae8d18d
   merged-segment-03-domain:
     name: merged-segment-03-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/merged-segment-03-domain.mrs
@@ -23,6 +44,13 @@ providers:
     behavior: domain
     format: mrs
     fingerprint: d912313731b6ac04ae8bf8d3c0b619d13c068fc0464108e1e47a0db09badd082
+  merged-segment-03-classical:
+    name: merged-segment-03-classical
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/merged-segment-03-classical.yaml
+    path: ./ruleset/merged-dedup/merged-segment-03-classical.yaml
+    behavior: classical
+    format: yaml
+    fingerprint: d1bc7611cca372c5e8f0f6afd72ac1a7f823b76207c2acf8af75ce976e5735aa
   merged-segment-04-domain:
     name: merged-segment-04-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/domain/merged-segment-04-domain.mrs
@@ -30,6 +58,13 @@ providers:
     behavior: domain
     format: mrs
     fingerprint: 9b131e7dc40a74a27705873242f96b7244509ac710d0796a46020e2377452830
+  merged-segment-04-classical:
+    name: merged-segment-04-classical
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/merged-segment-04-classical.yaml
+    path: ./ruleset/merged-dedup/merged-segment-04-classical.yaml
+    behavior: classical
+    format: yaml
+    fingerprint: c4ab38fb657f3c86b3e99180360af458fc3221bdd7ba4346487adcbda3cc0931
   merged-segment-04-ip:
     name: merged-segment-04-ip
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/ipcidr/merged-segment-04-ip.mrs
@@ -44,48 +79,6 @@ providers:
     behavior: domain
     format: mrs
     fingerprint: 0246f6a3b7f6dbd3d958d4e0c2d6fd3aded88f245184c3fffa3178859c56a8cb
-  merged-segment-05-ip:
-    name: merged-segment-05-ip
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/ipcidr/merged-segment-05-ip.mrs
-    path: ./ruleset/merged-dedup/merged-segment-05-ip.mrs
-    behavior: ipcidr
-    format: mrs
-    fingerprint: 16db4869f2496ecba78b1a315911724f81d1d14117516bea384daa344df0add1
-  merged-segment-01-classical:
-    name: merged-segment-01-classical
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/merged-segment-01-classical.yaml
-    path: ./ruleset/merged-dedup/merged-segment-01-classical.yaml
-    behavior: classical
-    format: yaml
-    fingerprint: 25d4d644473289ea61ee34c87def0707a64f4841586e28506938d07eaec8616f
-  merged-segment-02-ip:
-    name: merged-segment-02-ip
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/ipcidr/merged-segment-02-ip.mrs
-    path: ./ruleset/merged-dedup/merged-segment-02-ip.mrs
-    behavior: ipcidr
-    format: mrs
-    fingerprint: 3784c7b88196ac6eb0791d661839e116c92b625398af233661b652436ae8d18d
-  merged-segment-02-classical:
-    name: merged-segment-02-classical
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/merged-segment-02-classical.yaml
-    path: ./ruleset/merged-dedup/merged-segment-02-classical.yaml
-    behavior: classical
-    format: yaml
-    fingerprint: 8e49b28437441c33bc21d351c2771e0f467f437e3511adce88e3f01934fc3df6
-  merged-segment-03-classical:
-    name: merged-segment-03-classical
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/merged-segment-03-classical.yaml
-    path: ./ruleset/merged-dedup/merged-segment-03-classical.yaml
-    behavior: classical
-    format: yaml
-    fingerprint: d1bc7611cca372c5e8f0f6afd72ac1a7f823b76207c2acf8af75ce976e5735aa
-  merged-segment-04-classical:
-    name: merged-segment-04-classical
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/merged-segment-04-classical.yaml
-    path: ./ruleset/merged-dedup/merged-segment-04-classical.yaml
-    behavior: classical
-    format: yaml
-    fingerprint: c4ab38fb657f3c86b3e99180360af458fc3221bdd7ba4346487adcbda3cc0931
   merged-segment-05-classical:
     name: merged-segment-05-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/merged-segment-05-classical.yaml
@@ -93,3 +86,10 @@ providers:
     behavior: classical
     format: yaml
     fingerprint: 28af5385c02e6ed2aeeeadbd4a225550927cd17ef7cb388ae07aeeb4f414d6e2
+  merged-segment-05-ip:
+    name: merged-segment-05-ip
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/ipcidr/merged-segment-05-ip.mrs
+    path: ./ruleset/merged-dedup/merged-segment-05-ip.mrs
+    behavior: ipcidr
+    format: mrs
+    fingerprint: 16db4869f2496ecba78b1a315911724f81d1d14117516bea384daa344df0add1
