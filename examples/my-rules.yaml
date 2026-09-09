@@ -1,10 +1,17 @@
 rule-providers:
-  Scholar-China:
+  me-China:
     type: http    
     behavior: classical
     format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/Scholar-China
-    path: ./ruleset/Scholar-China.yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/me-China
+    path: ./ruleset/me-China.yaml
+    interval: 172800
+  me-Foreign:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/me-Foreign
+    path: ./ruleset/me-Foreign.yaml
     interval: 172800
   Scholar-Foreign:
     type: http
@@ -12,13 +19,6 @@ rule-providers:
     format: yaml
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/Scholar-Foreign
     path: ./ruleset/Scholar-Foreign.yaml
-    interval: 172800
-  me:
-    type: http 
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/me
-    path: ./ruleset/me.yaml
     interval: 172800
   Lan:
     type: http
@@ -324,7 +324,7 @@ rule-providers:
 rules:
 - RULE-SET,Lan,DIRECT
 - RULE-SET,private,DIRECT
-- SUB-RULE,(RULE-SET,me),AI-Routing
+- SUB-RULE,(RULE-SET,me-Foreign),AI-Routing
 - SUB-RULE,(RULE-SET,AppleProxy),AI-Routing
 - SUB-RULE,(RULE-SET,AppleIntelligence),AI-Routing
 - SUB-RULE,(RULE-SET,openai),AI-Routing
@@ -337,11 +337,11 @@ rules:
 - SUB-RULE,(RULE-SET,Crypto),AI-Routing
 - SUB-RULE,(RULE-SET,IPCheck),AI-Routing
 - SUB-RULE,(RULE-SET,paypal),AI-Routing
+- RULE-SET,me-China,DIRECT
 - RULE-SET,wechat,DIRECT
 - RULE-SET,apple,DIRECT
 - RULE-SET,icloud,DIRECT
 - RULE-SET,qcloud,DIRECT
-- RULE-SET,Scholar-China,DIRECT
 - RULE-SET,Scholar-Foreign,🌍 国外流量
 - RULE-SET,Scholar,🌍 国外流量
 - RULE-SET,Telegram,🌍 国外流量
