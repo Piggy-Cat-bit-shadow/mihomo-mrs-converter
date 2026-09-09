@@ -89,13 +89,6 @@ rule-providers:
     format: yaml
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/merged-classical-04.yaml
     path: ./ruleset/merged-dedup/merged-classical-04.yaml
-    interval: 172800
-  merged-classical-05:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/merged-classical-05.yaml
-    path: ./ruleset/merged-dedup/merged-classical-05.yaml
     interval: 86400
 rules:
 - RULE-SET,merged-segment-01-domain,DIRECT
@@ -103,13 +96,12 @@ rules:
 - SUB-RULE,(RULE-SET,merged-segment-02-domain),AI-Routing
 - SUB-RULE,(RULE-SET,merged-classical-01),AI-Routing
 - SUB-RULE,(RULE-SET,openai-ip),AI-Routing
-- SUB-RULE,(RULE-SET,merged-classical-02),AI-Routing
 - RULE-SET,merged-segment-03-domain,DIRECT
-- RULE-SET,merged-classical-03,DIRECT
+- RULE-SET,merged-classical-02,DIRECT
 - RULE-SET,merged-segment-04-domain,🌍 国外流量
 - RULE-SET,merged-segment-04-ip,🌍 国外流量
-- RULE-SET,merged-classical-04,🌍 国外流量
+- RULE-SET,merged-classical-03,🌍 国外流量
 - RULE-SET,merged-segment-05-domain,DIRECT
 - RULE-SET,merged-segment-05-ip,DIRECT
-- RULE-SET,merged-classical-05,DIRECT
+- RULE-SET,merged-classical-04,DIRECT
 - MATCH,🌍 国外流量
