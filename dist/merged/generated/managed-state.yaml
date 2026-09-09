@@ -254,10 +254,3 @@ providers:
     behavior: classical
     format: yaml
     fingerprint: 5cd4adae9edf6c9c35077f9e2571f0dce52b6f851b789d344eff8a9a2da4d6a0
-  ChinaMax-classical:
-    name: ChinaMax-classical
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/ChinaMax.yaml
-    path: ./ruleset/merged/ChinaMax-classical.yaml
-    behavior: classical
-    format: yaml
-    fingerprint: 8f63d490f59d9aaf3607e90f771e99f62853bcda110a34d7450253ef09c534f5
