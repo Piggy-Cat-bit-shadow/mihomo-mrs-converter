@@ -27,13 +27,6 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/me-Foreign.yaml
     path: ./ruleset/unmerged/me-Foreign-classical.yaml
     interval: 172800
-  Scholar-Foreign-domain:
-    type: http
-    behavior: domain
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Scholar-Foreign.mrs
-    path: ./ruleset/unmerged/Scholar-Foreign-domain.mrs
-    interval: 172800
   Lan-domain:
     type: http
     behavior: domain
@@ -54,6 +47,13 @@ rule-providers:
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/private.mrs
     path: ./ruleset/unmerged/private.mrs
+    interval: 172800
+  Scholar-Foreign-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Scholar-Foreign.mrs
+    path: ./ruleset/unmerged/Scholar-Foreign-domain.mrs
     interval: 172800
   Scholar-domain:
     type: http

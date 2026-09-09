@@ -30,13 +30,6 @@ providers:
     behavior: classical
     format: yaml
     fingerprint: 5adbe9b26e4d5c806c445d6231c034f863932f1d4340d5267feab84a5da0faa0
-  Scholar-Foreign-domain:
-    name: Scholar-Foreign-domain
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Scholar-Foreign.mrs
-    path: ./ruleset/unmerged/Scholar-Foreign-domain.mrs
-    behavior: domain
-    format: mrs
-    fingerprint: 6c2a332fa4a9a8e3f74ebd29cbbaa5bbd9890ddd6fccb49ede0b47aacf1e853c
   Lan-domain:
     name: Lan-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Lan.mrs
@@ -58,6 +51,13 @@ providers:
     behavior: domain
     format: mrs
     fingerprint: 8d02ab47e639f22fedbceed8c4c0f42c0e691ac2bda03a9f91662f7e97b7afb6
+  Scholar-Foreign-domain:
+    name: Scholar-Foreign-domain
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Scholar-Foreign.mrs
+    path: ./ruleset/unmerged/Scholar-Foreign-domain.mrs
+    behavior: domain
+    format: mrs
+    fingerprint: 6c2a332fa4a9a8e3f74ebd29cbbaa5bbd9890ddd6fccb49ede0b47aacf1e853c
   Scholar-domain:
     name: Scholar-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Scholar.mrs
