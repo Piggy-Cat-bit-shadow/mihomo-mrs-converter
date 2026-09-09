@@ -62,12 +62,12 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/wechat.yaml
     path: ./ruleset/merged/wechat-classical.yaml
     interval: 172800
-  me-Foreign-classical:
+  me-pure-classical:
     type: http
     behavior: classical
     format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/me-Foreign.yaml
-    path: ./ruleset/merged/me-Foreign-classical.yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/me-pure.yaml
+    path: ./ruleset/merged/me-pure-classical.yaml
     interval: 172800
   AppleProxy-classical:
     type: http
@@ -251,13 +251,20 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/alibaba.yaml
     path: ./ruleset/merged/alibaba-classical.yaml
     interval: 172800
+  ChinaMax-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/ChinaMax.yaml
+    path: ./ruleset/merged/ChinaMax-classical.yaml
+    interval: 172800
 rules:
 - RULE-SET,merged-segment-01-domain,DIRECT
 - RULE-SET,Lan-classical,DIRECT
 - RULE-SET,me-China-classical,DIRECT
 - RULE-SET,wechat-classical,DIRECT
 - SUB-RULE,(RULE-SET,merged-segment-02-domain),AI-Routing
-- SUB-RULE,(RULE-SET,me-Foreign-classical),AI-Routing
+- SUB-RULE,(RULE-SET,me-pure-classical),AI-Routing
 - SUB-RULE,(RULE-SET,AppleProxy-classical),AI-Routing
 - SUB-RULE,(RULE-SET,openai-ip),AI-Routing
 - SUB-RULE,(RULE-SET,openai-classical),AI-Routing
@@ -288,4 +295,5 @@ rules:
 - RULE-SET,merged-segment-04-ip,DIRECT
 - RULE-SET,BiliBili-classical,DIRECT
 - RULE-SET,alibaba-classical,DIRECT
+- RULE-SET,ChinaMax-classical,DIRECT
 - MATCH,🌍 国外流量

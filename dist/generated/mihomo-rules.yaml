@@ -13,19 +13,19 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/me-China.yaml
     path: ./ruleset/unmerged/me-China-classical.yaml
     interval: 172800
-  me-Foreign-domain:
+  me-pure-domain:
     type: http
     behavior: domain
     format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/me-Foreign.mrs
-    path: ./ruleset/unmerged/me-Foreign-domain.mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/me-pure.mrs
+    path: ./ruleset/unmerged/me-pure-domain.mrs
     interval: 172800
-  me-Foreign-classical:
+  me-pure-classical:
     type: http
     behavior: classical
     format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/me-Foreign.yaml
-    path: ./ruleset/unmerged/me-Foreign-classical.yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/me-pure.yaml
+    path: ./ruleset/unmerged/me-pure-classical.yaml
     interval: 172800
   Lan-domain:
     type: http
@@ -601,19 +601,26 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/global.yaml
     path: ./ruleset/unmerged/global-classical.yaml
     interval: 172800
-  cn-domain:
+  ChinaMax-domain:
     type: http
     behavior: domain
     format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/cn-domain.mrs
-    path: ./ruleset/unmerged/cn-domain.mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/ChinaMax.mrs
+    path: ./ruleset/unmerged/ChinaMax-domain.mrs
     interval: 172800
-  cn-ip:
+  ChinaMax-ip:
     type: http
     behavior: ipcidr
     format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/ipcidr/cn-ip.mrs
-    path: ./ruleset/unmerged/cn-ip.mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/ipcidr/ChinaMax.mrs
+    path: ./ruleset/unmerged/ChinaMax-ip.mrs
+    interval: 172800
+  ChinaMax-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/ChinaMax.yaml
+    path: ./ruleset/unmerged/ChinaMax-classical.yaml
     interval: 172800
 rules:
 - RULE-SET,Lan-domain,DIRECT
@@ -625,8 +632,8 @@ rules:
 - RULE-SET,wechat-classical,DIRECT
 - RULE-SET,apple,DIRECT
 - RULE-SET,icloud,DIRECT
-- SUB-RULE,(RULE-SET,me-Foreign-domain),AI-Routing
-- SUB-RULE,(RULE-SET,me-Foreign-classical),AI-Routing
+- SUB-RULE,(RULE-SET,me-pure-domain),AI-Routing
+- SUB-RULE,(RULE-SET,me-pure-classical),AI-Routing
 - SUB-RULE,(RULE-SET,AppleProxy-domain),AI-Routing
 - SUB-RULE,(RULE-SET,AppleProxy-classical),AI-Routing
 - SUB-RULE,(RULE-SET,AppleIntelligence-domain),AI-Routing
@@ -702,6 +709,7 @@ rules:
 - RULE-SET,alibaba-domain,DIRECT
 - RULE-SET,alibaba-ip,DIRECT
 - RULE-SET,alibaba-classical,DIRECT
-- RULE-SET,cn-domain,DIRECT
-- RULE-SET,cn-ip,DIRECT
+- RULE-SET,ChinaMax-domain,DIRECT
+- RULE-SET,ChinaMax-ip,DIRECT
+- RULE-SET,ChinaMax-classical,DIRECT
 - MATCH,🌍 国外流量

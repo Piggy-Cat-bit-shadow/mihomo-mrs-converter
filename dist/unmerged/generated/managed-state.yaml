@@ -16,20 +16,20 @@ providers:
     behavior: classical
     format: yaml
     fingerprint: eba3479c59102681047cb27a3d09befd1852c02bd37c1e6691b5120fcc3ef74a
-  me-Foreign-domain:
-    name: me-Foreign-domain
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/me-Foreign.mrs
-    path: ./ruleset/unmerged/me-Foreign-domain.mrs
+  me-pure-domain:
+    name: me-pure-domain
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/me-pure.mrs
+    path: ./ruleset/unmerged/me-pure-domain.mrs
     behavior: domain
     format: mrs
-    fingerprint: 40bc9ee3458d8b891d37b110ebb8a11e37ba98dd562c9f42c73274080bad4c2e
-  me-Foreign-classical:
-    name: me-Foreign-classical
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/me-Foreign.yaml
-    path: ./ruleset/unmerged/me-Foreign-classical.yaml
+    fingerprint: ceca3b07f89d10417881e14d4b9203cefdd9f998132e4fbbb5d52107b0a7cabe
+  me-pure-classical:
+    name: me-pure-classical
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/me-pure.yaml
+    path: ./ruleset/unmerged/me-pure-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: 5adbe9b26e4d5c806c445d6231c034f863932f1d4340d5267feab84a5da0faa0
+    fingerprint: 9410650bd306f9aa53e13bf705c2efa7ed0baae4d9dbceb077c8d7fa92220645
   Lan-domain:
     name: Lan-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Lan.mrs
@@ -604,17 +604,24 @@ providers:
     behavior: classical
     format: yaml
     fingerprint: db16c3cf8d3bf1018fcd667036464e747b784030e1a4e94a3ac4b2cd60dbe8af
-  cn-domain:
-    name: cn-domain
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/cn-domain.mrs
-    path: ./ruleset/unmerged/cn-domain.mrs
+  ChinaMax-domain:
+    name: ChinaMax-domain
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/ChinaMax.mrs
+    path: ./ruleset/unmerged/ChinaMax-domain.mrs
     behavior: domain
     format: mrs
-    fingerprint: 2917c3345aba2bbe7018df4f4d2059577adb314b87ad49b40ef4c7c5a86406db
-  cn-ip:
-    name: cn-ip
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/ipcidr/cn-ip.mrs
-    path: ./ruleset/unmerged/cn-ip.mrs
+    fingerprint: e3e98b2ce76b1bb3050dee9c436e0e234539e0024d9e3499b507a419b0b25222
+  ChinaMax-ip:
+    name: ChinaMax-ip
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/ipcidr/ChinaMax.mrs
+    path: ./ruleset/unmerged/ChinaMax-ip.mrs
     behavior: ipcidr
     format: mrs
-    fingerprint: 0da7dcfefcd6af2c2f89cd8b10aacfe5d3ff8d25bdd73a6f077ca0541bff5afa
+    fingerprint: 7adf641d21fb1a80ca3cec99aeda6f67ed673d5598519acb6f8056e104dec033
+  ChinaMax-classical:
+    name: ChinaMax-classical
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/ChinaMax.yaml
+    path: ./ruleset/unmerged/ChinaMax-classical.yaml
+    behavior: classical
+    format: yaml
+    fingerprint: faf03171a23f94b8ac0008648e3761bfa04175140d74a660a8fd5439ca23c5af
