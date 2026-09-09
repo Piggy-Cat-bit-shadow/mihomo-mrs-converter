@@ -532,9 +532,13 @@ class SafeDedupTest(ConvertTestCase):
             dedup, stats = convert.build_dedup_config(config, self.build_options(dist))
 
             self.assertEqual(stats, {})
-            self.assertEqual(dedup["rule-providers"]["sample-classical"]["path"], "./ruleset/merged-dedup/sample-classical.yaml")
             self.assertEqual(
-                yaml.safe_load((dist / "merged-dedup/classical/sample.yaml").read_text()),
+                dedup["rule-providers"]["merged-segment-01-classical"]["path"],
+                "./ruleset/merged-dedup/merged-segment-01-classical.yaml",
+            )
+            self.assertNotIn("sample-classical", dedup["rule-providers"])
+            self.assertEqual(
+                yaml.safe_load((dist / "merged-dedup/classical/merged-segment-01-classical.yaml").read_text()),
                 {"payload": ["DOMAIN-SUFFIX,example.com", "PROCESS-NAME,App"]},
             )
 
@@ -713,6 +717,74 @@ class AdjacentClassicalConsolidationTest(ConvertTestCase):
         )
 
         self.assertEqual(result["rules"], ["RULE-SET,A-classical,Proxy", "RULE-SET,B-classical,Proxy"])
+
+    def canonical_config(self, dist: Path, rules: list[str], behaviors: dict[str, str]) -> dict[str, object]:
+        providers: dict[str, dict[str, object]] = {}
+        for name, behavior in behaviors.items():
+            folder = "classical" if behavior == "classical" else "source/" + ("ipcidr" if behavior == "ipcidr" else "domain")
+            suffix = ".yaml"
+            artifact = dist / "merged-dedup" / folder / f"{name}{suffix}"
+            convert.write_yaml_payload(artifact, [f"{name}-payload"])
+            providers[name] = {
+                "type": "http",
+                "behavior": behavior,
+                "format": "yaml",
+                "url": f"{BASE_URL}/dist/merged-dedup/{folder}/{name}.yaml",
+                "path": f"./ruleset/merged-dedup/{name}.yaml",
+            }
+        return {"rule-providers": providers, "rules": rules}
+
+    def test_logical_blocks_share_segment_ids_and_advance_globally(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            dist = Path(tmp)
+            config = self.canonical_config(
+                dist,
+                [
+                    "RULE-SET,D-domain,DIRECT",
+                    "RULE-SET,Lan-classical,DIRECT",
+                    "SUB-RULE,(RULE-SET,A-domain),AI-Routing",
+                    "SUB-RULE,(RULE-SET,A-classical),AI-Routing",
+                    "SUB-RULE,(RULE-SET,X-ip),AI-Routing",
+                    "RULE-SET,B-domain,DIRECT",
+                    "RULE-SET,B-classical,DIRECT",
+                ],
+                {
+                    "D-domain": "domain",
+                    "Lan-classical": "classical",
+                    "A-domain": "domain",
+                    "A-classical": "classical",
+                    "X-ip": "ipcidr",
+                    "B-domain": "domain",
+                    "B-classical": "classical",
+                },
+            )
+            result, _ = convert.canonicalize_dedup_provider_names(config, self.build_options(dist))
+
+            self.assertEqual(
+                result["rules"],
+                [
+                    "RULE-SET,merged-segment-01-domain,DIRECT",
+                    "RULE-SET,merged-segment-01-classical,DIRECT",
+                    "SUB-RULE,(RULE-SET,merged-segment-02-domain),AI-Routing",
+                    "SUB-RULE,(RULE-SET,merged-segment-02-classical),AI-Routing",
+                    "SUB-RULE,(RULE-SET,merged-segment-02-ip),AI-Routing",
+                    "RULE-SET,merged-segment-03-domain,DIRECT",
+                    "RULE-SET,merged-segment-03-classical,DIRECT",
+                ],
+            )
+            self.assertNotIn("merged-classical-01", result["rule-providers"])
+            for name in (
+                "merged-segment-01-domain",
+                "merged-segment-01-classical",
+                "merged-segment-02-domain",
+                "merged-segment-02-classical",
+                "merged-segment-02-ip",
+                "merged-segment-03-domain",
+                "merged-segment-03-classical",
+            ):
+                provider = result["rule-providers"][name]
+                self.assertTrue((dist / provider["url"].split("/dist/", 1)[1]).exists())
+                self.assertTrue(provider["path"].endswith(f"/{name}.yaml"))
 
 
 class CompleteConfigRefreshTest(unittest.TestCase):

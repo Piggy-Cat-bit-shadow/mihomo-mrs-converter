@@ -998,6 +998,111 @@ def merge_adjacent_classical_providers(
     return {**config, "rule-providers": providers, "rules": rewritten_rules}
 
 
+def canonicalize_dedup_provider_names(
+    config: dict[str, Any],
+    options: BuildOptions,
+) -> tuple[dict[str, Any], dict[str, str]]:
+    """Give all providers in each merged-dedup logical rule block one segment ID."""
+    suite = "merged-dedup"
+    suite_root = options.dist / suite
+    providers = config["rule-providers"]
+    provider_segments: dict[str, tuple[int, str, int]] = {}
+    segment_id = 0
+    rule_index = 0
+
+    while rule_index < len(config["rules"]):
+        wrapper = simple_ruleset_wrapper(config["rules"][rule_index])
+        if wrapper is None or wrapper[0][1] not in providers:
+            rule_index += 1
+            continue
+        signature = (wrapper[1], wrapper[2])
+        suffix = tuple(wrapper[0][2:])
+        block: list[tuple[str, tuple[str, ...], tuple[str, str], dict[str, Any]]] = []
+        next_index = rule_index
+        while next_index < len(config["rules"]):
+            next_wrapper = simple_ruleset_wrapper(config["rules"][next_index])
+            if next_wrapper is None or next_wrapper[0][1] not in providers:
+                break
+            provider = providers[next_wrapper[0][1]]
+            if (next_wrapper[1], next_wrapper[2]) != signature or tuple(next_wrapper[0][2:]) != suffix:
+                break
+            if provider.get("behavior") not in {"domain", "ipcidr", "classical"}:
+                break
+            block.append((next_wrapper[0][1], tuple(next_wrapper[0][2:]), signature, provider))
+            next_index += 1
+
+        if not block:
+            rule_index += 1
+            continue
+        segment_id += 1
+        behavior_counts: dict[str, int] = {}
+        for name, _, _, provider in block:
+            behavior = provider["behavior"]
+            if name in provider_segments:
+                continue
+            part = behavior_counts.get(behavior, 0) + 1
+            behavior_counts[behavior] = part
+            provider_segments[name] = (segment_id, behavior, part)
+        rule_index = next_index
+
+    if not provider_segments:
+        return config, {}
+
+    used_names: set[str] = set()
+    renamed: dict[str, str] = {}
+    for old_name, (current_segment, behavior, part) in provider_segments.items():
+        label = "ip" if behavior == "ipcidr" else behavior
+        base = f"merged-segment-{current_segment:02d}-{label}"
+        candidate = base if part == 1 else f"{base}-part-{part:02d}"
+        if candidate in used_names or (candidate in providers and candidate != old_name):
+            collision_part = part
+            while candidate in used_names or (candidate in providers and candidate != old_name):
+                collision_part += 1
+                candidate = f"{base}-part-{collision_part:02d}"
+        used_names.add(candidate)
+        renamed[old_name] = candidate
+
+    new_providers: dict[str, dict[str, Any]] = {}
+    for old_name, provider in providers.items():
+        new_name = renamed.get(old_name, old_name)
+        if new_name == old_name:
+            new_providers[new_name] = provider
+            continue
+        new_provider = dict(provider)
+        old_artifact = generated_artifact_path(options.dist, provider)
+        old_source = source_path_for_provider(options.dist, provider)
+        new_artifact: Path | None = None
+        if old_artifact is not None and old_artifact.exists() and old_artifact.parent.is_relative_to(suite_root):
+            new_artifact = old_artifact.with_name(f"{new_name}{old_artifact.suffix}")
+            if new_artifact != old_artifact:
+                copy_file(old_artifact, new_artifact)
+                old_artifact.unlink(missing_ok=True)
+            relative = new_artifact.relative_to(options.dist)
+            new_provider["url"] = public_url(options.base_url, "dist", *relative.parts)
+        if old_source is not None and old_source.exists() and old_source.parent.is_relative_to(suite_root / "source"):
+            new_source = old_source.with_name(f"{new_name}.yaml")
+            if new_source != old_source:
+                copy_file(old_source, new_source)
+                old_source.unlink(missing_ok=True)
+        new_provider["path"] = provider_path_for_suite(new_name, new_provider, suite)
+        new_providers[new_name] = new_provider
+
+    rewritten_rules: list[Any] = []
+    for item in config["rules"]:
+        if not isinstance(item, str):
+            rewritten_rules.append(item)
+            continue
+        wrapper = simple_ruleset_wrapper(item)
+        if wrapper is None or wrapper[0][1] not in renamed:
+            rewritten_rules.append(item)
+            continue
+        parts, prefix, suffix = wrapper
+        rewritten = ",".join(["RULE-SET", renamed[parts[1]], *parts[2:]])
+        rewritten_rules.append(wrap_ruleset_rule(rewritten, (prefix, suffix)))
+
+    return {**config, "rule-providers": new_providers, "rules": rewritten_rules}, renamed
+
+
 def build_dedup_config(
     config: dict[str, Any],
     options: BuildOptions,
@@ -1067,6 +1172,11 @@ def build_dedup_config(
         "rules": config["rules"],
     }
     dedup_config = merge_adjacent_classical_providers(dedup_config, options)
+    dedup_config, renamed_providers = canonicalize_dedup_provider_names(dedup_config, options)
+    stats_by_provider = {
+        renamed_providers.get(name, name): stats
+        for name, stats in stats_by_provider.items()
+    }
     output = suite_root / "generated" / "mihomo-rules.yaml"
     validate_generated_config(options.dist, dedup_config, require_no_orphans=require_no_orphans)
     write_yaml_atomic(output, dedup_config)
