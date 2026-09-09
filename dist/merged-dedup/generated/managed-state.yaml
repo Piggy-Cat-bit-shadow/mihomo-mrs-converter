@@ -92,11 +92,4 @@ providers:
     path: ./ruleset/merged-dedup/merged-classical-04.yaml
     behavior: classical
     format: yaml
-    fingerprint: c9c2d83a4da5dfa85a4e4d71c22c9159f9270e807edc7ebaa028309ae8455df8
-  merged-classical-05:
-    name: merged-classical-05
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/merged-classical-05.yaml
-    path: ./ruleset/merged-dedup/merged-classical-05.yaml
-    behavior: classical
-    format: yaml
-    fingerprint: 10ed893fdd90411b7646231e82672a58127145ca5b884395375a317688e1172a
+    fingerprint: 08f08e474a2f0ccab0f5027c9be73a5e127ef82d3782cc0bbd318e18462279f4
