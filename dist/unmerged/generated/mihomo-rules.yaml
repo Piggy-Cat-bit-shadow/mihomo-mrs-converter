@@ -1,18 +1,4 @@
 rule-providers:
-  BlockHttpDNS-domain:
-    type: http
-    behavior: domain
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/BlockHttpDNS.mrs
-    path: ./ruleset/unmerged/BlockHttpDNS-domain.mrs
-    interval: 172800
-  BlockHttpDNS-ip:
-    type: http
-    behavior: ipcidr
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/ipcidr/BlockHttpDNS.mrs
-    path: ./ruleset/unmerged/BlockHttpDNS-ip.mrs
-    interval: 172800
   me-China-domain:
     type: http
     behavior: domain
@@ -82,77 +68,77 @@ rule-providers:
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/AppleIntelligence.mrs
     path: ./ruleset/unmerged/AppleIntelligence-domain.mrs
-    interval: 259200
+    interval: 172800
   openai-domain:
     type: http
     behavior: domain
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/openai.mrs
     path: ./ruleset/unmerged/openai-domain.mrs
-    interval: 259200
+    interval: 172800
   openai-ip:
     type: http
     behavior: ipcidr
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/ipcidr/openai.mrs
     path: ./ruleset/unmerged/openai-ip.mrs
-    interval: 259200
+    interval: 172800
   openai-classical:
     type: http
     behavior: classical
     format: yaml
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/openai.yaml
     path: ./ruleset/unmerged/openai-classical.yaml
-    interval: 259200
+    interval: 172800
   claude-domain:
     type: http
     behavior: domain
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/claude.mrs
     path: ./ruleset/unmerged/claude-domain.mrs
-    interval: 259200
+    interval: 172800
   Anthropic-domain:
     type: http
     behavior: domain
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Anthropic.mrs
     path: ./ruleset/unmerged/Anthropic-domain.mrs
-    interval: 259200
+    interval: 172800
   gemini-domain:
     type: http
     behavior: domain
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/gemini.mrs
     path: ./ruleset/unmerged/gemini-domain.mrs
-    interval: 259200
+    interval: 172800
   gemini-classical:
     type: http
     behavior: classical
     format: yaml
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/gemini.yaml
     path: ./ruleset/unmerged/gemini-classical.yaml
-    interval: 259200
+    interval: 172800
   AI-domain:
     type: http
     behavior: domain
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/AI.mrs
     path: ./ruleset/unmerged/AI-domain.mrs
-    interval: 259200
+    interval: 172800
   AI-classical:
     type: http
     behavior: classical
     format: yaml
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/AI.yaml
     path: ./ruleset/unmerged/AI-classical.yaml
-    interval: 259200
+    interval: 172800
   GoogleVoice-domain:
     type: http
     behavior: domain
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/GoogleVoice.mrs
     path: ./ruleset/unmerged/GoogleVoice-domain.mrs
-    interval: 259200
+    interval: 172800
   Crypto-domain:
     type: http
     behavior: domain
@@ -572,28 +558,28 @@ rule-providers:
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/alibaba-domain.mrs
     path: ./ruleset/unmerged/alibaba-domain.mrs
-    interval: 86400
+    interval: 172800
   alibaba-ip:
     type: http
     behavior: ipcidr
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/ipcidr/alibaba.mrs
     path: ./ruleset/unmerged/alibaba-ip.mrs
-    interval: 86400
+    interval: 172800
   alibaba-classical:
     type: http
     behavior: classical
     format: yaml
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/alibaba.yaml
     path: ./ruleset/unmerged/alibaba-classical.yaml
-    interval: 86400
+    interval: 172800
   qcloud:
     type: http
     behavior: domain
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/qcloud.mrs
     path: ./ruleset/unmerged/qcloud.mrs
-    interval: 86400
+    interval: 172800
   global-domain:
     type: http
     behavior: domain
@@ -633,6 +619,12 @@ rules:
 - RULE-SET,Lan-domain,DIRECT
 - RULE-SET,Lan-classical,DIRECT
 - RULE-SET,private,DIRECT
+- RULE-SET,me-China-domain,DIRECT
+- RULE-SET,me-China-classical,DIRECT
+- RULE-SET,wechat-domain,DIRECT
+- RULE-SET,wechat-classical,DIRECT
+- RULE-SET,apple,DIRECT
+- RULE-SET,icloud,DIRECT
 - SUB-RULE,(RULE-SET,me-Foreign-domain),AI-Routing
 - SUB-RULE,(RULE-SET,me-Foreign-classical),AI-Routing
 - SUB-RULE,(RULE-SET,AppleProxy-domain),AI-Routing
@@ -654,13 +646,6 @@ rules:
 - SUB-RULE,(RULE-SET,IPCheck-domain),AI-Routing
 - SUB-RULE,(RULE-SET,paypal-domain),AI-Routing
 - SUB-RULE,(RULE-SET,paypal-classical),AI-Routing
-- RULE-SET,me-China-domain,DIRECT
-- RULE-SET,me-China-classical,DIRECT
-- RULE-SET,wechat-domain,DIRECT
-- RULE-SET,wechat-classical,DIRECT
-- RULE-SET,apple,DIRECT
-- RULE-SET,icloud,DIRECT
-- RULE-SET,qcloud,DIRECT
 - RULE-SET,Scholar-Foreign-domain,🌍 国外流量
 - RULE-SET,Scholar-domain,🌍 国外流量
 - RULE-SET,Telegram-domain,🌍 国外流量
@@ -708,8 +693,7 @@ rules:
 - RULE-SET,global-domain,🌍 国外流量
 - RULE-SET,global-ip,🌍 国外流量
 - RULE-SET,global-classical,🌍 国外流量
-- RULE-SET,BlockHttpDNS-domain,REJECT
-- RULE-SET,BlockHttpDNS-ip,REJECT
+- RULE-SET,qcloud,DIRECT
 - RULE-SET,DouYin-domain,DIRECT
 - RULE-SET,BiliBili-domain,DIRECT
 - RULE-SET,BiliBili-ip,DIRECT

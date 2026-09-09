@@ -2,20 +2,6 @@ version: 1
 suite: unmerged
 base_url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main
 providers:
-  BlockHttpDNS-domain:
-    name: BlockHttpDNS-domain
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/BlockHttpDNS.mrs
-    path: ./ruleset/unmerged/BlockHttpDNS-domain.mrs
-    behavior: domain
-    format: mrs
-    fingerprint: b6977ed0b2a6dd3c1dfc56e67cb95fca88cb5b873a2699e4d2fd23c1bf657fed
-  BlockHttpDNS-ip:
-    name: BlockHttpDNS-ip
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/ipcidr/BlockHttpDNS.mrs
-    path: ./ruleset/unmerged/BlockHttpDNS-ip.mrs
-    behavior: ipcidr
-    format: mrs
-    fingerprint: 365223666b1e8802c584f4eedd30546a2c90ada9d767493a2aac7128040dd968
   me-China-domain:
     name: me-China-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/me-China.mrs
@@ -85,77 +71,77 @@ providers:
     path: ./ruleset/unmerged/AppleIntelligence-domain.mrs
     behavior: domain
     format: mrs
-    fingerprint: 3571196c61336f194c3277b1c2bf0bef1bce77b0323c1239009d362b723f596c
+    fingerprint: 9cb262e2f4669fc027a1a4c232a7ea3e582260a0c5d6f7881dd3504b7051c4fb
   openai-domain:
     name: openai-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/openai.mrs
     path: ./ruleset/unmerged/openai-domain.mrs
     behavior: domain
     format: mrs
-    fingerprint: 12f31a87b58e8cdaa096ebad2ee4a3563e154a82bcafe9c4414bf8ab1fc4cf20
+    fingerprint: dfeeaa9663b8f795fe268f54f4270c7291b08eebf0d032cc8ab138b18d9d78fc
   openai-ip:
     name: openai-ip
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/ipcidr/openai.mrs
     path: ./ruleset/unmerged/openai-ip.mrs
     behavior: ipcidr
     format: mrs
-    fingerprint: a249fe2197b29bb431fe0dda63bfaca56a98b4adc9b9890e8e5f673a70355fae
+    fingerprint: 62ca6f59b1bf95b4c675ea76c9cb933d951156c1ee95d4b845f485754f26cda2
   openai-classical:
     name: openai-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/openai.yaml
     path: ./ruleset/unmerged/openai-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: a388ea94f8f4bc5c219f56d3d694bd655abb29f0f1604390cd9578e21549dd0c
+    fingerprint: 1a11048524bf587e4eda910b53bf79f84f4c93401de6b2455b69718ef0adffc0
   claude-domain:
     name: claude-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/claude.mrs
     path: ./ruleset/unmerged/claude-domain.mrs
     behavior: domain
     format: mrs
-    fingerprint: 237fd8f22025543e85a616de8c36ef57dff8daff800ef8eb783a7cb5fb880399
+    fingerprint: fcfa676a59b3581a6998168a6b9c528a1ad115e27ac4eeef474b3c864e51822d
   Anthropic-domain:
     name: Anthropic-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Anthropic.mrs
     path: ./ruleset/unmerged/Anthropic-domain.mrs
     behavior: domain
     format: mrs
-    fingerprint: 17031955601afd6567a7028c5751af69582d41d3dd5d626047e2bd278db60feb
+    fingerprint: fe5243921ff937eeddd4d890f0acb1d20f9afc4ca6cd79891ec6840cd41aa67f
   gemini-domain:
     name: gemini-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/gemini.mrs
     path: ./ruleset/unmerged/gemini-domain.mrs
     behavior: domain
     format: mrs
-    fingerprint: 16ff6c171199936e6aa96b01208c8ad3a3be7f04f6ba280ee95896b29fca99ca
+    fingerprint: 34d980025bfcc9525c2986ce5fb816cce8c044e4dd97e05852e88cedd0641c35
   gemini-classical:
     name: gemini-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/gemini.yaml
     path: ./ruleset/unmerged/gemini-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: 32d5b5dd6303aa949171162c2cab5a79f1e54c3f9b7671390f1d19e6b68ab92b
+    fingerprint: 34aa885c6244a9caa0e2583491b94d4656e11c5e449845c92e92a39cb0b5df82
   AI-domain:
     name: AI-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/AI.mrs
     path: ./ruleset/unmerged/AI-domain.mrs
     behavior: domain
     format: mrs
-    fingerprint: 004b70b9e8fe4c8e74b70578a0b1c5e6627e0d29b05b5984295f6cafb696a79a
+    fingerprint: 76f847aa1f00f96f92c37f6e64bbe351dbba8755d734d70f75d13afe2a31780f
   AI-classical:
     name: AI-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/AI.yaml
     path: ./ruleset/unmerged/AI-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: 1cd9d988205f532e0697f28898de170df6e1c3c35a450880f5dc1a47d86054e6
+    fingerprint: 05edb92abc6d23cb380972b0cfe5e094ae4cdd5d6aabdf53152ac009054ba2a1
   GoogleVoice-domain:
     name: GoogleVoice-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/GoogleVoice.mrs
     path: ./ruleset/unmerged/GoogleVoice-domain.mrs
     behavior: domain
     format: mrs
-    fingerprint: fe8443ff044e431849e016888a12a9db8228baafdd434d7966392932ccc20317
+    fingerprint: 8e858343aabd359e496e618fb4f374ac9daa8a99d7ed90b6ecc8a9ff2ced3519
   Crypto-domain:
     name: Crypto-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/Crypto.mrs
@@ -575,28 +561,28 @@ providers:
     path: ./ruleset/unmerged/alibaba-domain.mrs
     behavior: domain
     format: mrs
-    fingerprint: 61050bd995d15fb8f134e10dcd3ab5db505d6f72e0691cc58d57b66e663dad2a
+    fingerprint: 63aa0ef54242c4b2c0f0222bc1187f15b34c6d770bf19238cc8d8c7943591c42
   alibaba-ip:
     name: alibaba-ip
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/ipcidr/alibaba.mrs
     path: ./ruleset/unmerged/alibaba-ip.mrs
     behavior: ipcidr
     format: mrs
-    fingerprint: 84dd6eaa2d8c53a9fa48a0c3c4044a45cc25f1d92a6d89150585850d222eb13c
+    fingerprint: 96417e7432d41126d9d32dc4f3e2f2f821ad45215c334cc2545836cbf11dd612
   alibaba-classical:
     name: alibaba-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/classical/alibaba.yaml
     path: ./ruleset/unmerged/alibaba-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: d37982008daf0b83e5095994b1c257c1151924baa18e6082a6dfaf5453fb94c2
+    fingerprint: 3aa36738698077592340cc76d2e1d75be6640aa376e69a344c895e3366cb7825
   qcloud:
     name: qcloud
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/qcloud.mrs
     path: ./ruleset/unmerged/qcloud.mrs
     behavior: domain
     format: mrs
-    fingerprint: b7a652b41e8b66ab5bbfdd8ca94148fb95ee78fa3f549cf1c4cd223f99f27668
+    fingerprint: 39b9f00078b0726b2e1b6c5d1a222895eac71c433daf983abf01cd8ffb59e2f9
   global-domain:
     name: global-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/unmerged/domain/global.mrs

@@ -19,7 +19,14 @@ rule-providers:
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/merged-segment-03-domain.mrs
     path: ./ruleset/merged/merged-segment-03-domain.mrs
-    interval: 86400
+    interval: 172800
+  merged-segment-03-ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/merged-segment-03-ip.mrs
+    path: ./ruleset/merged/merged-segment-03-ip.mrs
+    interval: 172800
   merged-segment-04-domain:
     type: http
     behavior: domain
@@ -34,26 +41,26 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/merged-segment-04-ip.mrs
     path: ./ruleset/merged/merged-segment-04-ip.mrs
     interval: 172800
-  merged-segment-06-domain:
-    type: http
-    behavior: domain
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/merged-segment-06-domain.mrs
-    path: ./ruleset/merged/merged-segment-06-domain.mrs
-    interval: 86400
-  merged-segment-06-ip:
-    type: http
-    behavior: ipcidr
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/merged-segment-06-ip.mrs
-    path: ./ruleset/merged/merged-segment-06-ip.mrs
-    interval: 86400
   Lan-classical:
     type: http
     behavior: classical
     format: yaml
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/Lan.yaml
     path: ./ruleset/merged/Lan-classical.yaml
+    interval: 172800
+  me-China-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/me-China.yaml
+    path: ./ruleset/merged/me-China-classical.yaml
+    interval: 172800
+  wechat-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/wechat.yaml
+    path: ./ruleset/merged/wechat-classical.yaml
     interval: 172800
   me-Foreign-classical:
     type: http
@@ -75,28 +82,28 @@ rule-providers:
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/openai.mrs
     path: ./ruleset/merged/openai-ip.mrs
-    interval: 259200
+    interval: 172800
   openai-classical:
     type: http
     behavior: classical
     format: yaml
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/openai.yaml
     path: ./ruleset/merged/openai-classical.yaml
-    interval: 259200
+    interval: 172800
   gemini-classical:
     type: http
     behavior: classical
     format: yaml
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/gemini.yaml
     path: ./ruleset/merged/gemini-classical.yaml
-    interval: 259200
+    interval: 172800
   AI-classical:
     type: http
     behavior: classical
     format: yaml
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/AI.yaml
     path: ./ruleset/merged/AI-classical.yaml
-    interval: 259200
+    interval: 172800
   Crypto-classical:
     type: http
     behavior: classical
@@ -110,20 +117,6 @@ rule-providers:
     format: yaml
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/paypal.yaml
     path: ./ruleset/merged/paypal-classical.yaml
-    interval: 172800
-  me-China-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/me-China.yaml
-    path: ./ruleset/merged/me-China-classical.yaml
-    interval: 172800
-  wechat-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/wechat.yaml
-    path: ./ruleset/merged/wechat-classical.yaml
     interval: 172800
   Telegram-classical:
     type: http
@@ -244,20 +237,6 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/global.yaml
     path: ./ruleset/merged/global-classical.yaml
     interval: 172800
-  BlockHttpDNS-domain:
-    type: http
-    behavior: domain
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/domain/BlockHttpDNS.mrs
-    path: ./ruleset/merged/BlockHttpDNS-domain.mrs
-    interval: 172800
-  BlockHttpDNS-ip:
-    type: http
-    behavior: ipcidr
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/ipcidr/BlockHttpDNS.mrs
-    path: ./ruleset/merged/BlockHttpDNS-ip.mrs
-    interval: 172800
   BiliBili-classical:
     type: http
     behavior: classical
@@ -271,10 +250,12 @@ rule-providers:
     format: yaml
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged/classical/alibaba.yaml
     path: ./ruleset/merged/alibaba-classical.yaml
-    interval: 86400
+    interval: 172800
 rules:
 - RULE-SET,merged-segment-01-domain,DIRECT
 - RULE-SET,Lan-classical,DIRECT
+- RULE-SET,me-China-classical,DIRECT
+- RULE-SET,wechat-classical,DIRECT
 - SUB-RULE,(RULE-SET,merged-segment-02-domain),AI-Routing
 - SUB-RULE,(RULE-SET,me-Foreign-classical),AI-Routing
 - SUB-RULE,(RULE-SET,AppleProxy-classical),AI-Routing
@@ -284,11 +265,8 @@ rules:
 - SUB-RULE,(RULE-SET,AI-classical),AI-Routing
 - SUB-RULE,(RULE-SET,Crypto-classical),AI-Routing
 - SUB-RULE,(RULE-SET,paypal-classical),AI-Routing
-- RULE-SET,merged-segment-03-domain,DIRECT
-- RULE-SET,me-China-classical,DIRECT
-- RULE-SET,wechat-classical,DIRECT
-- RULE-SET,merged-segment-04-domain,🌍 国外流量
-- RULE-SET,merged-segment-04-ip,🌍 国外流量
+- RULE-SET,merged-segment-03-domain,🌍 国外流量
+- RULE-SET,merged-segment-03-ip,🌍 国外流量
 - RULE-SET,Telegram-classical,🌍 国外流量
 - RULE-SET,github-classical,🌍 国外流量
 - RULE-SET,WhatsApp-classical,🌍 国外流量
@@ -306,10 +284,8 @@ rules:
 - RULE-SET,tiktok-classical,🌍 国外流量
 - RULE-SET,google-classical,🌍 国外流量
 - RULE-SET,global-classical,🌍 国外流量
-- RULE-SET,BlockHttpDNS-domain,REJECT
-- RULE-SET,BlockHttpDNS-ip,REJECT
-- RULE-SET,merged-segment-06-domain,DIRECT
-- RULE-SET,merged-segment-06-ip,DIRECT
+- RULE-SET,merged-segment-04-domain,DIRECT
+- RULE-SET,merged-segment-04-ip,DIRECT
 - RULE-SET,BiliBili-classical,DIRECT
 - RULE-SET,alibaba-classical,DIRECT
 - MATCH,🌍 国外流量

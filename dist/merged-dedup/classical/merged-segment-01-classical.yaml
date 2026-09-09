@@ -17,3 +17,5 @@ payload:
 - IP-CIDR6,fc00::/7,no-resolve
 - IP-CIDR6,fe80::/10,no-resolve
 - IP-CIDR6,ff00::/8,no-resolve
+- DOMAIN-KEYWORD,sysu
+- IP-ASN,132203,no-resolve
