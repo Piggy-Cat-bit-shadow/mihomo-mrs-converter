@@ -29,6 +29,7 @@ DOMAIN_RULES = {"DOMAIN", "DOMAIN-SUFFIX"}
 IPCIDR_RULES = {"IP-CIDR", "IP-CIDR6"}
 SUITES = {"unmerged", "merged", "merged-dedup"}
 MANAGED_STATE_FILENAME = "managed-state.yaml"
+BEHAVIOR_ORDER = {"domain": 0, "classical": 1, "ipcidr": 2}
 
 
 @dataclass(frozen=True)
@@ -1087,20 +1088,54 @@ def canonicalize_dedup_provider_names(
         new_provider["path"] = provider_path_for_suite(new_name, new_provider, suite)
         new_providers[new_name] = new_provider
 
-    rewritten_rules: list[Any] = []
-    for item in config["rules"]:
+    def canonical_rule(item: Any) -> Any:
         if not isinstance(item, str):
-            rewritten_rules.append(item)
-            continue
+            return item
         wrapper = simple_ruleset_wrapper(item)
         if wrapper is None or wrapper[0][1] not in renamed:
-            rewritten_rules.append(item)
-            continue
+            return item
         parts, prefix, suffix = wrapper
         rewritten = ",".join(["RULE-SET", renamed[parts[1]], *parts[2:]])
-        rewritten_rules.append(wrap_ruleset_rule(rewritten, (prefix, suffix)))
+        return wrap_ruleset_rule(rewritten, (prefix, suffix))
 
-    return {**config, "rule-providers": new_providers, "rules": rewritten_rules}, renamed
+    rewritten_rules: list[Any] = []
+    rule_index = 0
+    while rule_index < len(config["rules"]):
+        item = config["rules"][rule_index]
+        wrapper = simple_ruleset_wrapper(item)
+        if wrapper is None or wrapper[0][1] not in renamed:
+            rewritten_rules.append(canonical_rule(item))
+            rule_index += 1
+            continue
+        signature = (wrapper[1], wrapper[2])
+        suffix = tuple(wrapper[0][2:])
+        block: list[Any] = []
+        next_index = rule_index
+        while next_index < len(config["rules"]):
+            next_wrapper = simple_ruleset_wrapper(config["rules"][next_index])
+            if (
+                next_wrapper is None
+                or next_wrapper[0][1] not in renamed
+                or (next_wrapper[1], next_wrapper[2]) != signature
+                or tuple(next_wrapper[0][2:]) != suffix
+            ):
+                break
+            block.append(config["rules"][next_index])
+            next_index += 1
+        block.sort(
+            key=lambda rule: BEHAVIOR_ORDER[providers[simple_ruleset_wrapper(rule)[0][1]]["behavior"]]
+        )
+        rewritten_rules.extend(canonical_rule(rule) for rule in block)
+        rule_index = next_index
+
+    ordered_names: list[str] = []
+    for rule in rewritten_rules:
+        for name in find_ruleset_refs(rule):
+            if name in new_providers and name not in ordered_names:
+                ordered_names.append(name)
+    ordered_names.extend(name for name in new_providers if name not in ordered_names)
+    ordered_providers = {name: new_providers[name] for name in ordered_names}
+    return {**config, "rule-providers": ordered_providers, "rules": rewritten_rules}, renamed
 
 
 def build_dedup_config(

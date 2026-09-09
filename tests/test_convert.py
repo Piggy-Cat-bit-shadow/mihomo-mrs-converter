@@ -742,9 +742,9 @@ class AdjacentClassicalConsolidationTest(ConvertTestCase):
                 [
                     "RULE-SET,D-domain,DIRECT",
                     "RULE-SET,Lan-classical,DIRECT",
+                    "SUB-RULE,(RULE-SET,X-ip),AI-Routing",
                     "SUB-RULE,(RULE-SET,A-domain),AI-Routing",
                     "SUB-RULE,(RULE-SET,A-classical),AI-Routing",
-                    "SUB-RULE,(RULE-SET,X-ip),AI-Routing",
                     "RULE-SET,B-domain,DIRECT",
                     "RULE-SET,B-classical,DIRECT",
                 ],
