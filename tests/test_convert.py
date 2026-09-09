@@ -550,7 +550,7 @@ class AdjacentClassicalConsolidationTest(ConvertTestCase):
         providers: dict[str, dict[str, object]] = {}
         for name, payload in payloads.items():
             convert.write_yaml_payload(dist / "merged-dedup/classical" / f"{name}.yaml", payload)
-            behavior = "domain" if name == "X-domain" else "classical"
+            behavior = "domain" if name.endswith("-domain") else "ipcidr" if name.endswith("-ip") else "classical"
             provider = {
                 "type": "http",
                 "behavior": behavior,
@@ -628,6 +628,79 @@ class AdjacentClassicalConsolidationTest(ConvertTestCase):
         )
 
         self.assertEqual(result["rules"], ["SUB-RULE,(RULE-SET,merged-classical-01),AI-Routing"])
+
+    def test_sub_rule_classical_can_cross_ipcidr(self) -> None:
+        result, dist = self.consolidate(
+            [
+                "SUB-RULE,(RULE-SET,A-classical),AI-Routing",
+                "SUB-RULE,(RULE-SET,X-ip),AI-Routing",
+                "SUB-RULE,(RULE-SET,B-classical),AI-Routing",
+            ],
+            {"A-classical": ["A1"], "X-ip": ["X1"], "B-classical": ["B1"]},
+        )
+
+        self.assertEqual(
+            result["rules"],
+            [
+                "SUB-RULE,(RULE-SET,merged-classical-01),AI-Routing",
+                "SUB-RULE,(RULE-SET,X-ip),AI-Routing",
+            ],
+        )
+        self.assertEqual(
+            yaml.safe_load((dist / "merged-dedup/classical/merged-classical-01.yaml").read_text())["payload"],
+            ["A1", "B1"],
+        )
+
+    def test_sub_rule_block_keeps_nonclassical_order_and_multiple_gaps(self) -> None:
+        result, _ = self.consolidate(
+            [
+                "SUB-RULE,(RULE-SET,D-domain),AI-Routing",
+                "SUB-RULE,(RULE-SET,A-classical),AI-Routing",
+                "SUB-RULE,(RULE-SET,X-ip),AI-Routing",
+                "SUB-RULE,(RULE-SET,B-classical),AI-Routing",
+                "SUB-RULE,(RULE-SET,Y-domain),AI-Routing",
+                "SUB-RULE,(RULE-SET,C-classical),AI-Routing",
+            ],
+            {
+                "D-domain": ["D1"],
+                "A-classical": ["A1"],
+                "X-ip": ["X1"],
+                "B-classical": ["B1"],
+                "Y-domain": ["Y1"],
+                "C-classical": ["C1"],
+            },
+        )
+
+        self.assertEqual(
+            result["rules"],
+            [
+                "SUB-RULE,(RULE-SET,D-domain),AI-Routing",
+                "SUB-RULE,(RULE-SET,merged-classical-01),AI-Routing",
+                "SUB-RULE,(RULE-SET,X-ip),AI-Routing",
+                "SUB-RULE,(RULE-SET,Y-domain),AI-Routing",
+            ],
+        )
+
+    def test_sub_rule_different_target_and_wrapper_are_barriers(self) -> None:
+        cases = [
+            [
+                "SUB-RULE,(RULE-SET,A-classical),AI-Routing",
+                "SUB-RULE,(RULE-SET,X-ip),Other-Routing",
+                "SUB-RULE,(RULE-SET,B-classical),AI-Routing",
+            ],
+            [
+                "SUB-RULE,(RULE-SET,A-classical),AI-Routing",
+                "RULE-SET,X-ip,AI-Routing",
+                "SUB-RULE,(RULE-SET,B-classical),AI-Routing",
+            ],
+        ]
+        for rules in cases:
+            with self.subTest(rules=rules):
+                result, _ = self.consolidate(
+                    rules,
+                    {"A-classical": ["A1"], "X-ip": ["X1"], "B-classical": ["B1"]},
+                )
+                self.assertEqual(result["rules"], rules)
 
     def test_incompatible_metadata_does_not_merge(self) -> None:
         result, _ = self.consolidate(

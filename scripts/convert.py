@@ -854,7 +854,81 @@ def merge_adjacent_classical_providers(
             return None
         return parts[1], tuple(parts[2:]), (prefix, suffix), provider
 
+    def sub_rule_block_candidate(
+        item: Any,
+    ) -> tuple[str, tuple[str, ...], tuple[str, str], dict[str, Any]] | None:
+        wrapper = simple_ruleset_wrapper(item)
+        if wrapper is None:
+            return None
+        parts, prefix, suffix = wrapper
+        provider = providers.get(parts[1])
+        if (
+            not isinstance(provider, dict)
+            or provider.get("behavior") not in {"domain", "ipcidr", "classical"}
+            or prefix.upper() != "SUB-RULE"
+        ):
+            return None
+        return parts[1], tuple(parts[2:]), (prefix, suffix), provider
+
     while rule_index < len(rules):
+        block_first = sub_rule_block_candidate(rules[rule_index])
+        if block_first is not None:
+            block = [block_first]
+            next_index = rule_index + 1
+            while next_index < len(rules):
+                block_item = sub_rule_block_candidate(rules[next_index])
+                if (
+                    block_item is None
+                    or block_item[1] != block_first[1]
+                    or block_item[2] != block_first[2]
+                ):
+                    break
+                block.append(block_item)
+                next_index += 1
+
+            classical_items = [item for item in block if item[3].get("behavior") == "classical"]
+            classical_paths = [generated_artifact_path(options.dist, item[3]) for item in classical_items]
+            if (
+                len(classical_items) >= 2
+                and all(path is not None and path.exists() for path in classical_paths)
+                and merge_metadata_compatible([item[3] for item in classical_items])
+            ):
+                merged_name = reserve_classical_merge_name(merge_index, used_names)
+                merge_index += 1
+                payload: list[str] = []
+                for source_path in classical_paths:
+                    assert source_path is not None
+                    # Classical consolidation is intentionally list concatenation only.
+                    payload.extend(read_yaml_payload(source_path))
+                artifact = suite_root / "classical" / f"{merged_name}.yaml"
+                write_yaml_payload(artifact, payload)
+                path = f"./ruleset/{suite}/{merged_name}.yaml"
+                reserve_path(path, used_paths)
+                classical_providers = [item[3] for item in classical_items]
+                providers[merged_name] = make_merged_provider(
+                    "classical",
+                    "yaml",
+                    public_url(options.base_url, "dist", suite, "classical", f"{merged_name}.yaml"),
+                    path,
+                    classical_providers,
+                )
+                for (name, _, _, _), old_provider in zip(classical_items, classical_providers):
+                    providers.pop(name, None)
+                    old_artifact = generated_artifact_path(options.dist, old_provider)
+                    if old_artifact is not None and old_artifact.parent == suite_root / "classical":
+                        old_artifact.unlink(missing_ok=True)
+                first_classical_seen = False
+                for item_index, (name, suffix_item, signature_item, provider_item) in enumerate(block):
+                    if provider_item.get("behavior") != "classical":
+                        rewritten_rules.append(rules[rule_index + item_index])
+                        continue
+                    if not first_classical_seen:
+                        nested = ",".join(["RULE-SET", merged_name, *suffix_item])
+                        rewritten_rules.append(wrap_ruleset_rule(nested, signature_item))
+                        first_classical_seen = True
+                rule_index = next_index
+                continue
+
         first = candidate(rules[rule_index])
         if first is None:
             rewritten_rules.append(rules[rule_index])
