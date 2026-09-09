@@ -55,20 +55,6 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/Lan.yaml
     path: ./ruleset/merged-dedup/Lan-classical.yaml
     interval: 172800
-  me-Foreign-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/me-Foreign.yaml
-    path: ./ruleset/merged-dedup/me-Foreign-classical.yaml
-    interval: 172800
-  AppleProxy-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/AppleProxy.yaml
-    path: ./ruleset/merged-dedup/AppleProxy-classical.yaml
-    interval: 172800
   openai-ip:
     type: http
     behavior: ipcidr
@@ -76,224 +62,54 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/ipcidr/openai-ip.mrs
     path: ./ruleset/merged-dedup/openai-ip.mrs
     interval: 259200
-  openai-classical:
+  merged-classical-01:
     type: http
     behavior: classical
     format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/openai.yaml
-    path: ./ruleset/merged-dedup/openai-classical.yaml
-    interval: 259200
-  gemini-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/gemini.yaml
-    path: ./ruleset/merged-dedup/gemini-classical.yaml
-    interval: 259200
-  AI-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/AI.yaml
-    path: ./ruleset/merged-dedup/AI-classical.yaml
-    interval: 259200
-  Crypto-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/Crypto.yaml
-    path: ./ruleset/merged-dedup/Crypto-classical.yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/merged-classical-01.yaml
+    path: ./ruleset/merged-dedup/merged-classical-01.yaml
     interval: 172800
-  paypal-classical:
+  merged-classical-02:
     type: http
     behavior: classical
     format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/paypal.yaml
-    path: ./ruleset/merged-dedup/paypal-classical.yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/merged-classical-02.yaml
+    path: ./ruleset/merged-dedup/merged-classical-02.yaml
     interval: 172800
-  me-China-classical:
+  merged-classical-03:
     type: http
     behavior: classical
     format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/me-China.yaml
-    path: ./ruleset/merged-dedup/me-China-classical.yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/merged-classical-03.yaml
+    path: ./ruleset/merged-dedup/merged-classical-03.yaml
     interval: 172800
-  wechat-classical:
+  merged-classical-04:
     type: http
     behavior: classical
     format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/wechat.yaml
-    path: ./ruleset/merged-dedup/wechat-classical.yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/merged-classical-04.yaml
+    path: ./ruleset/merged-dedup/merged-classical-04.yaml
     interval: 172800
-  Telegram-classical:
+  merged-classical-05:
     type: http
     behavior: classical
     format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/Telegram.yaml
-    path: ./ruleset/merged-dedup/Telegram-classical.yaml
-    interval: 172800
-  github-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/github.yaml
-    path: ./ruleset/merged-dedup/github-classical.yaml
-    interval: 172800
-  WhatsApp-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/WhatsApp.yaml
-    path: ./ruleset/merged-dedup/WhatsApp-classical.yaml
-    interval: 172800
-  netflix-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/netflix.yaml
-    path: ./ruleset/merged-dedup/netflix-classical.yaml
-    interval: 172800
-  disney-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/disney.yaml
-    path: ./ruleset/merged-dedup/disney-classical.yaml
-    interval: 172800
-  primevideo-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/primevideo.yaml
-    path: ./ruleset/merged-dedup/primevideo-classical.yaml
-    interval: 172800
-  GoogleDrive-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/GoogleDrive.yaml
-    path: ./ruleset/merged-dedup/GoogleDrive-classical.yaml
-    interval: 172800
-  OneDrive-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/OneDrive.yaml
-    path: ./ruleset/merged-dedup/OneDrive-classical.yaml
-    interval: 172800
-  MEGA-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/MEGA.yaml
-    path: ./ruleset/merged-dedup/MEGA-classical.yaml
-    interval: 172800
-  youtube-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/youtube.yaml
-    path: ./ruleset/merged-dedup/youtube-classical.yaml
-    interval: 172800
-  Instagram-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/Instagram.yaml
-    path: ./ruleset/merged-dedup/Instagram-classical.yaml
-    interval: 172800
-  Facebook-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/Facebook.yaml
-    path: ./ruleset/merged-dedup/Facebook-classical.yaml
-    interval: 172800
-  Twitter-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/Twitter.yaml
-    path: ./ruleset/merged-dedup/Twitter-classical.yaml
-    interval: 172800
-  Spotify-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/Spotify.yaml
-    path: ./ruleset/merged-dedup/Spotify-classical.yaml
-    interval: 172800
-  tiktok-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/tiktok.yaml
-    path: ./ruleset/merged-dedup/tiktok-classical.yaml
-    interval: 172800
-  google-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/google.yaml
-    path: ./ruleset/merged-dedup/google-classical.yaml
-    interval: 172800
-  global-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/global.yaml
-    path: ./ruleset/merged-dedup/global-classical.yaml
-    interval: 172800
-  BiliBili-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/BiliBili.yaml
-    path: ./ruleset/merged-dedup/BiliBili-classical.yaml
-    interval: 172800
-  alibaba-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/alibaba.yaml
-    path: ./ruleset/merged-dedup/alibaba-classical.yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/merged-dedup/classical/merged-classical-05.yaml
+    path: ./ruleset/merged-dedup/merged-classical-05.yaml
     interval: 86400
 rules:
 - RULE-SET,merged-segment-01-domain,DIRECT
 - RULE-SET,Lan-classical,DIRECT
 - SUB-RULE,(RULE-SET,merged-segment-02-domain),AI-Routing
-- SUB-RULE,(RULE-SET,me-Foreign-classical),AI-Routing
-- SUB-RULE,(RULE-SET,AppleProxy-classical),AI-Routing
+- SUB-RULE,(RULE-SET,merged-classical-01),AI-Routing
 - SUB-RULE,(RULE-SET,openai-ip),AI-Routing
-- SUB-RULE,(RULE-SET,openai-classical),AI-Routing
-- SUB-RULE,(RULE-SET,gemini-classical),AI-Routing
-- SUB-RULE,(RULE-SET,AI-classical),AI-Routing
-- SUB-RULE,(RULE-SET,Crypto-classical),AI-Routing
-- SUB-RULE,(RULE-SET,paypal-classical),AI-Routing
+- SUB-RULE,(RULE-SET,merged-classical-02),AI-Routing
 - RULE-SET,merged-segment-03-domain,DIRECT
-- RULE-SET,me-China-classical,DIRECT
-- RULE-SET,wechat-classical,DIRECT
+- RULE-SET,merged-classical-03,DIRECT
 - RULE-SET,merged-segment-04-domain,🌍 国外流量
 - RULE-SET,merged-segment-04-ip,🌍 国外流量
-- RULE-SET,Telegram-classical,🌍 国外流量
-- RULE-SET,github-classical,🌍 国外流量
-- RULE-SET,WhatsApp-classical,🌍 国外流量
-- RULE-SET,netflix-classical,🌍 国外流量
-- RULE-SET,disney-classical,🌍 国外流量
-- RULE-SET,primevideo-classical,🌍 国外流量
-- RULE-SET,GoogleDrive-classical,🌍 国外流量
-- RULE-SET,OneDrive-classical,🌍 国外流量
-- RULE-SET,MEGA-classical,🌍 国外流量
-- RULE-SET,youtube-classical,🌍 国外流量
-- RULE-SET,Instagram-classical,🌍 国外流量
-- RULE-SET,Facebook-classical,🌍 国外流量
-- RULE-SET,Twitter-classical,🌍 国外流量
-- RULE-SET,Spotify-classical,🌍 国外流量
-- RULE-SET,tiktok-classical,🌍 国外流量
-- RULE-SET,google-classical,🌍 国外流量
-- RULE-SET,global-classical,🌍 国外流量
+- RULE-SET,merged-classical-04,🌍 国外流量
 - RULE-SET,merged-segment-05-domain,DIRECT
 - RULE-SET,merged-segment-05-ip,DIRECT
-- RULE-SET,BiliBili-classical,DIRECT
-- RULE-SET,alibaba-classical,DIRECT
+- RULE-SET,merged-classical-05,DIRECT
 - MATCH,🌍 国外流量

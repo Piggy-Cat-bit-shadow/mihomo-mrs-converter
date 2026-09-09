@@ -1,2 +1,3 @@
 payload:
 - DOMAIN-KEYWORD,sysu
+- IP-ASN,132203,no-resolve
