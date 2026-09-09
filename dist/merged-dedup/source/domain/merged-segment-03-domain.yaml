@@ -2,6 +2,24 @@ payload:
 - +.clinicaltrials.gov
 - +.orcid.org
 - +.medrxiv.org
+- +.overleaf.com
+- +.cochranelibrary.com
+- +.cochrane.org
+- +.embase.com
+- +.clinicalkey.com
+- +.zenodo.org
+- +.figshare.com
+- +.osf.io
+- +.openalex.org
+- +.unpaywall.org
+- +.mendeley.com
+- +.mendeley.net
+- +.pypi.org
+- +.pythonhosted.org
+- +.bioconductor.org
+- +.r-project.org
+- +.anaconda.com
+- +.conda-forge.org
 - +.1lib.cloud
 - +.1lib.domains
 - +.1lib.education
@@ -6776,7 +6794,6 @@ payload:
 - +.clickedu.co.uk
 - +.climate-server.com
 - +.clinical-videos.com
-- +.clinicalkey.com
 - +.clip16.com
 - +.clipcake.com
 - +.clipdrop.co
@@ -6860,7 +6877,6 @@ payload:
 - +.cmpaas.com
 - +.co.tv
 - +.cobatt.com
-- +.cochranelibrary.com
 - +.cock4stepmom.com
 - +.cockofhorse.com
 - +.cocksuckersguide.com
@@ -8491,7 +8507,6 @@ payload:
 - +.emagic.de
 - +.embark-studios.com
 - +.embark.games
-- +.embase.com
 - +.embed-cdn.com
 - +.embed.ly
 - +.embedly.com
@@ -13813,7 +13828,6 @@ payload:
 - +.men.com
 - +.men18.net
 - +.menatplay.com
-- +.mendeley.com
 - +.mengnan.shop
 - +.menhdv.com
 - +.mensheaven.jp
@@ -16005,7 +16019,6 @@ payload:
 - +.outletnike.com
 - +.over18arcade.com
 - +.overapple.com
-- +.overleaf.com
 - +.overseas.weibo.com
 - +.overthumbs.com
 - +.owxd.xyz
@@ -17237,7 +17250,6 @@ payload:
 - +.pyhapp.com
 - +.pypa.io
 - +.pypi.io
-- +.pypi.org
 - +.pypl.com
 - +.pypl.info
 - +.pypl.net
@@ -17368,7 +17380,6 @@ payload:
 - +.qysg7.buzz
 - +.qysg8.buzz
 - +.qzav.tv
-- +.r-project.org
 - +.r01.ru
 - +.r10s.com
 - +.r18.clickme.net
@@ -22833,7 +22844,6 @@ payload:
 - +.zendesk.com
 - +.zenit-card.ru
 - +.zenit.ru
-- +.zenodo.org
 - +.zeplin.dev
 - +.zeplin.io
 - +.zeriamerikes.com
@@ -23244,7 +23254,6 @@ payload:
 - +.amoiist.com
 - +.amtb-taipei.org
 - +.amuletmc.com
-- +.anaconda.com
 - +.anchor.fm
 - +.anchorfree.com
 - +.ancsconf.org
@@ -27324,7 +27333,6 @@ payload:
 - +.python.com
 - +.python.com.tw
 - +.pythonhackers.com
-- +.pythonhosted.org
 - +.pythonic.life
 - +.pytorch.org
 - +.qanote.com
