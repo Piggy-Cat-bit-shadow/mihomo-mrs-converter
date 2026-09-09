@@ -13,13 +13,6 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/me-Foreign
     path: ./ruleset/me-Foreign.yaml
     interval: 172800
-  Scholar-Foreign:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/Scholar-Foreign
-    path: ./ruleset/Scholar-Foreign.yaml
-    interval: 172800
   Lan:
     type: http
     behavior: classical
@@ -32,6 +25,13 @@ rule-providers:
     behavior: domain
     url: https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/private.txt
     path: ./ruleset/private.yaml
+    interval: 172800
+  Scholar-Foreign:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/Scholar-Foreign
+    path: ./ruleset/Scholar-Foreign.yaml
     interval: 172800
   Scholar:
     type: http
