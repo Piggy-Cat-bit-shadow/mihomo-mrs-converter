@@ -82,9 +82,9 @@ rules:
 - SUB-RULE,(RULE-SET,AI-domain),AI-Routing
 - SUB-RULE,(RULE-SET,AI-classical),AI-Routing
 - SUB-RULE,(RULE-SET,AI-ip),AI-Routing
-- RULE-SET,Global-domain,🌍 国外流量
-- RULE-SET,Global-classical,🌍 国外流量
-- RULE-SET,Global-ip,🌍 国外流量
+- SUB-RULE,(RULE-SET,Global-domain),Global-Routing
+- SUB-RULE,(RULE-SET,Global-classical),Global-Routing
+- SUB-RULE,(RULE-SET,Global-ip),Global-Routing
 - RULE-SET,China-domain,DIRECT
 - RULE-SET,China-classical,DIRECT
 - RULE-SET,China-ip,DIRECT
