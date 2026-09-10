@@ -829,6 +829,48 @@ class SegmentNameMappingTest(ConvertTestCase):
 
 
 class EgernExporterTest(unittest.TestCase):
+    def test_top_level_network_exports_protocol_and_normalizes_case(self) -> None:
+        self.assertEqual(convert.parse_egern_network_rule("NETWORK,UDP,TUIC"), ("udp", "TUIC"))
+        self.assertEqual(convert.parse_egern_network_rule("network,udp,A"), ("udp", "A"))
+        self.assertEqual(convert.parse_egern_network_rule("Network,TcP,B"), ("tcp", "B"))
+        self.assertIsNone(convert.parse_egern_network_rule("NETWORK,UDP"))
+        self.assertIsNone(convert.parse_egern_network_rule("NETWORK,UDP,A,extra"))
+        self.assertIsNone(convert.parse_egern_network_rule("NETWORK,QUIC,A"))
+
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "output"
+            config = {"rule-providers": {}, "rules": ["NETWORK,UDP,TUIC", "network,tcp,Proxy", "MATCH,Foreign"]}
+            convert.export_egern(config, Path(tmp) / "staging", output, BASE_URL)
+            rules = yaml.safe_load((output / "generated/egern-rules.yaml").read_text())["rules"]
+            self.assertEqual(rules, [
+                {"protocol": {"match": "udp", "policy": "TUIC"}},
+                {"protocol": {"match": "tcp", "policy": "Proxy"}},
+                {"default": {"policy": "Foreign"}},
+            ])
+
+    def test_top_level_network_keeps_order_and_is_not_deduped_with_and_or_subrule(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            staging = Path(tmp) / "staging"
+            output = Path(tmp) / "output"
+            convert.write_yaml_payload(staging / "source/domain/Global-domain.yaml", ["example.com"])
+            config = {
+                "rule-providers": {"Global-domain": {"behavior": "domain", "format": "mrs", "url": f"{BASE_URL}/dist/domain/Global-domain.mrs"}},
+                "sub-rules": {"Global-Routing": ["NETWORK,UDP,TUIC", "MATCH,Foreign"]},
+                "rules": [
+                    "RULE-SET,Global-domain,DIRECT",
+                    "AND,((RULE-SET,Global-domain),(NETWORK,UDP)),TUIC",
+                    "SUB-RULE,(RULE-SET,Global-domain),Global-Routing",
+                    "NETWORK,UDP,TUIC",
+                    "MATCH,Foreign",
+                ],
+            }
+            convert.export_egern(config, staging, output, BASE_URL)
+            rules = yaml.safe_load((output / "generated/egern-rules.yaml").read_text())["rules"]
+            self.assertEqual([next(iter(rule)) for rule in rules], ["rule_set", "and", "rule_set", "protocol", "default"])
+            self.assertEqual(rules[1]["and"]["policy"], "TUIC")
+            self.assertEqual(rules[2]["rule_set"]["policy"], "Foreign")
+            self.assertEqual(rules[3], {"protocol": {"match": "udp", "policy": "TUIC"}})
+
     def test_udp_and_ruleset_is_exported_strictly(self) -> None:
         self.assertEqual(
             convert.egern_udp_and_ruleset(

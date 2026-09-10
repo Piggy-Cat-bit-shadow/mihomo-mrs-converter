@@ -404,6 +404,16 @@ def egern_udp_and_ruleset(rule: Any) -> tuple[str, str] | None:
     return ruleset[1], parts[2]
 
 
+def parse_egern_network_rule(rule: Any) -> tuple[str, str] | None:
+    """Recognize the conservative top-level/sub-rule NETWORK subset."""
+    if not isinstance(rule, str):
+        return None
+    parts = split_top_level_commas(rule)
+    if len(parts) != 3 or parts[0].upper() != "NETWORK" or parts[1].upper() not in {"UDP", "TCP"} or not parts[2]:
+        return None
+    return parts[1].lower(), parts[2]
+
+
 def parse_egern_sub_rule_members(members: Any) -> list[tuple[str, str]] | None:
     """Parse the conservative NETWORK/MATCH subset used by Egern expansion."""
     if not isinstance(members, list):
@@ -412,11 +422,11 @@ def parse_egern_sub_rule_members(members: Any) -> list[tuple[str, str]] | None:
     for member in members:
         if not isinstance(member, str):
             return None
+        network = parse_egern_network_rule(member)
         parts = split_top_level_commas(member)
-        kind = parts[0].upper() if parts else ""
-        if kind == "NETWORK" and len(parts) == 3 and parts[1].upper() in {"UDP", "TCP"} and parts[2]:
-            parsed.append((parts[1].lower(), parts[2]))
-        elif kind == "MATCH" and len(parts) == 2 and parts[1]:
+        if network is not None:
+            parsed.append(network)
+        elif len(parts) == 2 and parts[0].upper() == "MATCH" and parts[1]:
             parsed.append(("match", parts[1]))
         else:
             return None
@@ -1439,12 +1449,26 @@ def export_egern(
                 "policy": policy,
             }})
 
+    def emit_protocol(protocol: str, policy: str) -> None:
+        key = ("protocol", protocol, policy)
+        if key in emitted_keys:
+            return
+        emitted_keys.add(key)
+        egern_rules.append({"protocol": {"match": protocol, "policy": policy}})
+
     for rule in config.get("rules", []):
         if not isinstance(rule, str):
             continue
         parsed = parse_rule(rule)
         if parsed.kind == "MATCH" and len(parsed.parts) >= 2:
             egern_rules.append({"default": {"policy": parsed.parts[1]}})
+            continue
+        if parsed.kind == "NETWORK":
+            network = parse_egern_network_rule(rule)
+            if network is None:
+                print(f"[Egern] unsupported NETWORK rule skipped: {rule}")
+                continue
+            emit_protocol(*network)
             continue
         udp_and = egern_udp_and_ruleset(rule)
         if parsed.kind == "AND":

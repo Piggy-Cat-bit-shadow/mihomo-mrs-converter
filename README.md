@@ -167,6 +167,8 @@ Mihomo 的明确形式 `AND,((RULE-SET,X),(NETWORK,UDP)),Policy` 会无损导出
 
 Egern 对已定义 `sub-rules` 的无损展开目前支持 `NETWORK,UDP,Policy`、`NETWORK,TCP,Policy` 和 `MATCH,Policy`，并保持子规则原始顺序。子规则中的 `MATCH` 是该 Rule Set 范围内的 fallback，因此生成普通 `rule_set`，不会生成全局 `default`。如果定义的 sub-rule 含有其他无法无歧义转换的成员，则整个 expansion 会 warning 并跳过，不做 partial conversion。
 
+顶层 `NETWORK,UDP,Policy` 和 `NETWORK,TCP,Policy` 则分别生成 Egern 的顶层 `protocol` 规则（`match` 为规范化后的 `udp` 或 `tcp`，并保留 `policy`）。顶层 `NETWORK`、`AND` 中的 `RULE-SET + NETWORK`、以及 `SUB-RULE` 内的 `NETWORK` 处于不同的匹配范围；exporter 保持它们各自的原始位置和语义，不会互相去重。顶层仅支持明确的 UDP/TCP 三字段形式，其他 NETWORK 会 warning 并跳过 Egern 导出，但仍保留在 Mihomo 输出中。
+
 `segment-names.yaml` 同时控制 Mihomo 和 Egern 的最终 segment 名称。
 
 对于简单的 `IP-CIDR`、`IP-CIDR6` 和 `IP-ASN` `no-resolve` 规则，Egern 会按逻辑 segment 生成可选的 `<segment>-no-resolve.yaml`，并设置 `no_resolve: true`；普通 segment 与辅助文件使用相同 policy。`DOMAIN-REGEX` 和 `DOMAIN-WILDCARD` 会输出到对应 typed set，`PROCESS-NAME` 仍属于 unsupported best-effort 范围。

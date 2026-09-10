@@ -380,4 +380,5 @@ rules:
 - RULE-SET,alibaba,DIRECT
 - RULE-SET,cn-domain,DIRECT
 - RULE-SET,cn-ip,DIRECT
+- NETWORK,UDP,🇺🇸 美国｜TUIC v5
 - MATCH,🌍 国外流量
