@@ -1,91 +1,91 @@
 rule-providers:
-  merged-segment-01-domain:
+  Direct-domain:
     type: http
     behavior: domain
     format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/merged-segment-01-domain.mrs
-    path: ./ruleset/domain/merged-segment-01-domain.mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/Direct-domain.mrs
+    path: ./ruleset/domain/Direct-domain.mrs
     interval: 172800
-  merged-segment-01-classical:
+  Direct-classical:
     type: http
     behavior: classical
     format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/merged-segment-01-classical.yaml
-    path: ./ruleset/classical/merged-segment-01-classical.yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/Direct-classical.yaml
+    path: ./ruleset/classical/Direct-classical.yaml
     interval: 172800
-  merged-segment-02-domain:
+  AI-domain:
     type: http
     behavior: domain
     format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/merged-segment-02-domain.mrs
-    path: ./ruleset/domain/merged-segment-02-domain.mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/AI-domain.mrs
+    path: ./ruleset/domain/AI-domain.mrs
     interval: 172800
-  merged-segment-02-classical:
+  AI-classical:
     type: http
     behavior: classical
     format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/merged-segment-02-classical.yaml
-    path: ./ruleset/classical/merged-segment-02-classical.yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/AI-classical.yaml
+    path: ./ruleset/classical/AI-classical.yaml
     interval: 172800
-  merged-segment-02-ip:
+  AI-ip:
     type: http
     behavior: ipcidr
     format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/merged-segment-02-ip.mrs
-    path: ./ruleset/ipcidr/merged-segment-02-ip.mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/AI-ip.mrs
+    path: ./ruleset/ipcidr/AI-ip.mrs
     interval: 172800
-  merged-segment-03-domain:
+  Global-domain:
     type: http
     behavior: domain
     format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/merged-segment-03-domain.mrs
-    path: ./ruleset/domain/merged-segment-03-domain.mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/Global-domain.mrs
+    path: ./ruleset/domain/Global-domain.mrs
     interval: 172800
-  merged-segment-03-classical:
+  Global-classical:
     type: http
     behavior: classical
     format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/merged-segment-03-classical.yaml
-    path: ./ruleset/classical/merged-segment-03-classical.yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/Global-classical.yaml
+    path: ./ruleset/classical/Global-classical.yaml
     interval: 172800
-  merged-segment-03-ip:
+  Global-ip:
     type: http
     behavior: ipcidr
     format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/merged-segment-03-ip.mrs
-    path: ./ruleset/ipcidr/merged-segment-03-ip.mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/Global-ip.mrs
+    path: ./ruleset/ipcidr/Global-ip.mrs
     interval: 172800
-  merged-segment-04-domain:
+  China-domain:
     type: http
     behavior: domain
     format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/merged-segment-04-domain.mrs
-    path: ./ruleset/domain/merged-segment-04-domain.mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/China-domain.mrs
+    path: ./ruleset/domain/China-domain.mrs
     interval: 172800
-  merged-segment-04-classical:
+  China-classical:
     type: http
     behavior: classical
     format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/merged-segment-04-classical.yaml
-    path: ./ruleset/classical/merged-segment-04-classical.yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/China-classical.yaml
+    path: ./ruleset/classical/China-classical.yaml
     interval: 172800
-  merged-segment-04-ip:
+  China-ip:
     type: http
     behavior: ipcidr
     format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/merged-segment-04-ip.mrs
-    path: ./ruleset/ipcidr/merged-segment-04-ip.mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/China-ip.mrs
+    path: ./ruleset/ipcidr/China-ip.mrs
     interval: 172800
 rules:
-- RULE-SET,merged-segment-01-domain,DIRECT
-- RULE-SET,merged-segment-01-classical,DIRECT
-- SUB-RULE,(RULE-SET,merged-segment-02-domain),AI-Routing
-- SUB-RULE,(RULE-SET,merged-segment-02-classical),AI-Routing
-- SUB-RULE,(RULE-SET,merged-segment-02-ip),AI-Routing
-- RULE-SET,merged-segment-03-domain,🌍 国外流量
-- RULE-SET,merged-segment-03-classical,🌍 国外流量
-- RULE-SET,merged-segment-03-ip,🌍 国外流量
-- RULE-SET,merged-segment-04-domain,DIRECT
-- RULE-SET,merged-segment-04-classical,DIRECT
-- RULE-SET,merged-segment-04-ip,DIRECT
+- RULE-SET,Direct-domain,DIRECT
+- RULE-SET,Direct-classical,DIRECT
+- SUB-RULE,(RULE-SET,AI-domain),AI-Routing
+- SUB-RULE,(RULE-SET,AI-classical),AI-Routing
+- SUB-RULE,(RULE-SET,AI-ip),AI-Routing
+- RULE-SET,Global-domain,🌍 国外流量
+- RULE-SET,Global-classical,🌍 国外流量
+- RULE-SET,Global-ip,🌍 国外流量
+- RULE-SET,China-domain,DIRECT
+- RULE-SET,China-classical,DIRECT
+- RULE-SET,China-ip,DIRECT
 - MATCH,🌍 国外流量
