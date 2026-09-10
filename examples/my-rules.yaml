@@ -341,29 +341,29 @@ rules:
 - SUB-RULE,(RULE-SET,Crypto),AI-Routing
 - SUB-RULE,(RULE-SET,IPCheck),AI-Routing
 - SUB-RULE,(RULE-SET,paypal),AI-Routing
-- RULE-SET,Scholar-Foreign,🌍 国外流量
-- RULE-SET,Scholar,🌍 国外流量
-- RULE-SET,Telegram,🌍 国外流量
-- RULE-SET,github,🌍 国外流量
-- RULE-SET,GoogleEarth,🌍 国外流量
-- RULE-SET,WhatsApp,🌍 国外流量
-- RULE-SET,Discord,🌍 国外流量
-- RULE-SET,netflix,🌍 国外流量
-- RULE-SET,disney,🌍 国外流量
-- RULE-SET,primevideo,🌍 国外流量
-- RULE-SET,GoogleDrive,🌍 国外流量
-- RULE-SET,OneDrive,🌍 国外流量
-- RULE-SET,Dropbox,🌍 国外流量
-- RULE-SET,MEGA,🌍 国外流量
-- RULE-SET,youtube,🌍 国外流量
-- RULE-SET,Instagram,🌍 国外流量
-- RULE-SET,Facebook,🌍 国外流量
-- RULE-SET,Twitter,🌍 国外流量
-- RULE-SET,Reddit,🌍 国外流量
-- RULE-SET,Spotify,🌍 国外流量
-- RULE-SET,tiktok,🌍 国外流量
-- RULE-SET,google,🌍 国外流量
-- RULE-SET,global,🌍 国外流量
+- SUB-RULE,(RULE-SET,Scholar-Foreign),Global-Routing
+- SUB-RULE,(RULE-SET,Scholar),Global-Routing
+- SUB-RULE,(RULE-SET,Telegram),Global-Routing
+- SUB-RULE,(RULE-SET,github),Global-Routing
+- SUB-RULE,(RULE-SET,GoogleEarth),Global-Routing
+- SUB-RULE,(RULE-SET,WhatsApp),Global-Routing
+- SUB-RULE,(RULE-SET,Discord),Global-Routing
+- SUB-RULE,(RULE-SET,netflix),Global-Routing
+- SUB-RULE,(RULE-SET,disney),Global-Routing
+- SUB-RULE,(RULE-SET,primevideo),Global-Routing
+- SUB-RULE,(RULE-SET,GoogleDrive),Global-Routing
+- SUB-RULE,(RULE-SET,OneDrive),Global-Routing
+- SUB-RULE,(RULE-SET,Dropbox),Global-Routing
+- SUB-RULE,(RULE-SET,MEGA),Global-Routing
+- SUB-RULE,(RULE-SET,youtube),Global-Routing
+- SUB-RULE,(RULE-SET,Instagram),Global-Routing
+- SUB-RULE,(RULE-SET,Facebook),Global-Routing
+- SUB-RULE,(RULE-SET,Twitter),Global-Routing
+- SUB-RULE,(RULE-SET,Reddit),Global-Routing
+- SUB-RULE,(RULE-SET,Spotify),Global-Routing
+- SUB-RULE,(RULE-SET,tiktok),Global-Routing
+- SUB-RULE,(RULE-SET,google),Global-Routing
+- SUB-RULE,(RULE-SET,global),Global-Routing
 - RULE-SET,qcloud,DIRECT
 - RULE-SET,DouYin,DIRECT
 - RULE-SET,BiliBili,DIRECT
