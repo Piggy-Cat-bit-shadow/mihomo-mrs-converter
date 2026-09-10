@@ -46,8 +46,11 @@ dist/
 ├── classical/
 ├── source/              # 仅在 allow-no-mihomo 模式需要时存在
 └── generated/
-    ├── mihomo-rules.yaml
-    └── managed-state.yaml
+    ├── egern-rules.yaml
+    └── mihomo-rules.yaml
+
+.state/
+└── managed-state.yaml
 ```
 
 转换器内部仍会依次执行分类转换、合并和安全去重，但仓库只发布最终优化结果：
@@ -114,7 +117,7 @@ python scripts/convert.py examples/my-rules.yaml \
 
 刷新完整配置时，本轮转换器生成的 `rule-providers` 和 `RULE-SET` 会作为转换器管理区域的唯一真源；上一轮存在但本轮不存在的旧 provider 和旧 `RULE-SET` 会被删除。其它非转换器管理的配置字段、普通规则和自定义 provider 会保留。
 
-最终生成结果会写入唯一的 `dist/generated/managed-state.yaml`，记录本轮由转换器管理的 provider 及其 fingerprint。下一轮刷新完整配置时，只有 manifest 明确认领且定义未被手工改动的 provider 才会被删除或替换；同名自定义 provider 会直接报错，不会静默覆盖。
+构建状态会写入唯一的 `.state/managed-state.yaml`，记录本轮由转换器管理的 provider 及其 fingerprint；它不是面向用户的规则配置。下一轮刷新完整配置时，只有 manifest 明确认领且定义未被手工改动的 provider 才会被删除或替换；同名自定义 provider 会直接报错，不会静默覆盖。
 
 完整配置刷新只替换转换器管理的 `RULE-SET` 区块，不会把 generated 配置里的 `IP-CIDR`、`GEOIP`、`MATCH` 等普通规则再次注入完整配置。普通规则保持原顺序和原出现次数。如果旧 managed `RULE-SET` 不是一个连续区块，刷新会失败，避免猜测插入位置。
 

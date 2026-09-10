@@ -858,6 +858,16 @@ class EgernExporterTest(unittest.TestCase):
             self.assertEqual(rules[-1], {"default": {"policy": "DIRECT"}})
 
 
+class ManagedStatePathTest(unittest.TestCase):
+    def test_managed_state_uses_state_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            dist = Path(tmp) / "dist"
+            manifest = convert.write_managed_manifest(dist, convert.FINAL_SUITE, BASE_URL, {})
+            self.assertEqual(convert.read_managed_manifest(dist, convert.FINAL_SUITE), manifest)
+            self.assertTrue((Path(tmp) / ".state/managed-state.yaml").exists())
+            self.assertFalse((dist / "generated/managed-state.yaml").exists())
+
+
 class CompleteConfigRefreshTest(unittest.TestCase):
     def provider(self, name: str, behavior: str = "domain") -> dict[str, object]:
         return {

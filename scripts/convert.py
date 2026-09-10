@@ -784,9 +784,7 @@ def build_managed_manifest(
 
 
 def managed_manifest_path(dist: Path, suite: str) -> Path:
-    if suite == FINAL_SUITE:
-        return dist / "generated" / MANAGED_STATE_FILENAME
-    return dist / suite / "generated" / MANAGED_STATE_FILENAME
+    return dist.parent / ".state" / MANAGED_STATE_FILENAME
 
 
 def read_managed_manifest(dist: Path, suite: str) -> dict[str, Any] | None:
@@ -809,7 +807,9 @@ def write_managed_manifest(
     providers: dict[str, dict[str, Any]],
 ) -> dict[str, Any]:
     manifest = build_managed_manifest(suite, base_url, providers)
-    write_yaml_atomic(managed_manifest_path(dist, suite), manifest)
+    path = managed_manifest_path(dist, suite)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    write_yaml_atomic(path, manifest)
     return manifest
 
 
@@ -840,7 +840,6 @@ def materialize_suite_config(
     output = suite_root / "generated" / "mihomo-rules.yaml"
     validate_generated_config(dist, suite_config, require_no_orphans=require_no_orphans)
     write_yaml_atomic(output, suite_config)
-    write_managed_manifest(dist, suite, base_url, suite_config["rule-providers"])
     return suite_config
 
 
@@ -1491,7 +1490,6 @@ def build_dedup_config(
     output = suite_root / "generated" / "mihomo-rules.yaml"
     validate_generated_config(options.dist, dedup_config, require_no_orphans=require_no_orphans)
     write_yaml_atomic(output, dedup_config)
-    write_managed_manifest(options.dist, suite, options.base_url, dedup_config["rule-providers"])
     return dedup_config, stats_by_provider
 
 
@@ -2320,11 +2318,7 @@ def main() -> None:
         raise SystemExit("input must contain rule-providers mapping and rules list")
     validate_top_level_rulesets(rules, set(providers))
 
-    previous_manifests = {
-        suite: read_managed_manifest(args.dist, suite) for suite in SUITES
-    }
-    if previous_manifests["merged-dedup"] is None:
-        previous_manifests["merged-dedup"] = read_managed_manifest(args.dist, FINAL_SUITE)
+    previous_manifest = read_managed_manifest(args.dist, FINAL_SUITE)
     complete_config = load_yaml_mapping(args.complete_config) if args.complete_config else None
 
     staging = Path(tempfile.mkdtemp(prefix="mihomo-mrs-build-", dir=args.dist.parent))
@@ -2401,13 +2395,13 @@ def main() -> None:
     validate_generated_config(publish_dist, final, require_no_orphans=require_no_orphans)
     export_egern(dedup, staging, publish_dist, args.base_url)
     write_yaml_atomic(publish_dist / "generated" / "mihomo-rules.yaml", final)
-    write_managed_manifest(publish_dist, FINAL_SUITE, args.base_url, final["rule-providers"])
     old_dist = args.dist.with_name(f".{args.dist.name}.previous")
     if old_dist.exists():
         shutil.rmtree(old_dist)
     if args.dist.exists():
         os.replace(args.dist, old_dist)
     os.replace(publish_dist, args.dist)
+    write_managed_manifest(args.dist, FINAL_SUITE, args.base_url, final["rule-providers"])
     shutil.rmtree(old_dist, ignore_errors=True)
     shutil.rmtree(staging, ignore_errors=True)
     print(f"wrote {args.dist / 'generated/mihomo-rules.yaml'}")
@@ -2425,7 +2419,7 @@ def main() -> None:
         refreshed = refresh_complete_config(
             complete_config,
             suite_configs[args.complete_suite],
-            previous_manifests[args.complete_suite],
+            previous_manifest,
             args.base_url,
             args.complete_suite,
         )

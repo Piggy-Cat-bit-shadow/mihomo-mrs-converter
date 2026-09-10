@@ -90,7 +90,7 @@ jobs:
           for obsolete in ("mihomo-rules-merged.yaml", "mihomo-rules-merged-dedup.yaml"):
               if (Path("dist/generated") / obsolete).exists():
                   raise SystemExit(f"obsolete generated file exists: {obsolete}")
-          if not Path("dist/generated/managed-state.yaml").exists():
+          if not Path(".state/managed-state.yaml").exists():
               raise SystemExit("missing final managed state")
           egern = yaml.safe_load(Path("dist/generated/egern-rules.yaml").read_text(encoding="utf-8"))
           if not isinstance(egern, dict) or not isinstance(egern.get("rules"), list):
@@ -132,4 +132,4 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "build: update generated mihomo rules"
-          file_pattern: dist
+          file_pattern: dist .state/managed-state.yaml
