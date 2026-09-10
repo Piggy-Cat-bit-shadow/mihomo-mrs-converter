@@ -111370,6 +111370,8 @@ domain_keyword_set:
 - stripe
 - weibo
 - qiyi
+asn_set:
+- '132203'
 ip_cidr_set:
 - 103.38.56.0/22
 - 103.52.196.0/22
