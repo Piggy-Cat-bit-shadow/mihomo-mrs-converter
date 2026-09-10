@@ -146,7 +146,7 @@ dist/egern/<segment-name>.yaml
 dist/generated/egern-rules.yaml
 ```
 
-每个逻辑 segment 只生成一个 Egern Rule Set，聚合该 segment 的 domain、IP 和可机械转换的 classical 规则。`egern-rules.yaml` 只包含 Egern 的 `rules` 字段；`SUB-RULE` 会按普通 `rule_set` 处理，`MATCH` 会生成最终的 `default`。无法无歧义转换的 classical 规则会提示 warning 并跳过，不影响 Mihomo 输出。
+每个逻辑 segment 只生成一个 Egern Rule Set，聚合该 segment 的 domain、IP 和可机械转换的 classical 规则。`egern-rules.yaml` 只包含 Egern 的 `rules` 字段；顶层 `MATCH` 会生成最终的 `default`。如果 `SUB-RULE` 引用的名称在顶层 `sub-rules` 中有定义，则会按定义展开；没有定义时为保持兼容性，仍按普通 `rule_set` policy fallback 处理。无法无歧义转换的 classical 规则会提示 warning 并跳过，不影响 Mihomo 输出。
 
 Mihomo 的明确形式 `AND,((RULE-SET,X),(NETWORK,UDP)),Policy` 会无损导出为 Egern 原生条件规则：
 
@@ -164,6 +164,8 @@ Mihomo 的明确形式 `AND,((RULE-SET,X),(NETWORK,UDP)),Policy` 会无损导出
 如果 `X-domain`、`X-classical` 和 `X-ip` 在 Egern exporter 中属于同一个逻辑 segment `X`，完全等价的规则会按语义稳定去重。例如 `Global-domain`、`Global-classical` 和 `Global-ip` 最终统一引用 `dist/egern/Global.yaml`；对应的 `AND + Global-* + NETWORK,UDP + TUIC` 只保留一条 `and` 规则，普通 Global `rule_set` 也只保留一个。UDP 条件规则保持原始优先级，位于普通 Global `rule_set` 之前。
 
 当前只对能够明确识别的 `AND,((RULE-SET,X),(NETWORK,UDP)),Policy` 做此转换；其他无法无歧义转换的复杂 `AND` 仍保持 warning / skip。`RULE-SET`、`SUB-RULE` 和 `MATCH` 的原有转换行为不变。
+
+Egern 对已定义 `sub-rules` 的无损展开目前支持 `NETWORK,UDP,Policy`、`NETWORK,TCP,Policy` 和 `MATCH,Policy`，并保持子规则原始顺序。子规则中的 `MATCH` 是该 Rule Set 范围内的 fallback，因此生成普通 `rule_set`，不会生成全局 `default`。如果定义的 sub-rule 含有其他无法无歧义转换的成员，则整个 expansion 会 warning 并跳过，不做 partial conversion。
 
 `segment-names.yaml` 同时控制 Mihomo 和 Egern 的最终 segment 名称。
 

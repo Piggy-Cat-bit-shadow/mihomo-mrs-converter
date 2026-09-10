@@ -321,6 +321,14 @@ rule-providers:
     url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.yaml
     path: ./ruleset/cn-ip.yaml
     interval: 172800
+sub-rules:
+  AI-Routing:
+    - NETWORK,UDP,REJECT
+    - MATCH,🤖 AI
+  Global-Routing:
+    - NETWORK,UDP,🇺🇸 美国｜TUIC v5
+    - MATCH,🌍 国外流量
+
 rules:
 - RULE-SET,Lan,DIRECT
 - RULE-SET,private,DIRECT

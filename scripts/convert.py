@@ -110,6 +110,14 @@ def load_yaml(path: Path) -> dict[str, Any]:
     data = load_yaml_mapping(path)
     if "rule-providers" in data and not isinstance(data["rule-providers"], dict):
         raise SystemExit(f"{path}: rule-providers must be a YAML mapping")
+    if "sub-rules" in data:
+        if not isinstance(data["sub-rules"], dict):
+            raise SystemExit(f"{path}: sub-rules must be a YAML mapping")
+        for name, members in data["sub-rules"].items():
+            if not isinstance(name, str) or not isinstance(members, list):
+                raise SystemExit(f"{path}: sub-rules entries must map names to lists")
+            if not all(isinstance(member, str) for member in members):
+                raise SystemExit(f"{path}: sub-rules members must be strings")
     if "rules" in data and not isinstance(data["rules"], list):
         raise SystemExit(f"{path}: rules must be a YAML list")
     return data
@@ -394,6 +402,25 @@ def egern_udp_and_ruleset(rule: Any) -> tuple[str, str] | None:
     ):
         return None
     return ruleset[1], parts[2]
+
+
+def parse_egern_sub_rule_members(members: Any) -> list[tuple[str, str]] | None:
+    """Parse the conservative NETWORK/MATCH subset used by Egern expansion."""
+    if not isinstance(members, list):
+        return None
+    parsed: list[tuple[str, str]] = []
+    for member in members:
+        if not isinstance(member, str):
+            return None
+        parts = split_top_level_commas(member)
+        kind = parts[0].upper() if parts else ""
+        if kind == "NETWORK" and len(parts) == 3 and parts[1].upper() in {"UDP", "TCP"} and parts[2]:
+            parsed.append((parts[1].lower(), parts[2]))
+        elif kind == "MATCH" and len(parts) == 2 and parts[1]:
+            parsed.append(("match", parts[1]))
+        else:
+            return None
+    return parsed
 
 
 def wrap_ruleset_rule(rule: str, signature: tuple[str, str]) -> str:
@@ -1373,6 +1400,45 @@ def export_egern(
 
     egern_rules: list[dict[str, Any]] = []
     emitted_keys: set[tuple[str, ...]] = set()
+
+    def segment_targets(segment: str) -> list[str]:
+        targets: list[str] = []
+        if segment in sets:
+            targets.append(segment)
+        no_resolve = f"{segment}-no-resolve"
+        if no_resolve in sets:
+            targets.append(no_resolve)
+        return targets
+
+    def emit_ruleset(target: str, policy: str) -> None:
+        key = ("rule_set", target, policy)
+        if key in emitted_keys:
+            return
+        emitted_keys.add(key)
+        egern_rules.append({"rule_set": {
+            "match": public_url(base_url, "dist", "egern", f"{target}.yaml"),
+            "policy": policy,
+            "update_interval": 172800,
+        }})
+
+    def emit_network(segment: str, protocol: str, policy: str, include_no_resolve: bool = False) -> None:
+        targets = segment_targets(segment) if include_no_resolve else ([segment] if segment in sets else [])
+        for target in targets:
+            key = ("and-network", target, protocol, policy)
+            if key in emitted_keys:
+                continue
+            emitted_keys.add(key)
+            egern_rules.append({"and": {
+                "match": [
+                    {"rule_set": {
+                        "match": public_url(base_url, "dist", "egern", f"{target}.yaml"),
+                        "update_interval": 172800,
+                    }},
+                    {"protocol": {"match": protocol}},
+                ],
+                "policy": policy,
+            }})
+
     for rule in config.get("rules", []):
         if not isinstance(rule, str):
             continue
@@ -1390,20 +1456,7 @@ def export_egern(
             if segment not in sets:
                 print(f"[Egern] rule references an empty or unsupported segment and was skipped: {rule}")
                 continue
-            key = ("and-network", segment, "udp", policy)
-            if key in emitted_keys:
-                continue
-            emitted_keys.add(key)
-            egern_rules.append({"and": {
-                "match": [
-                    {"rule_set": {
-                        "match": public_url(base_url, "dist", "egern", f"{segment}.yaml"),
-                        "update_interval": 172800,
-                    }},
-                    {"protocol": {"match": "udp"}},
-                ],
-                "policy": policy,
-            }})
+            emit_network(segment, "udp", policy)
             continue
         wrapper = simple_ruleset_wrapper(rule)
         if wrapper is None:
@@ -1418,22 +1471,28 @@ def export_egern(
             print(f"[Egern] rule has no unambiguous policy and was skipped: {rule}")
             continue
         segment = egern_segment_name(refs[0])
-        has_regular = segment in sets
-        no_resolve_segment = f"{segment}-no-resolve"
-        has_no_resolve = no_resolve_segment in sets
-        if not has_regular and not has_no_resolve:
+        targets = segment_targets(segment)
+        if not targets:
             print(f"[Egern] rule references an empty or unsupported segment and was skipped: {rule}")
             continue
-        for target in ([segment] if has_regular else []) + ([no_resolve_segment] if has_no_resolve else []):
-            key = ("rule_set", target, policy_parts[0])
-            if key in emitted_keys:
+
+        sub_rules = config.get("sub-rules", {})
+        sub_rule_name = policy_parts[0]
+        if prefix.upper() == "SUB-RULE" and isinstance(sub_rules, dict) and sub_rule_name in sub_rules:
+            members = parse_egern_sub_rule_members(sub_rules[sub_rule_name])
+            if members is None:
+                print(f"[Egern] unsupported sub-rule member; SUB-RULE expansion skipped: {sub_rule_name}: {sub_rules[sub_rule_name]}")
                 continue
-            emitted_keys.add(key)
-            egern_rules.append({"rule_set": {
-                "match": public_url(base_url, "dist", "egern", f"{target}.yaml"),
-                "policy": policy_parts[0],
-                "update_interval": 172800,
-            }})
+            for protocol, member_policy in members:
+                if protocol == "match":
+                    for target in targets:
+                        emit_ruleset(target, member_policy)
+                else:
+                    emit_network(segment, protocol, member_policy, include_no_resolve=True)
+            continue
+
+        for target in targets:
+            emit_ruleset(target, policy_parts[0])
     write_yaml_atomic(output_dist / "generated" / "egern-rules.yaml", {"rules": egern_rules})
     counts["segments"] = len(sets)
     counts["unsupported"] = sum(unsupported.values())

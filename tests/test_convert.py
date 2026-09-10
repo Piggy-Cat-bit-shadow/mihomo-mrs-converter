@@ -841,6 +841,17 @@ class EgernExporterTest(unittest.TestCase):
                 "AND,((RULE-SET,Global-domain),(DST-PORT,443)),TUIC"
             )
         )
+        with tempfile.TemporaryDirectory() as tmp:
+            staging = Path(tmp) / "staging"
+            output = Path(tmp) / "output"
+            convert.write_yaml_payload(staging / "source/domain/Global-domain.yaml", ["example.com"])
+            config = {
+                "rule-providers": {"Global-domain": {"behavior": "domain", "format": "mrs", "url": f"{BASE_URL}/dist/domain/Global-domain.mrs"}},
+                "rules": ["AND,((RULE-SET,Global-domain),(NETWORK,UDP)),TUIC"],
+            }
+            convert.export_egern(config, staging, output, BASE_URL)
+            rules = yaml.safe_load((output / "generated/egern-rules.yaml").read_text())["rules"]
+            self.assertEqual(rules[0]["and"]["policy"], "TUIC")
 
     def test_udp_and_uses_final_egern_segment_name(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -877,16 +888,14 @@ class EgernExporterTest(unittest.TestCase):
                 source = staging / (f"source/{folder}/{name}.yaml" if behavior != "classical" else f"classical/{name}.yaml")
                 convert.write_yaml_payload(source, ["example.com"] if behavior == "domain" else ["1.2.3.0/24"] if behavior == "ipcidr" else ["DOMAIN,example.com"])
                 providers[name] = {"behavior": behavior, "format": "yaml", "url": f"{BASE_URL}/dist/{folder}/{name}.yaml"}
+            sub_rules = {"Global-Routing": ["NETWORK,UDP,TUIC", "MATCH,Foreign"]}
             rules = [
-                "AND,((RULE-SET,Global-domain),(NETWORK,UDP)),TUIC",
-                "RULE-SET,Global-domain,Foreign",
-                "AND,((RULE-SET,Global-classical),(NETWORK,UDP)),TUIC",
-                "RULE-SET,Global-classical,Foreign",
-                "AND,((RULE-SET,Global-ip),(NETWORK,UDP)),TUIC",
-                "RULE-SET,Global-ip,Foreign",
+                "SUB-RULE,(RULE-SET,Global-domain),Global-Routing",
+                "SUB-RULE,(RULE-SET,Global-classical),Global-Routing",
+                "SUB-RULE,(RULE-SET,Global-ip),Global-Routing",
                 "MATCH,Foreign",
             ]
-            convert.export_egern({"rule-providers": providers, "rules": rules}, staging, output, BASE_URL)
+            convert.export_egern({"rule-providers": providers, "sub-rules": sub_rules, "rules": rules}, staging, output, BASE_URL)
             exported = yaml.safe_load((output / "generated/egern-rules.yaml").read_text())["rules"]
             self.assertEqual(len(exported), 3)
             self.assertEqual(exported[0]["and"]["policy"], "TUIC")
@@ -894,6 +903,94 @@ class EgernExporterTest(unittest.TestCase):
             self.assertEqual(exported[0]["and"]["match"][1], {"protocol": {"match": "udp"}})
             self.assertEqual(exported[1], {"rule_set": {"match": f"{BASE_URL}/dist/egern/Global.yaml", "policy": "Foreign", "update_interval": 172800}})
             self.assertEqual(exported[2], {"default": {"policy": "Foreign"}})
+
+    def test_defined_sub_rule_expands_network_and_match_in_order(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            staging = Path(tmp) / "staging"
+            output = Path(tmp) / "output"
+            convert.write_yaml_payload(staging / "source/domain/AI-domain.yaml", ["example.com"])
+            config = {
+                "rule-providers": {
+                    "AI-domain": {"behavior": "domain", "format": "mrs", "url": f"{BASE_URL}/dist/domain/AI-domain.mrs"},
+                },
+                "sub-rules": {"AI-Routing": ["NETWORK,UDP,REJECT", "MATCH,AI"]},
+                "rules": ["SUB-RULE,(RULE-SET,AI-domain),AI-Routing"],
+            }
+            convert.export_egern(config, staging, output, BASE_URL)
+            rules = yaml.safe_load((output / "generated/egern-rules.yaml").read_text())["rules"]
+            self.assertEqual(rules[0]["and"]["policy"], "REJECT")
+            self.assertEqual(rules[0]["and"]["match"][1], {"protocol": {"match": "udp"}})
+            self.assertEqual(rules[1], {"rule_set": {"match": f"{BASE_URL}/dist/egern/AI.yaml", "policy": "AI", "update_interval": 172800}})
+
+    def test_sub_rule_supports_tcp_udp_case_insensitively(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            staging = Path(tmp) / "staging"
+            output = Path(tmp) / "output"
+            convert.write_yaml_payload(staging / "source/domain/Foo-domain.yaml", ["example.com"])
+            config = {
+                "rule-providers": {"Foo-domain": {"behavior": "domain", "format": "mrs", "url": f"{BASE_URL}/dist/domain/Foo-domain.mrs"}},
+                "sub-rules": {"Example": ["network,udp,A", "Network,Tcp,B", "MATCH,C"]},
+                "rules": ["SUB-RULE,(RULE-SET,Foo-domain),Example"],
+            }
+            convert.export_egern(config, staging, output, BASE_URL)
+            rules = yaml.safe_load((output / "generated/egern-rules.yaml").read_text())["rules"]
+            self.assertEqual([rule["and"]["match"][1]["protocol"]["match"] for rule in rules[:2]], ["udp", "tcp"])
+            self.assertEqual(rules[2]["rule_set"]["policy"], "C")
+
+    def test_undefined_sub_rule_keeps_legacy_policy_fallback(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            staging = Path(tmp) / "staging"
+            output = Path(tmp) / "output"
+            convert.write_yaml_payload(staging / "source/domain/X-domain.yaml", ["example.com"])
+            config = {
+                "rule-providers": {"X-domain": {"behavior": "domain", "format": "mrs", "url": f"{BASE_URL}/dist/domain/X-domain.mrs"}},
+                "rules": ["SUB-RULE,(RULE-SET,X-domain),LegacyPolicy"],
+            }
+            convert.export_egern(config, staging, output, BASE_URL)
+            rules = yaml.safe_load((output / "generated/egern-rules.yaml").read_text())["rules"]
+            self.assertEqual(rules[0]["rule_set"]["policy"], "LegacyPolicy")
+
+    def test_unsupported_defined_sub_rule_skips_whole_expansion(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            staging = Path(tmp) / "staging"
+            output = Path(tmp) / "output"
+            convert.write_yaml_payload(staging / "source/domain/X-domain.yaml", ["example.com"])
+            config = {
+                "rule-providers": {"X-domain": {"behavior": "domain", "format": "mrs", "url": f"{BASE_URL}/dist/domain/X-domain.mrs"}},
+                "sub-rules": {"Foo": ["DST-PORT,443,Proxy", "MATCH,DIRECT"]},
+                "rules": ["SUB-RULE,(RULE-SET,X-domain),Foo"],
+            }
+            with contextlib.redirect_stdout(io.StringIO()) as captured:
+                convert.export_egern(config, staging, output, BASE_URL)
+            self.assertIn("SUB-RULE expansion skipped: Foo", captured.getvalue())
+            self.assertEqual(yaml.safe_load((output / "generated/egern-rules.yaml").read_text())["rules"], [])
+
+    def test_defined_sub_rule_covers_no_resolve_segment(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            staging = Path(tmp) / "staging"
+            output = Path(tmp) / "output"
+            convert.write_yaml_payload(staging / "source/domain/X-domain.yaml", ["example.com"])
+            convert.write_yaml_payload(staging / "classical/X-classical.yaml", ["IP-CIDR,10.0.0.0/8,no-resolve"])
+            config = {
+                "rule-providers": {
+                    "X-domain": {"behavior": "domain", "format": "mrs", "url": f"{BASE_URL}/dist/domain/X-domain.mrs"},
+                    "X-classical": {"behavior": "classical", "format": "yaml", "url": f"{BASE_URL}/dist/classical/X-classical.yaml"},
+                },
+                "sub-rules": {"Foo": ["NETWORK,UDP,Proxy", "MATCH,DIRECT"]},
+                "rules": ["SUB-RULE,(RULE-SET,X-domain),Foo"],
+            }
+            convert.export_egern(config, staging, output, BASE_URL)
+            rules = yaml.safe_load((output / "generated/egern-rules.yaml").read_text())["rules"]
+            self.assertEqual(len(rules), 4)
+            self.assertEqual({rule["and"]["match"][0]["rule_set"]["match"] for rule in rules[:2]}, {f"{BASE_URL}/dist/egern/X.yaml", f"{BASE_URL}/dist/egern/X-no-resolve.yaml"})
+            self.assertEqual({rule["rule_set"]["match"] for rule in rules[2:]}, {f"{BASE_URL}/dist/egern/X.yaml", f"{BASE_URL}/dist/egern/X-no-resolve.yaml"})
+
+    def test_sub_rules_are_preserved_as_a_top_level_field(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            config = {"rule-providers": {}, "sub-rules": {"Foo": ["NETWORK,UDP,Proxy"]}, "rules": []}
+            output = convert.materialize_suite_config(config, "unmerged", Path(tmp), BASE_URL)
+            self.assertEqual(output["sub-rules"], config["sub-rules"])
+            self.assertEqual(yaml.safe_load((Path(tmp) / "unmerged/generated/mihomo-rules.yaml").read_text())["sub-rules"], config["sub-rules"])
 
     def test_payload_mapping_and_rule_flattening(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
