@@ -1,3 +1,10 @@
+sub-rules:
+  AI-Routing:
+  - NETWORK,UDP,REJECT
+  - MATCH,🤖 AI
+  Global-Routing:
+  - NETWORK,UDP,🇺🇸 美国｜TUIC v5
+  - MATCH,🌍 国外流量
 rule-providers:
   me-China:
     type: http    
