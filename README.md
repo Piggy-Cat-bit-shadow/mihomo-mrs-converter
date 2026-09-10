@@ -146,3 +146,5 @@ dist/generated/egern-rules.yaml
 每个逻辑 segment 只生成一个 Egern Rule Set，聚合该 segment 的 domain、IP 和可机械转换的 classical 规则。`egern-rules.yaml` 只包含 Egern 的 `rules` 字段；`SUB-RULE` 会按普通 `rule_set` 处理，`MATCH` 会生成最终的 `default`。无法无歧义转换的 classical 规则会提示 warning 并跳过，不影响 Mihomo 输出。
 
 `segment-names.yaml` 同时控制 Mihomo 和 Egern 的最终 segment 名称。
+
+对于简单的 `IP-CIDR`、`IP-CIDR6` 和 `IP-ASN` `no-resolve` 规则，Egern 会按逻辑 segment 生成可选的 `<segment>-no-resolve.yaml`，并设置 `no_resolve: true`；普通 segment 与辅助文件使用相同 policy。`DOMAIN-REGEX` 和 `DOMAIN-WILDCARD` 会输出到对应 typed set，`PROCESS-NAME` 仍属于 unsupported best-effort 范围。

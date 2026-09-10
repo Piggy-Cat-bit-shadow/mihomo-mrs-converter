@@ -1250,6 +1250,8 @@ EGERN_FIELD_BY_KIND = {
     "DOMAIN": "domain_set",
     "DOMAIN-SUFFIX": "domain_suffix_set",
     "DOMAIN-KEYWORD": "domain_keyword_set",
+    "DOMAIN-REGEX": "domain_regex_set",
+    "DOMAIN-WILDCARD": "domain_wildcard_set",
     "IP-CIDR": "ip_cidr_set",
     "IP-CIDR6": "ip_cidr6_set",
     "GEOIP": "geoip_set",
@@ -1264,10 +1266,13 @@ def egern_segment_name(provider_name: str) -> str:
     return match.group(1) if match else provider_name
 
 
-def classify_egern_classical(rule: str) -> tuple[str, str] | None:
+def classify_egern_classical(rule: str) -> tuple[str, str, bool] | None:
     parsed = parse_rule(rule)
     field = EGERN_FIELD_BY_KIND.get(parsed.kind)
-    if field is None or len(parsed.parts) != 2:
+    if field is None or len(parsed.parts) not in {2, 3}:
+        return None
+    no_resolve = len(parsed.parts) == 3
+    if no_resolve and (parsed.parts[2].lower() != "no-resolve" or parsed.kind not in {"IP-CIDR", "IP-CIDR6", "IP-ASN"}):
         return None
     value = parsed.parts[1]
     if parsed.kind == "IP-CIDR":
@@ -1282,21 +1287,23 @@ def classify_egern_classical(rule: str) -> tuple[str, str] | None:
                 return None
         except ValueError:
             return None
-    return field, value
+    return field, value, no_resolve
 
 
 def export_egern(
     config: dict[str, Any], staging: Path, output_dist: Path, base_url: str
 ) -> dict[str, int]:
     """Serialize the already-final Mihomo config into compact Egern rule sets."""
-    sets: dict[str, dict[str, list[str]]] = {}
+    sets: dict[str, dict[str, Any]] = {}
     counts = Counter()
     unsupported = Counter()
 
-    def add(segment: str, field: str, value: str) -> None:
+    def add(segment: str, field: str, value: str) -> bool:
         values = sets.setdefault(segment, {}).setdefault(field, [])
         if value not in values:
             values.append(value)
+            return True
+        return False
 
     for name, provider in config["rule-providers"].items():
         segment = egern_segment_name(name)
@@ -1326,9 +1333,14 @@ def export_egern(
                     unsupported[parse_rule(rule).kind or "unknown"] += 1
                     print(f"[Egern] unsupported classical rule skipped: {rule}")
                     continue
-                field, value = classified
-                add(segment, field, value)
+                field, value, no_resolve = classified
+                target = f"{segment}-no-resolve" if no_resolve else segment
+                if no_resolve:
+                    sets.setdefault(target, {})["no_resolve"] = True
+                add(target, field, value)
                 counts["classical"] += 1
+                if no_resolve:
+                    counts["no_resolve"] += 1
 
     egern_dir = output_dist / "egern"
     for segment, fields in sets.items():
@@ -1356,28 +1368,45 @@ def export_egern(
             print(f"[Egern] rule has no unambiguous policy and was skipped: {rule}")
             continue
         segment = egern_segment_name(refs[0])
-        if segment not in sets:
+        has_regular = segment in sets
+        no_resolve_segment = f"{segment}-no-resolve"
+        has_no_resolve = no_resolve_segment in sets
+        if not has_regular and not has_no_resolve:
             print(f"[Egern] rule references an empty or unsupported segment and was skipped: {rule}")
             continue
         reference = (segment, policy_parts[0])
         if reference == last_reference:
             continue
         last_reference = reference
-        egern_rules.append({"rule_set": {
-            "match": public_url(base_url, "dist", "egern", f"{segment}.yaml"),
-            "policy": policy_parts[0],
-            "update_interval": 172800,
-        }})
+        for target in ([segment] if has_regular else []) + ([no_resolve_segment] if has_no_resolve else []):
+            egern_rules.append({"rule_set": {
+                "match": public_url(base_url, "dist", "egern", f"{target}.yaml"),
+                "policy": policy_parts[0],
+                "update_interval": 172800,
+            }})
     write_yaml_atomic(output_dist / "generated" / "egern-rules.yaml", {"rules": egern_rules})
     counts["segments"] = len(sets)
     counts["unsupported"] = sum(unsupported.values())
     print("\n========== Egern Export Summary ==========")
     print(f"segments: {counts['segments']}")
-    print(f"converted domain rules: {counts['domain']}")
-    print(f"converted suffix rules: {sum(len(v.get('domain_suffix_set', [])) for v in sets.values())}")
-    print(f"converted IPv4 rules: {counts['ipv4']}")
-    print(f"converted IPv6 rules: {counts['ipv6']}")
-    print(f"converted classical rules: {counts['classical']}")
+    field_counts = Counter(
+        field
+        for fields in sets.values()
+        for field, values in fields.items()
+        if field != "no_resolve"
+        for _ in values
+    )
+    print(f"rule set files: {sum(1 for _ in egern_dir.glob('*.yaml'))}")
+    print(f"exact domains: {field_counts['domain_set']}")
+    print(f"domain suffixes: {field_counts['domain_suffix_set']}")
+    print(f"domain keywords: {field_counts['domain_keyword_set']}")
+    print(f"domain regexes: {field_counts['domain_regex_set']}")
+    print(f"domain wildcards: {field_counts['domain_wildcard_set']}")
+    print(f"IPv4 CIDRs: {field_counts['ip_cidr_set']}")
+    print(f"IPv6 CIDRs: {field_counts['ip_cidr6_set']}")
+    print(f"ASNs: {field_counts['asn_set']}")
+    print(f"other converted classical rules: {field_counts['geoip_set'] + field_counts['protocol_set'] + field_counts['dest_port_set']}")
+    print(f"no-resolve rules: {counts['no_resolve']}")
     print(f"unsupported classical rules: {counts['unsupported']}")
     if unsupported:
         print("unsupported classical types: " + ", ".join(f"{k}={v}" for k, v in sorted(unsupported.items())))

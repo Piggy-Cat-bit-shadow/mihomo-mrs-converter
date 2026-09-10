@@ -96,7 +96,7 @@ jobs:
           if not isinstance(egern, dict) or not isinstance(egern.get("rules"), list):
               raise SystemExit("invalid Egern rules output")
           referenced = set()
-          allowed = {"domain_set", "domain_suffix_set", "domain_keyword_set", "ip_cidr_set", "ip_cidr6_set", "geoip_set", "protocol_set", "dest_port_set", "asn_set"}
+          allowed = {"domain_set", "domain_suffix_set", "domain_keyword_set", "domain_regex_set", "domain_wildcard_set", "ip_cidr_set", "ip_cidr6_set", "asn_set", "geoip_set", "protocol_set", "dest_port_set", "no_resolve"}
           for item in egern["rules"]:
               if "rule_set" in item:
                   rule_set = item["rule_set"]
@@ -111,7 +111,13 @@ jobs:
               data = yaml.safe_load(artifact.read_text(encoding="utf-8"))
               if not isinstance(data, dict) or not set(data) <= allowed:
                   raise SystemExit(f"invalid Egern Rule Set fields: {artifact}")
-              for values in data.values():
+              if "no_resolve" in data and data["no_resolve"] is not True:
+                  raise SystemExit(f"invalid no_resolve value: {artifact}")
+              for field, values in data.items():
+                  if field == "no_resolve":
+                      continue
+                  if not isinstance(values, list):
+                      raise SystemExit(f"Egern Rule Set field is not a list: {artifact}")
                   if any(isinstance(value, str) and value.startswith("+.") for value in values):
                       raise SystemExit(f"Egern suffix still contains '+.': {artifact}")
           if len(referenced) != len([*Path("dist/egern").glob("*.yaml")]):

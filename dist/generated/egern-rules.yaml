@@ -4,11 +4,19 @@ rules:
     policy: DIRECT
     update_interval: 172800
 - rule_set:
+    match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/Direct-no-resolve.yaml
+    policy: DIRECT
+    update_interval: 172800
+- rule_set:
     match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/AI.yaml
     policy: AI-Routing
     update_interval: 172800
 - rule_set:
     match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/Global.yaml
+    policy: 🌍 国外流量
+    update_interval: 172800
+- rule_set:
+    match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/Global-no-resolve.yaml
     policy: 🌍 国外流量
     update_interval: 172800
 - rule_set:

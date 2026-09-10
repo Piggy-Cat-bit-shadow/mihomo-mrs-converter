@@ -835,7 +835,7 @@ class EgernExporterTest(unittest.TestCase):
             output = Path(tmp) / "output"
             convert.write_yaml_payload(staging / "merged-dedup/source/domain/AI-domain.yaml", ["example.com", "+.google.com"])
             convert.write_yaml_payload(staging / "merged-dedup/source/ipcidr/AI-ip.yaml", ["1.2.3.0/24", "2001:db8::/32"])
-            convert.write_yaml_payload(staging / "merged-dedup/classical/AI-classical.yaml", ["DOMAIN-KEYWORD,chat", "NETWORK,udp", "DST-PORT,443", "IP-CIDR,10.0.0.0/8,no-resolve"])
+            convert.write_yaml_payload(staging / "merged-dedup/classical/AI-classical.yaml", ["DOMAIN-KEYWORD,chat", "DOMAIN-REGEX,^foo.*$", "DOMAIN-WILDCARD,clients*.google.com", "IP-ASN,132203", "NETWORK,udp", "DST-PORT,443", "IP-CIDR,10.0.0.0/8,no-resolve"])
             config = {"rule-providers": {
                 "AI-domain": {"behavior": "domain", "format": "mrs", "url": f"{BASE_URL}/dist/merged-dedup/domain/AI-domain.mrs"},
                 "AI-ip": {"behavior": "ipcidr", "format": "mrs", "url": f"{BASE_URL}/dist/merged-dedup/ipcidr/AI-ip.mrs"},
@@ -847,9 +847,14 @@ class EgernExporterTest(unittest.TestCase):
             self.assertEqual(data["domain_suffix_set"], ["google.com"])
             self.assertEqual(data["ip_cidr_set"], ["1.2.3.0/24"])
             self.assertEqual(data["ip_cidr6_set"], ["2001:db8::/32"])
-            self.assertNotIn("no_resolve", data)
+            self.assertEqual(data["domain_regex_set"], ["^foo.*$"])
+            self.assertEqual(data["domain_wildcard_set"], ["clients*.google.com"])
+            self.assertEqual(data["asn_set"], ["132203"])
+            no_resolve = yaml.safe_load((output / "egern/AI-no-resolve.yaml").read_text())
+            self.assertEqual(no_resolve["ip_cidr_set"], ["10.0.0.0/8"])
+            self.assertIs(no_resolve["no_resolve"], True)
             rules = yaml.safe_load((output / "generated/egern-rules.yaml").read_text())["rules"]
-            self.assertEqual(len([x for x in rules if "rule_set" in x]), 1)
+            self.assertEqual(len([x for x in rules if "rule_set" in x]), 2)
             self.assertEqual(rules[-1], {"default": {"policy": "DIRECT"}})
 
 

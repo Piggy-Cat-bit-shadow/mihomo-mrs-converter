@@ -762,6 +762,9 @@ domain_set:
 - lens.l.google.com
 - token-api.metaswap.codefi.network
 - ip-scan.adspower.net
+domain_wildcard_set:
+- clients*.google.com
+- mtalk*.google.com
 domain_keyword_set:
 - openai
 - colab
@@ -781,6 +784,8 @@ domain_keyword_set:
 - paypal
 asn_set:
 - '20473'
+domain_regex_set:
+- ^chatgpt-async-webps-prod-\S+-\d+\.webpubsub\.azure\.com$
 ip_cidr_set:
 - 24.199.123.28/32
 - 64.23.132.171/32
