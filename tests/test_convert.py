@@ -1034,6 +1034,58 @@ class EgernExporterTest(unittest.TestCase):
             self.assertEqual(output["sub-rules"], config["sub-rules"])
             self.assertEqual(yaml.safe_load((Path(tmp) / "unmerged/generated/mihomo-rules.yaml").read_text())["sub-rules"], config["sub-rules"])
 
+
+class EgernRuleSetOptimizationTest(unittest.TestCase):
+    def test_domain_coverage_is_stable_and_label_bounded(self) -> None:
+        optimized, removed = convert.optimize_egern_rule_set({
+            "domain_set": ["www.example.com", "fakeexample.com"],
+            "domain_suffix_set": ["a.example.com", "example.org", "example.com"],
+        })
+        self.assertEqual(optimized, {
+            "domain_set": ["fakeexample.com"],
+            "domain_suffix_set": ["example.org", "example.com"],
+        })
+        self.assertEqual(removed["exact_domains_covered_by_suffix"], 1)
+        self.assertEqual(removed["child_suffixes_covered_by_parent"], 1)
+
+    def test_domain_does_not_synthesize_parent_suffix(self) -> None:
+        optimized, removed = convert.optimize_egern_rule_set({
+            "domain_suffix_set": ["a.example.com", "b.example.com"],
+        })
+        self.assertEqual(optimized["domain_suffix_set"], ["a.example.com", "b.example.com"])
+        self.assertEqual(removed["safe_semantic_duplicates"], 0)
+
+    def test_cidr_coverage_is_separated_by_family_and_keeps_order(self) -> None:
+        optimized, removed = convert.optimize_egern_rule_set({
+            "ip_cidr_set": ["10.1.2.0/24", "10.0.0.0/8", "192.168.1.0/24", "10.128.0.0/9", "10.0.0.0/9"],
+            "ip_cidr6_set": ["2001:db8:1::/48", "2001:db8::/32"],
+        })
+        self.assertEqual(optimized["ip_cidr_set"], ["10.0.0.0/8", "192.168.1.0/24"])
+        self.assertEqual(optimized["ip_cidr6_set"], ["2001:db8::/32"])
+        self.assertEqual(removed["ipv4_cidrs_covered_by_parent"], 3)
+        self.assertEqual(removed["ipv6_cidrs_covered_by_parent"], 1)
+
+    def test_cidr_does_not_merge_adjacent_networks(self) -> None:
+        optimized, removed = convert.optimize_egern_rule_set({
+            "ip_cidr_set": ["10.0.0.0/9", "10.128.0.0/9"],
+        })
+        self.assertEqual(optimized["ip_cidr_set"], ["10.0.0.0/9", "10.128.0.0/9"])
+        self.assertEqual(removed["safe_semantic_duplicates"], 0)
+
+    def test_no_resolve_and_unsupported_fields_are_isolated(self) -> None:
+        optimized, removed = convert.optimize_egern_rule_set({
+            "no_resolve": True,
+            "ip_cidr_set": ["1.2.3.0/24", "1.2.3.0/25"],
+            "domain_set": ["www.example.com"],
+            "domain_keyword_set": ["example"],
+            "domain_regex_set": [".*example.*"],
+            "domain_wildcard_set": ["*.example.com"],
+        })
+        self.assertTrue(optimized["no_resolve"])
+        self.assertEqual(optimized["ip_cidr_set"], ["1.2.3.0/24"])
+        self.assertEqual(optimized["domain_set"], ["www.example.com"])
+        self.assertEqual(removed["safe_semantic_duplicates"], 1)
+
     def test_payload_mapping_and_rule_flattening(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             staging = Path(tmp) / "staging"

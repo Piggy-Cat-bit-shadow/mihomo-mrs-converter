@@ -1351,6 +1351,57 @@ def classify_egern_classical(rule: str) -> tuple[str, str, bool] | None:
     return field, value, no_resolve
 
 
+def optimize_egern_rule_set(fields: dict[str, Any]) -> tuple[dict[str, Any], Counter[str]]:
+    """Safely remove only coverage-redundant values within one Egern set."""
+    optimized = {field: list(values) if isinstance(values, list) else values for field, values in fields.items()}
+    removed: Counter[str] = Counter()
+
+    suffix_values = optimized.get("domain_suffix_set", [])
+    suffixes = {
+        value.strip().lower().rstrip(".")
+        for value in suffix_values
+        if isinstance(value, str) and value.strip().rstrip(".")
+    }
+    if isinstance(optimized.get("domain_set"), list):
+        retained_domains: list[str] = []
+        for value in optimized["domain_set"]:
+            if isinstance(value, str) and domain_covered_by_suffix(value, suffixes):
+                removed["exact_domains_covered_by_suffix"] += 1
+            else:
+                retained_domains.append(value)
+        optimized["domain_set"] = retained_domains
+    if isinstance(suffix_values, list):
+        retained_suffixes: list[str] = []
+        for value in suffix_values:
+            normalized = value.strip().lower().rstrip(".") if isinstance(value, str) else ""
+            if normalized and suffix_covered_by_parent_suffix(normalized, suffixes):
+                removed["child_suffixes_covered_by_parent"] += 1
+            else:
+                retained_suffixes.append(value)
+        optimized["domain_suffix_set"] = retained_suffixes
+
+    for field, stat_name in (("ip_cidr_set", "ipv4_cidrs_covered_by_parent"), ("ip_cidr6_set", "ipv6_cidrs_covered_by_parent")):
+        values = optimized.get(field)
+        if not isinstance(values, list):
+            continue
+        networks = {
+            network
+            for value in values
+            if isinstance(value, str) and (network := parse_ip_network(value)) is not None
+        }
+        retained: list[Any] = []
+        for value in values:
+            network = parse_ip_network(value) if isinstance(value, str) else None
+            if network is not None and network_covered_by_parent(network, networks):
+                removed[stat_name] += 1
+            else:
+                retained.append(value)
+        optimized[field] = retained
+
+    removed["safe_semantic_duplicates"] = sum(removed.values())
+    return optimized, removed
+
+
 def export_egern(
     config: dict[str, Any], staging: Path, output_dist: Path, base_url: str
 ) -> dict[str, int]:
@@ -1404,9 +1455,13 @@ def export_egern(
                     counts["no_resolve"] += 1
 
     egern_dir = output_dist / "egern"
+    semantic_removed: Counter[str] = Counter()
     for segment, fields in sets.items():
         validate_provider_name(segment)
-        write_yaml_atomic(egern_dir / f"{segment}.yaml", fields)
+        optimized, removed = optimize_egern_rule_set(fields)
+        sets[segment] = optimized
+        semantic_removed.update(removed)
+        write_yaml_atomic(egern_dir / f"{segment}.yaml", optimized)
 
     egern_rules: list[dict[str, Any]] = []
     emitted_keys: set[tuple[str, ...]] = set()
@@ -1541,6 +1596,11 @@ def export_egern(
     print(f"other converted classical rules: {field_counts['geoip_set'] + field_counts['protocol_set'] + field_counts['dest_port_set']}")
     print(f"no-resolve rules: {counts['no_resolve']}")
     print(f"unsupported classical rules: {counts['unsupported']}")
+    print(f"safe semantic duplicates removed: {semantic_removed['safe_semantic_duplicates']}")
+    print(f"exact domains covered by suffix: {semantic_removed['exact_domains_covered_by_suffix']}")
+    print(f"child suffixes covered by parent: {semantic_removed['child_suffixes_covered_by_parent']}")
+    print(f"IPv4 CIDRs covered by parent: {semantic_removed['ipv4_cidrs_covered_by_parent']}")
+    print(f"IPv6 CIDRs covered by parent: {semantic_removed['ipv6_cidrs_covered_by_parent']}")
     if unsupported:
         print("unsupported classical types: " + ", ".join(f"{k}={v}" for k, v in sorted(unsupported.items())))
     print("==========================================")
