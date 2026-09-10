@@ -21,3 +21,4 @@ ip_cidr6_set:
 - ff00::/8
 asn_set:
 - '132203'
+domain_suffix_set: []
