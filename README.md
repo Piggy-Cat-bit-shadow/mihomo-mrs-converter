@@ -31,6 +31,8 @@ rules:
 - `DOMAIN-SUFFIX` -> domain MRS source
 - 严格两段式 `IP-CIDR` / `IP-CIDR6` -> ipcidr MRS source
 
+对于 `behavior: ipcidr` 的 YAML/text 输入，只有在原始内容明确以 `# IP-ASN: N` 声明且所有非 CIDR 项恰好对应 N 个纯十进制 ASN 时，才会将这些项转入 classical `IP-ASN` companion provider；其他非法项会直接失败，不会静默丢弃或无条件猜测。
+
 带额外修饰符的 IP 规则，例如 `IP-CIDR,1.2.3.0/24,no-resolve`，会完整保留到 classical fallback。
 `format: text` 和 `format: yaml` 会严格按 provider 的 `format` 解析；已有 `format: mrs` 的 `domain` / `ipcidr` provider 会直接 passthrough，不重新下载或重新生成。
 

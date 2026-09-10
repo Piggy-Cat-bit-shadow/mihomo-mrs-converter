@@ -18,9 +18,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -41,10 +41,7 @@ jobs:
       - name: Run tests
         run: python -m unittest discover -s tests
 
-      - name: Run complete-config integration test
-        run: python -m unittest tests.test_convert.CompleteConfigRefreshTest.test_two_cli_runs_remove_stale_state_and_are_idempotent
-
-      - name: Build MRS rules
+      - name: Build generated rules
         run: |
           python scripts/convert.py examples/my-rules.yaml \
             --base-url "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}"
@@ -97,16 +94,48 @@ jobs:
               raise SystemExit("invalid Egern rules output")
           referenced = set()
           allowed = {"domain_set", "domain_suffix_set", "domain_keyword_set", "domain_regex_set", "domain_wildcard_set", "ip_cidr_set", "ip_cidr6_set", "asn_set", "geoip_set", "protocol_set", "dest_port_set", "no_resolve"}
-          for item in egern["rules"]:
-              if "rule_set" in item:
-                  rule_set = item["rule_set"]
-                  match = rule_set["match"]
-                  if not match.startswith("http") or "/dist/egern/" not in match:
+          def validate_egern_rule(item, context, nested=False):
+              if not isinstance(item, dict) or len(item) != 1:
+                  raise SystemExit(f"invalid Egern rule: {context}")
+              kind, body = next(iter(item.items()))
+              if not isinstance(body, dict):
+                  raise SystemExit(f"invalid Egern {kind} body: {context}")
+              if kind == "rule_set":
+                  match = body.get("match")
+                  if not isinstance(match, str) or not match.startswith("http") or "/dist/egern/" not in match:
                       raise SystemExit(f"invalid Egern rule_set URL: {match}")
+                  if not nested and (not isinstance(body.get("policy"), str) or not body["policy"]):
+                      raise SystemExit(f"invalid Egern rule_set policy: {context}")
+                  if body.get("update_interval") != 172800:
+                      raise SystemExit(f"invalid Egern rule_set update_interval: {context}")
                   artifact = root / match.split("/dist/", 1)[1]
                   if not artifact.exists():
                       raise SystemExit(f"missing Egern artifact: {artifact}")
                   referenced.add(artifact.name)
+              elif kind == "and":
+                  matches = body.get("match")
+                  if not isinstance(matches, list) or not matches:
+                      raise SystemExit(f"invalid Egern and match: {context}")
+                  if not isinstance(body.get("policy"), str) or not body["policy"]:
+                      raise SystemExit(f"invalid Egern and policy: {context}")
+                  for nested in matches:
+                      validate_egern_rule(nested, f"{context}.and", nested=True)
+              elif kind == "protocol":
+                  if body.get("match") not in {"udp", "tcp"}:
+                      raise SystemExit(f"invalid Egern protocol: {context}")
+                  if not nested and (not isinstance(body.get("policy"), str) or not body["policy"]):
+                      raise SystemExit(f"invalid Egern protocol policy: {context}")
+              elif kind == "default":
+                  if not isinstance(body.get("policy"), str) or not body["policy"]:
+                      raise SystemExit(f"invalid Egern default policy: {context}")
+              else:
+                  raise SystemExit(f"invalid Egern rule kind: {kind}")
+
+          for index, item in enumerate(egern["rules"]):
+              validate_egern_rule(item, f"rules[{index}]")
+          for index, item in enumerate(egern["rules"]):
+              if "default" in item and index != len(egern["rules"]) - 1:
+                  raise SystemExit("Egern default rule must be last")
           for artifact in Path("dist/egern").glob("*.yaml"):
               data = yaml.safe_load(artifact.read_text(encoding="utf-8"))
               if not isinstance(data, dict) or not set(data) <= allowed:
@@ -120,6 +149,22 @@ jobs:
                       raise SystemExit(f"Egern Rule Set field is not a list: {artifact}")
                   if any(isinstance(value, str) and value.startswith("+.") for value in values):
                       raise SystemExit(f"Egern suffix still contains '+.': {artifact}")
+                  if field == "ip_cidr_set":
+                      import ipaddress
+                      for value in values:
+                          try:
+                              if ipaddress.ip_network(value, strict=False).version != 4:
+                                  raise SystemExit(f"invalid IPv4 Egern CIDR: {artifact}: {value}")
+                          except ValueError:
+                              raise SystemExit(f"invalid IPv4 Egern CIDR: {artifact}: {value}")
+                  if field == "ip_cidr6_set":
+                      import ipaddress
+                      for value in values:
+                          try:
+                              if ipaddress.ip_network(value, strict=False).version != 6:
+                                  raise SystemExit(f"invalid IPv6 Egern CIDR: {artifact}: {value}")
+                          except ValueError:
+                              raise SystemExit(f"invalid IPv6 Egern CIDR: {artifact}: {value}")
           if len(referenced) != len([*Path("dist/egern").glob("*.yaml")]):
               raise SystemExit("stale or unreferenced Egern Rule Set artifact")
           PY
@@ -129,7 +174,7 @@ jobs:
           fi
 
       - name: Commit generated dist
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@v7
         with:
-          commit_message: "build: update generated mihomo rules"
+          commit_message: "build: update generated rules"
           file_pattern: dist .state/managed-state.yaml

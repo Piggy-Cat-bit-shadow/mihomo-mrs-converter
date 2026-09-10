@@ -135,6 +135,44 @@ class NestedRulesetCompatibilityTest(unittest.TestCase):
 
 
 class ProviderConversionTest(ConvertTestCase):
+    def test_ipcidr_metadata_backed_asn_becomes_classical_companion(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            dist = Path(tmp)
+            result = self.process_with_text(
+                "ChinaMax-ip",
+                http_provider("ipcidr"),
+                "# IP-ASN: 1\npayload:\n- 1.1.1.0/24\n- 132203\n",
+                dist,
+            )
+            self.assertEqual(result.generated_names, ["ChinaMax-ip", "ChinaMax-classical"])
+            self.assertEqual(
+                yaml.safe_load((dist / "source/ipcidr/ChinaMax-ip.yaml").read_text()),
+                {"payload": ["1.1.1.0/24"]},
+            )
+            self.assertEqual(
+                yaml.safe_load((dist / "classical/ChinaMax-classical.yaml").read_text()),
+                {"payload": ["IP-ASN,132203"]},
+            )
+            self.assertEqual(sum(result.original_rules.values()), 2)
+            self.assertEqual(result.original_rules, result.rebuilt_rules)
+
+    def test_ipcidr_does_not_guess_bare_number_as_asn(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(SystemExit):
+                self.process_with_text("sample", http_provider("ipcidr"), "payload:\n- 132203\n", Path(tmp))
+
+    def test_ipcidr_asn_metadata_count_must_match(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(SystemExit):
+                self.process_with_text(
+                    "sample", http_provider("ipcidr"), "# IP-ASN: 1\npayload:\n- 132203\n- 12345\n", Path(tmp)
+                )
+
+    def test_ipcidr_unknown_invalid_entry_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(SystemExit):
+                self.process_with_text("sample", http_provider("ipcidr"), "# IP-ASN: 1\npayload:\n- foo\n", Path(tmp))
+
     def test_ip_cidr_enters_ipcidr(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             dist = Path(tmp)
@@ -541,6 +579,24 @@ class SafeDedupTest(ConvertTestCase):
                 yaml.safe_load((dist / "merged-dedup/classical/merged-segment-01-classical.yaml").read_text()),
                 {"payload": ["DOMAIN-SUFFIX,example.com", "PROCESS-NAME,App"]},
             )
+
+
+class SuiteStatsTest(unittest.TestCase):
+    def test_referenced_rule_counts_reads_final_sources(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            dist = Path(tmp)
+            convert.write_yaml_payload(dist / "source/domain/domain.yaml", ["a", "b"])
+            convert.write_yaml_payload(dist / "source/ipcidr/ip.yaml", ["1.1.1.0/24"])
+            convert.write_yaml_payload(dist / "classical/classical.yaml", ["DOMAIN,example.com", "GEOIP,CN"])
+            config = {"rule-providers": {
+                "domain": {"behavior": "domain", "url": f"{BASE_URL}/dist/source/domain/domain.yaml"},
+                "ip": {"behavior": "ipcidr", "url": f"{BASE_URL}/dist/source/ipcidr/ip.yaml"},
+                "classical": {"behavior": "classical", "url": f"{BASE_URL}/dist/classical/classical.yaml"},
+            }}
+            counts = convert.referenced_rule_counts(config, dist)
+            total = counts["domain"] + counts["ipcidr"] + counts["classical"]
+            self.assertEqual(counts, Counter({"domain": 2, "ipcidr": 1, "classical": 2}))
+            self.assertEqual(total, counts["domain"] + counts["ipcidr"] + counts["classical"])
 
 
 class AdjacentClassicalConsolidationTest(ConvertTestCase):

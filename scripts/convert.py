@@ -192,11 +192,13 @@ def fetch_text(url: str, headers: dict[str, Any] | None, memory_cache: dict[str,
     return body
 
 
-def strict_yaml_rule_list(name: str, value: Any) -> list[str]:
+def strict_yaml_rule_list(name: str, value: Any, allow_integer_items: bool = False) -> list[str]:
     if not isinstance(value, list):
         raise SystemExit(f"{name}: YAML provider payload must be a list")
     rules: list[str] = []
     for item in value:
+        if allow_integer_items and isinstance(item, int) and not isinstance(item, bool):
+            item = str(item)
         if not isinstance(item, str):
             raise SystemExit(f"{name}: YAML provider payload items must be strings")
         stripped = item.strip()
@@ -205,15 +207,15 @@ def strict_yaml_rule_list(name: str, value: Any) -> list[str]:
     return rules
 
 
-def payload_from_yaml(name: str, text: str) -> list[str]:
+def payload_from_yaml(name: str, text: str, allow_integer_items: bool = False) -> list[str]:
     parsed = yaml.safe_load(text)
     if isinstance(parsed, dict):
         for key in ("payload", "rules"):
             if key in parsed:
-                return strict_yaml_rule_list(name, parsed[key])
+                return strict_yaml_rule_list(name, parsed[key], allow_integer_items)
         raise SystemExit(f"{name}: YAML provider must contain payload or rules")
     if isinstance(parsed, list):
-        return strict_yaml_rule_list(name, parsed)
+        return strict_yaml_rule_list(name, parsed, allow_integer_items)
     raise SystemExit(f"{name}: YAML provider must be a mapping or list")
 
 
@@ -227,9 +229,9 @@ def payload_from_text(text: str) -> list[str]:
     return lines
 
 
-def payload_from_remote(name: str, text: str, fmt: str) -> list[str]:
+def payload_from_remote(name: str, text: str, fmt: str, allow_integer_items: bool = False) -> list[str]:
     if fmt == "yaml":
-        return payload_from_yaml(name, text)
+        return payload_from_yaml(name, text, allow_integer_items)
     if fmt == "text":
         return payload_from_text(text)
     raise SystemExit(f"{name}: unsupported source format {fmt!r}")
@@ -1409,6 +1411,7 @@ def export_egern(
     sets: dict[str, dict[str, Any]] = {}
     counts = Counter()
     unsupported = Counter()
+    unsupported_classical_examples: dict[str, list[str]] = {}
 
     def add(segment: str, field: str, value: str) -> bool:
         values = sets.setdefault(segment, {}).setdefault(field, [])
@@ -1442,8 +1445,11 @@ def export_egern(
             elif behavior == "classical":
                 classified = classify_egern_classical(rule)
                 if classified is None:
-                    unsupported[parse_rule(rule).kind or "unknown"] += 1
-                    print(f"[Egern] unsupported classical rule skipped: {rule}")
+                    kind = parse_rule(rule).kind or "unknown"
+                    unsupported[kind] += 1
+                    unsupported_classical_examples.setdefault(kind, [])
+                    if len(unsupported_classical_examples[kind]) < 5:
+                        unsupported_classical_examples[kind].append(rule)
                     continue
                 field, value, no_resolve = classified
                 target = f"{segment}-no-resolve" if no_resolve else segment
@@ -1603,6 +1609,9 @@ def export_egern(
     print(f"IPv6 CIDRs covered by parent: {semantic_removed['ipv6_cidrs_covered_by_parent']}")
     if unsupported:
         print("unsupported classical types: " + ", ".join(f"{k}={v}" for k, v in sorted(unsupported.items())))
+    for kind, examples in sorted(unsupported_classical_examples.items()):
+        print(f"[Egern] unsupported classical rules skipped: {kind}: {unsupported[kind]}")
+        print(f"  examples: {', '.join(examples)}")
     print("==========================================")
     return dict(counts)
 
@@ -1788,8 +1797,9 @@ def print_suite_stats(
     suite: str,
     config: dict[str, Any],
     dist: Path,
+    counts: Counter[str] | None = None,
 ) -> None:
-    counts = referenced_rule_counts(config, dist)
+    counts = counts or referenced_rule_counts(config, dist)
     mrs_count, mrs_size = suite_mrs_stats(dist, suite)
     total_rules = counts["domain"] + counts["ipcidr"] + counts["classical"]
     print(f"{label}:")
@@ -1909,11 +1919,8 @@ def process_provider(
     headers = provider.get("header")
     if headers is not None and not isinstance(headers, dict):
         raise SystemExit(f"{name}: provider header must be a mapping")
-    remote_rules = payload_from_remote(
-        name,
-        fetch_text(url, headers, options.memory_cache),
-        fmt,
-    )
+    remote_text = fetch_text(url, headers, options.memory_cache)
+    remote_rules = payload_from_remote(name, remote_text, fmt, allow_integer_items=behavior == "ipcidr")
     if not remote_rules:
         raise SystemExit(f"{name}: provider contains no rules")
     parsed = [parse_rule(rule) for rule in remote_rules]
@@ -1949,31 +1956,65 @@ def process_provider(
         source_payloads[name] = source_values
 
     elif behavior == "ipcidr":
-        source_values = [rule.raw for rule in parsed]
-        source_path = options.dist / "source" / "ipcidr" / f"{name}.yaml"
-        mrs_path = options.dist / "ipcidr" / f"{name}.mrs"
-        write_yaml_payload(source_path, source_values)
-        if options.mihomo:
-            convert_source_to_mrs(options.mihomo, "ipcidr", source_path, mrs_path)
-            fmt_out = "mrs"
-            url_out = public_url(options.base_url, "dist/ipcidr", f"{name}.mrs")
-            path_out = f"./ruleset/{name}.mrs"
-        else:
-            fmt_out = "yaml"
-            url_out = public_url(options.base_url, "dist/source/ipcidr", f"{name}.yaml")
-            path_out = f"./ruleset/{name}.yaml"
-        generated[name] = make_provider(
-            "ipcidr",
-            fmt_out,
-            url_out,
-            path_out,
-            provider,
-        )
-        reserve_path(path_out, options.used_paths)
-        generated_names.append(name)
-        options.used_names.add(name)
+        valid_rules: list[str] = []
+        invalid_rules: list[str] = []
+        for rule in parsed:
+            if parse_ip_network(rule.raw) is None:
+                invalid_rules.append(rule.raw)
+            else:
+                valid_rules.append(rule.raw)
+        asn_values: list[str] = []
+        if invalid_rules:
+            metadata_counts = re.findall(r"(?im)^\s*#\s*IP-ASN\s*:\s*(\d+)\s*$", remote_text)
+            candidates = [value for value in invalid_rules if re.fullmatch(r"\d+", value)]
+            if (
+                len(metadata_counts) != 1
+                or len(candidates) != len(invalid_rules)
+                or len(candidates) != int(metadata_counts[0])
+            ):
+                raise SystemExit(f"{name}: invalid ipcidr payload entries cannot be safely classified: {invalid_rules}")
+            asn_values = candidates
+
+        source_values = valid_rules
+        if not source_values and not asn_values:
+            raise SystemExit(f"{name}: provider produced no valid ipcidr or metadata-backed ASN rules")
+        if source_values:
+            source_path = options.dist / "source" / "ipcidr" / f"{name}.yaml"
+            mrs_path = options.dist / "ipcidr" / f"{name}.mrs"
+            write_yaml_payload(source_path, source_values)
+            if options.mihomo:
+                convert_source_to_mrs(options.mihomo, "ipcidr", source_path, mrs_path)
+                fmt_out = "mrs"
+                url_out = public_url(options.base_url, "dist/ipcidr", f"{name}.mrs")
+                path_out = f"./ruleset/{name}.mrs"
+            else:
+                fmt_out = "yaml"
+                url_out = public_url(options.base_url, "dist/source/ipcidr", f"{name}.yaml")
+                path_out = f"./ruleset/{name}.yaml"
+            generated[name] = make_provider("ipcidr", fmt_out, url_out, path_out, provider)
+            reserve_path(path_out, options.used_paths)
+            generated_names.append(name)
+            options.used_names.add(name)
+            source_payloads[name] = source_values
+        if asn_values:
+            segment = egern_segment_name(name)
+            asn_name = f"{segment}-classical"
+            if asn_name in options.used_names:
+                part = 2
+                while f"{segment}-classical-part-{part:02d}" in options.used_names:
+                    part += 1
+                asn_name = f"{segment}-classical-part-{part:02d}"
+            options.used_names.add(asn_name)
+            classical_path = options.dist / "classical" / f"{asn_name}.yaml"
+            write_yaml_payload(classical_path, [f"IP-ASN,{value}" for value in asn_values])
+            path_out = f"./ruleset/{asn_name}.yaml"
+            generated[asn_name] = make_generated_provider(
+                "classical", "yaml", public_url(options.base_url, "dist/classical", f"{asn_name}.yaml"), path_out, provider, options.used_paths
+            )
+            generated_names.append(asn_name)
+        if not generated_names:
+            raise SystemExit(f"{name}: provider produced no generated providers")
         rebuilt.update(rule.raw for rule in parsed)
-        source_payloads[name] = source_values
 
     else:
         domain_values: list[str] = []
@@ -2584,6 +2625,7 @@ def main() -> None:
         for name, stats in dedup_stats.items()
     }
     validate_generated_config(staging, dedup, require_no_orphans=require_no_orphans)
+    final_rule_counts = referenced_rule_counts(dedup, staging)
     publish_dist = Path(tempfile.mkdtemp(prefix="mihomo-mrs-publish-", dir=args.dist.parent))
     final = publish_final_config(dedup, staging, publish_dist, args.base_url)
     validate_generated_config(publish_dist, final, require_no_orphans=require_no_orphans)
@@ -2603,7 +2645,7 @@ def main() -> None:
     print_dedup_report(dedup, dedup_stats)
     print()
     print("========== MRS Suite Summary ==========")
-    print_suite_stats("Merged + dedup", FINAL_SUITE, final, args.dist)
+    print_suite_stats("Merged + dedup", FINAL_SUITE, final, args.dist, final_rule_counts)
     print("=======================================")
 
     if args.complete_config:
