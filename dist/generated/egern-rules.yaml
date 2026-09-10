@@ -47,5 +47,8 @@ rules:
     match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/China.yaml
     policy: DIRECT
     update_interval: 172800
+- protocol:
+    match: udp
+    policy: 🇺🇸 美国｜TUIC v5
 - default:
     policy: 🌍 国外流量
