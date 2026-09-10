@@ -340,8 +340,6 @@ rules:
 - RULE-SET,private,DIRECT
 - RULE-SET,me-China,DIRECT
 - RULE-SET,wechat,DIRECT
-- RULE-SET,apple,DIRECT
-- RULE-SET,icloud,DIRECT
 - SUB-RULE,(RULE-SET,me-pure),AI-Routing
 - SUB-RULE,(RULE-SET,AppleProxy),AI-Routing
 - SUB-RULE,(RULE-SET,AppleIntelligence),AI-Routing
@@ -378,6 +376,8 @@ rules:
 - SUB-RULE,(RULE-SET,tiktok),Global-Routing
 - SUB-RULE,(RULE-SET,google),Global-Routing
 - SUB-RULE,(RULE-SET,global),Global-Routing
+- RULE-SET,apple,DIRECT
+- RULE-SET,icloud,DIRECT
 - RULE-SET,qcloud,DIRECT
 - RULE-SET,DouYin,DIRECT
 - RULE-SET,BiliBili,DIRECT
