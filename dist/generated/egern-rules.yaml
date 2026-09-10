@@ -1,0 +1,19 @@
+rules:
+- rule_set:
+    match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/merged-segment-01.yaml
+    policy: DIRECT
+    update_interval: 172800
+- rule_set:
+    match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/merged-segment-02.yaml
+    policy: AI-Routing
+    update_interval: 172800
+- rule_set:
+    match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/merged-segment-03.yaml
+    policy: 🌍 国外流量
+    update_interval: 172800
+- rule_set:
+    match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/merged-segment-04.yaml
+    policy: DIRECT
+    update_interval: 172800
+- default:
+    policy: 🌍 国外流量

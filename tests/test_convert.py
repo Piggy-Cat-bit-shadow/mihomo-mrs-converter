@@ -787,6 +787,72 @@ class AdjacentClassicalConsolidationTest(ConvertTestCase):
                 self.assertTrue(provider["path"].endswith(f"/{name}.yaml"))
 
 
+class SegmentNameMappingTest(ConvertTestCase):
+    def test_mapping_renames_provider_artifact_and_nested_rules(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            dist = Path(tmp)
+            artifact = dist / "merged-dedup" / "domain" / "merged-segment-02-domain.mrs"
+            artifact.parent.mkdir(parents=True)
+            artifact.write_bytes(b"mrs")
+            config = {
+                "rule-providers": {
+                    "merged-segment-02-domain": {
+                        "behavior": "domain", "format": "mrs",
+                        "url": f"{BASE_URL}/dist/merged-dedup/domain/merged-segment-02-domain.mrs",
+                        "path": "./ruleset/merged-dedup/merged-segment-02-domain.mrs",
+                    }
+                },
+                "rules": ["SUB-RULE,(RULE-SET,merged-segment-02-domain),Proxy"],
+            }
+            result = convert.apply_segment_name_mapping(
+                config, self.build_options(dist), {"merged-segment-02": "AI"}
+            )
+            self.assertIn("AI-domain", result["rule-providers"])
+            self.assertNotIn("merged-segment-02-domain", result["rule-providers"])
+            self.assertIn("RULE-SET,AI-domain", result["rules"][0])
+            self.assertTrue((dist / "merged-dedup/domain/AI-domain.mrs").exists())
+
+    def test_mapping_rejects_duplicate_and_invalid_names(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "segment-names.yaml").write_text(
+                "segments:\n  merged-segment-01: China\n  merged-segment-02: China\n",
+                encoding="utf-8",
+            )
+            with self.assertRaises(SystemExit):
+                convert.load_segment_name_mapping(root)
+            (root / "segment-names.yaml").write_text(
+                "segments:\n  merged-segment-01: ../bad\n", encoding="utf-8"
+            )
+            with self.assertRaises(SystemExit):
+                convert.load_segment_name_mapping(root)
+
+
+class EgernExporterTest(unittest.TestCase):
+    def test_payload_mapping_and_rule_flattening(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            staging = Path(tmp) / "staging"
+            output = Path(tmp) / "output"
+            convert.write_yaml_payload(staging / "merged-dedup/source/domain/AI-domain.yaml", ["example.com", "+.google.com"])
+            convert.write_yaml_payload(staging / "merged-dedup/source/ipcidr/AI-ip.yaml", ["1.2.3.0/24", "2001:db8::/32"])
+            convert.write_yaml_payload(staging / "merged-dedup/classical/AI-classical.yaml", ["DOMAIN-KEYWORD,chat", "NETWORK,udp", "DST-PORT,443", "IP-CIDR,10.0.0.0/8,no-resolve"])
+            config = {"rule-providers": {
+                "AI-domain": {"behavior": "domain", "format": "mrs", "url": f"{BASE_URL}/dist/merged-dedup/domain/AI-domain.mrs"},
+                "AI-ip": {"behavior": "ipcidr", "format": "mrs", "url": f"{BASE_URL}/dist/merged-dedup/ipcidr/AI-ip.mrs"},
+                "AI-classical": {"behavior": "classical", "format": "yaml", "url": f"{BASE_URL}/dist/merged-dedup/classical/AI-classical.yaml"},
+            }, "rules": ["RULE-SET,AI-domain,Proxy", "SUB-RULE,(RULE-SET,AI-ip),Proxy", "RULE-SET,AI-classical,Proxy", "MATCH,DIRECT"]}
+            convert.export_egern(config, staging, output, BASE_URL)
+            data = yaml.safe_load((output / "egern/AI.yaml").read_text())
+            self.assertEqual(data["domain_set"], ["example.com"])
+            self.assertEqual(data["domain_suffix_set"], ["google.com"])
+            self.assertEqual(data["ip_cidr_set"], ["1.2.3.0/24"])
+            self.assertEqual(data["ip_cidr6_set"], ["2001:db8::/32"])
+            self.assertNotIn("no_resolve", data)
+            rules = yaml.safe_load((output / "generated/egern-rules.yaml").read_text())["rules"]
+            self.assertEqual(len([x for x in rules if "rule_set" in x]), 1)
+            self.assertEqual(rules[-1], {"default": {"policy": "DIRECT"}})
+
+
 class CompleteConfigRefreshTest(unittest.TestCase):
     def provider(self, name: str, behavior: str = "domain") -> dict[str, object]:
         return {
@@ -1189,7 +1255,7 @@ class CompleteConfigRefreshTest(unittest.TestCase):
 
             self.run_convert_cli(first_input, dist, first_remotes)
 
-            first_generated = yaml.safe_load((dist / "merged-dedup/generated/mihomo-rules.yaml").read_text())
+            first_generated = yaml.safe_load((dist / "generated/mihomo-rules.yaml").read_text())
             old_complete = {
                 "proxies": [{"name": "Custom", "type": "direct"}],
                 "rule-providers": {
@@ -1241,9 +1307,9 @@ class CompleteConfigRefreshTest(unittest.TestCase):
             self.assertNotIn("merged-segment-07-ip", providers)
             self.assertFalse(any("xxx-classical" in rule for rule in rules if isinstance(rule, str)))
             self.assertFalse(any("merged-segment-07" in rule for rule in rules if isinstance(rule, str)))
-            self.assertFalse((dist / "merged-dedup/classical/xxx.yaml").exists())
-            self.assertFalse((dist / "merged-dedup/source/domain/merged-segment-07-domain.yaml").exists())
-            self.assertFalse((dist / "merged-dedup/source/ipcidr/merged-segment-07-ip.yaml").exists())
+            self.assertFalse((dist / "classical/xxx.yaml").exists())
+            self.assertFalse((dist / "source/domain/merged-segment-07-domain.yaml").exists())
+            self.assertFalse((dist / "source/ipcidr/merged-segment-07-ip.yaml").exists())
             self.assertIn("custom-provider", providers)
             self.assertIn("RULE-SET,custom-provider,Custom", rules)
             self.assertEqual(rules.count("IP-CIDR,1.1.1.1/32,DIRECT,no-resolve"), 1)
@@ -1262,12 +1328,12 @@ class CompleteConfigRefreshTest(unittest.TestCase):
                 convert.ruleset_provider_name(rule)
                 for rule in rules
                 if convert.ruleset_provider_name(rule) in providers
-                and str(providers[convert.ruleset_provider_name(rule)]["url"]).startswith(f"{BASE_URL}/dist/merged-dedup/")
+                and str(providers[convert.ruleset_provider_name(rule)]["url"]).startswith(f"{BASE_URL}/dist/")
             }
             managed_providers = {
                 name
                 for name, provider in providers.items()
-                if str(provider["url"]).startswith(f"{BASE_URL}/dist/merged-dedup/")
+                if str(provider["url"]).startswith(f"{BASE_URL}/dist/")
             }
             self.assertEqual(managed_providers, managed_rules)
 

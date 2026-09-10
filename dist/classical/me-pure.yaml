@@ -1,3 +1,0 @@
-payload:
-- DOMAIN-WILDCARD,clients*.google.com
-- DOMAIN-WILDCARD,mtalk*.google.com

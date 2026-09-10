@@ -85,20 +85,42 @@ jobs:
                       raise SystemExit(f"{path}: orphan providers {sorted(orphaned)}")
 
           validate(Path("dist/generated/mihomo-rules.yaml"), require_no_orphans=True)
-          validate(Path("dist/generated/mihomo-rules-merged.yaml"), require_no_orphans=True)
-          validate(Path("dist/generated/mihomo-rules-merged-dedup.yaml"), require_no_orphans=True)
-          validate(Path("dist/unmerged/generated/mihomo-rules.yaml"), require_no_orphans=True)
-          validate(Path("dist/merged/generated/mihomo-rules.yaml"), require_no_orphans=True)
-          validate(Path("dist/merged-dedup/generated/mihomo-rules.yaml"), require_no_orphans=True)
-          for suite in ("unmerged", "merged", "merged-dedup"):
-              manifest = Path("dist") / suite / "generated" / "managed-state.yaml"
-              if not manifest.exists():
-                  raise SystemExit(f"missing managed state {manifest}")
+          if any((Path("dist") / suite).exists() for suite in ("unmerged", "merged", "merged-dedup")):
+              raise SystemExit("obsolete intermediate dist directory exists")
+          for obsolete in ("mihomo-rules-merged.yaml", "mihomo-rules-merged-dedup.yaml"):
+              if (Path("dist/generated") / obsolete).exists():
+                  raise SystemExit(f"obsolete generated file exists: {obsolete}")
+          if not Path("dist/generated/managed-state.yaml").exists():
+              raise SystemExit("missing final managed state")
+          egern = yaml.safe_load(Path("dist/generated/egern-rules.yaml").read_text(encoding="utf-8"))
+          if not isinstance(egern, dict) or not isinstance(egern.get("rules"), list):
+              raise SystemExit("invalid Egern rules output")
+          referenced = set()
+          allowed = {"domain_set", "domain_suffix_set", "domain_keyword_set", "ip_cidr_set", "ip_cidr6_set", "geoip_set", "protocol_set", "dest_port_set", "asn_set"}
+          for item in egern["rules"]:
+              if "rule_set" in item:
+                  rule_set = item["rule_set"]
+                  match = rule_set["match"]
+                  if not match.startswith("http") or "/dist/egern/" not in match:
+                      raise SystemExit(f"invalid Egern rule_set URL: {match}")
+                  artifact = root / match.split("/dist/", 1)[1]
+                  if not artifact.exists():
+                      raise SystemExit(f"missing Egern artifact: {artifact}")
+                  referenced.add(artifact.name)
+          for artifact in Path("dist/egern").glob("*.yaml"):
+              data = yaml.safe_load(artifact.read_text(encoding="utf-8"))
+              if not isinstance(data, dict) or not set(data) <= allowed:
+                  raise SystemExit(f"invalid Egern Rule Set fields: {artifact}")
+              for values in data.values():
+                  if any(isinstance(value, str) and value.startswith("+.") for value in values):
+                      raise SystemExit(f"Egern suffix still contains '+.': {artifact}")
+          if len(referenced) != len([*Path("dist/egern").glob("*.yaml")]):
+              raise SystemExit("stale or unreferenced Egern Rule Set artifact")
           PY
-          grep -q -- '- +.chatgpt.com' dist/source/domain/openai.yaml
-          grep -q -- '- +.chatgpt.com' dist/unmerged/source/domain/openai.yaml
-          ! grep -q -- '- .chatgpt.com' dist/source/domain/openai.yaml
-          ! grep -q -- '- .chatgpt.com' dist/unmerged/source/domain/openai.yaml
+          if [ -f dist/source/domain/openai.yaml ]; then
+            grep -q -- '- +.chatgpt.com' dist/source/domain/openai.yaml
+            ! grep -q -- '- .chatgpt.com' dist/source/domain/openai.yaml
+          fi
 
       - name: Commit generated dist
         uses: stefanzweifel/git-auto-commit-action@v5

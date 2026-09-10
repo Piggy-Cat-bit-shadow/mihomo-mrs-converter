@@ -10,6 +10,7 @@ import subprocess
 import sys
 import time
 import tempfile
+import re
 import urllib.request
 from collections import Counter
 from dataclasses import dataclass
@@ -28,6 +29,7 @@ except ImportError:  # pragma: no cover - optional runtime fallback
 DOMAIN_RULES = {"DOMAIN", "DOMAIN-SUFFIX"}
 IPCIDR_RULES = {"IP-CIDR", "IP-CIDR6"}
 SUITES = {"unmerged", "merged", "merged-dedup"}
+FINAL_SUITE = "final"
 MANAGED_STATE_FILENAME = "managed-state.yaml"
 BEHAVIOR_ORDER = {"domain": 0, "classical": 1, "ipcidr": 2}
 
@@ -114,8 +116,33 @@ def load_yaml(path: Path) -> dict[str, Any]:
 
 
 def validate_provider_name(name: str) -> None:
+    if not isinstance(name, str) or not name:
+        raise SystemExit("provider name must be a non-empty string")
     if "\x00" in name or "/" in name or "\\" in name or ".." in name:
         raise SystemExit(f"{name}: provider name contains unsupported path content")
+
+
+def load_segment_name_mapping(root: Path) -> dict[str, str]:
+    path = root / "segment-names.yaml"
+    if not path.exists():
+        return {}
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as exc:
+        raise SystemExit(f"{path}: invalid YAML: {exc}") from exc
+    if not isinstance(data, dict) or not isinstance(data.get("segments", {}), dict):
+        raise SystemExit(f"{path}: expected a segments mapping")
+    mapping: dict[str, str] = {}
+    for old, new in data.get("segments", {}).items():
+        if not isinstance(old, str) or not re.fullmatch(r"merged-segment-\d+", old):
+            raise SystemExit(f"{path}: invalid segment name {old!r}")
+        if not isinstance(new, str):
+            raise SystemExit(f"{path}: mapped name for {old} must be a string")
+        validate_provider_name(new)
+        if new in mapping.values():
+            raise SystemExit(f"{path}: duplicate final segment name {new!r}")
+        mapping[old] = new
+    return mapping
 
 
 def validate_http_url(name: str, url: str) -> None:
@@ -757,6 +784,8 @@ def build_managed_manifest(
 
 
 def managed_manifest_path(dist: Path, suite: str) -> Path:
+    if suite == FINAL_SUITE:
+        return dist / "generated" / MANAGED_STATE_FILENAME
     return dist / suite / "generated" / MANAGED_STATE_FILENAME
 
 
@@ -1138,6 +1167,224 @@ def canonicalize_dedup_provider_names(
     return {**config, "rule-providers": ordered_providers, "rules": rewritten_rules}, renamed
 
 
+def apply_segment_name_mapping(
+    config: dict[str, Any], options: BuildOptions, mapping: dict[str, str]
+) -> dict[str, Any]:
+    """Rename canonical segments only after merge/dedup has completed."""
+    if not mapping:
+        return config
+    suite = "merged-dedup"
+    suite_root = options.dist / suite
+    renames: dict[str, str] = {}
+    for old_name in config["rule-providers"]:
+        match = re.match(r"^(merged-segment-\d+)(-.+)$", old_name)
+        if match and match.group(1) in mapping:
+            renames[old_name] = mapping[match.group(1)] + match.group(2)
+    new_names = set(config["rule-providers"]) - set(renames) | set(renames.values())
+    if len(new_names) != len(config["rule-providers"]):
+        raise SystemExit("segment-names.yaml creates a provider name collision")
+    for old, new in renames.items():
+        if new in config["rule-providers"] and new not in renames:
+            raise SystemExit(f"segment-names.yaml creates a provider name collision: {new}")
+
+    def rewrite_rule(rule: Any) -> Any:
+        if not isinstance(rule, str):
+            return rule
+        direct = _ruleset_parts_in_expression(rule)
+        if direct is not None:
+            renamed = renames.get(direct[1], direct[1])
+            rewritten = ",".join(["RULE-SET", renamed, *direct[2:]])
+            return f"({rewritten})" if strip_balanced_outer_parentheses(rule)[1] else rewritten
+        inner, wrapped = strip_balanced_outer_parentheses(rule)
+        parts = split_top_level_commas(inner if wrapped else rule)
+        rewritten = []
+        for part in parts:
+            rewritten.append(rewrite_rule(part) if strip_balanced_outer_parentheses(part)[1] else part)
+        result = ",".join(rewritten)
+        return f"({result})" if wrapped else result
+
+    providers: dict[str, dict[str, Any]] = {}
+    for old, provider in config["rule-providers"].items():
+        new = renames.get(old, old)
+        updated = dict(provider)
+        artifact = generated_artifact_path(options.dist, provider)
+        source = source_path_for_provider(options.dist, provider)
+        if new != old and artifact is not None and artifact.exists():
+            destination = artifact.with_name(new + artifact.suffix)
+            copy_file(artifact, destination)
+            artifact.unlink()
+            updated["url"] = public_url(options.base_url, "dist", *destination.relative_to(options.dist).parts)
+        if new != old and source is not None and source.exists():
+            destination = source.with_name(new + source.suffix)
+            copy_file(source, destination)
+            source.unlink()
+        updated["path"] = provider_path_for_suite(new, updated, suite)
+        providers[new] = updated
+    return {**config, "rule-providers": providers, "rules": [rewrite_rule(rule) for rule in config["rules"]]}
+
+
+def publish_final_config(
+    config: dict[str, Any], work_dist: Path, final_dist: Path, base_url: str
+) -> dict[str, Any]:
+    """Publish only artifacts referenced by the validated final config."""
+    providers: dict[str, dict[str, Any]] = {}
+    for name, provider in config["rule-providers"].items():
+        updated = dict(provider)
+        relative = dist_relative_from_url(str(provider.get("url", "")))
+        if relative is not None:
+            parts = relative.parts
+            if parts and parts[0] == "merged-dedup":
+                relative = Path(*parts[1:])
+            source = work_dist / dist_relative_from_url(str(provider["url"]))
+            destination = final_dist / relative
+            if source.exists():
+                copy_file(source, destination)
+            updated["url"] = public_url(base_url, "dist", *relative.parts)
+            updated["path"] = f"./ruleset/{'/'.join(relative.with_suffix('').parts)}{relative.suffix}"
+        providers[name] = updated
+    published = {**config, "rule-providers": providers}
+    return published
+
+
+EGERN_FIELD_BY_KIND = {
+    "DOMAIN": "domain_set",
+    "DOMAIN-SUFFIX": "domain_suffix_set",
+    "DOMAIN-KEYWORD": "domain_keyword_set",
+    "IP-CIDR": "ip_cidr_set",
+    "IP-CIDR6": "ip_cidr6_set",
+    "GEOIP": "geoip_set",
+    "NETWORK": "protocol_set",
+    "DST-PORT": "dest_port_set",
+    "IP-ASN": "asn_set",
+}
+
+
+def egern_segment_name(provider_name: str) -> str:
+    match = re.match(r"^(.+?)-(domain|ip|classical)(?:-part-\d+)?$", provider_name)
+    return match.group(1) if match else provider_name
+
+
+def classify_egern_classical(rule: str) -> tuple[str, str] | None:
+    parsed = parse_rule(rule)
+    field = EGERN_FIELD_BY_KIND.get(parsed.kind)
+    if field is None or len(parsed.parts) != 2:
+        return None
+    value = parsed.parts[1]
+    if parsed.kind == "IP-CIDR":
+        try:
+            if ipaddress.ip_network(value, strict=False).version != 4:
+                return None
+        except ValueError:
+            return None
+    elif parsed.kind == "IP-CIDR6":
+        try:
+            if ipaddress.ip_network(value, strict=False).version != 6:
+                return None
+        except ValueError:
+            return None
+    return field, value
+
+
+def export_egern(
+    config: dict[str, Any], staging: Path, output_dist: Path, base_url: str
+) -> dict[str, int]:
+    """Serialize the already-final Mihomo config into compact Egern rule sets."""
+    sets: dict[str, dict[str, list[str]]] = {}
+    counts = Counter()
+    unsupported = Counter()
+
+    def add(segment: str, field: str, value: str) -> None:
+        values = sets.setdefault(segment, {}).setdefault(field, [])
+        if value not in values:
+            values.append(value)
+
+    for name, provider in config["rule-providers"].items():
+        segment = egern_segment_name(name)
+        behavior = provider.get("behavior")
+        payload_path = source_path_for_provider(staging, provider)
+        if payload_path is None:
+            payload_path = generated_artifact_path(staging, provider)
+        if payload_path is None or not payload_path.exists():
+            continue
+        payload = read_yaml_payload(payload_path)
+        for rule in payload:
+            if behavior == "domain":
+                value = rule[2:] if rule.startswith("+.") else rule
+                add(segment, "domain_suffix_set" if rule.startswith("+.") else "domain_set", value)
+                counts["domain"] += 1
+            elif behavior == "ipcidr":
+                try:
+                    version = ipaddress.ip_network(rule, strict=False).version
+                except ValueError:
+                    unsupported["invalid-ip"] += 1
+                    continue
+                add(segment, "ip_cidr6_set" if version == 6 else "ip_cidr_set", rule)
+                counts["ipv6" if version == 6 else "ipv4"] += 1
+            elif behavior == "classical":
+                classified = classify_egern_classical(rule)
+                if classified is None:
+                    unsupported[parse_rule(rule).kind or "unknown"] += 1
+                    print(f"[Egern] unsupported classical rule skipped: {rule}")
+                    continue
+                field, value = classified
+                add(segment, field, value)
+                counts["classical"] += 1
+
+    egern_dir = output_dist / "egern"
+    for segment, fields in sets.items():
+        validate_provider_name(segment)
+        write_yaml_atomic(egern_dir / f"{segment}.yaml", fields)
+
+    egern_rules: list[dict[str, Any]] = []
+    last_reference: tuple[str, str] | None = None
+    for rule in config.get("rules", []):
+        if not isinstance(rule, str):
+            continue
+        if parse_rule(rule).kind == "MATCH" and len(parse_rule(rule).parts) >= 2:
+            egern_rules.append({"default": {"policy": parse_rule(rule).parts[1]}})
+            continue
+        wrapper = simple_ruleset_wrapper(rule)
+        if wrapper is None:
+            continue
+        parts, prefix, suffix = wrapper
+        refs = find_ruleset_refs(rule)
+        if len(refs) != 1:
+            print(f"[Egern] unsupported rule skipped: {rule}")
+            continue
+        policy_parts = (suffix,) if suffix else tuple(parts[2:])
+        if len(policy_parts) != 1 or not policy_parts[0]:
+            print(f"[Egern] rule has no unambiguous policy and was skipped: {rule}")
+            continue
+        segment = egern_segment_name(refs[0])
+        if segment not in sets:
+            print(f"[Egern] rule references an empty or unsupported segment and was skipped: {rule}")
+            continue
+        reference = (segment, policy_parts[0])
+        if reference == last_reference:
+            continue
+        last_reference = reference
+        egern_rules.append({"rule_set": {
+            "match": public_url(base_url, "dist", "egern", f"{segment}.yaml"),
+            "policy": policy_parts[0],
+            "update_interval": 172800,
+        }})
+    write_yaml_atomic(output_dist / "generated" / "egern-rules.yaml", {"rules": egern_rules})
+    counts["segments"] = len(sets)
+    counts["unsupported"] = sum(unsupported.values())
+    print("\n========== Egern Export Summary ==========")
+    print(f"segments: {counts['segments']}")
+    print(f"converted domain rules: {counts['domain']}")
+    print(f"converted suffix rules: {sum(len(v.get('domain_suffix_set', [])) for v in sets.values())}")
+    print(f"converted IPv4 rules: {counts['ipv4']}")
+    print(f"converted IPv6 rules: {counts['ipv6']}")
+    print(f"converted classical rules: {counts['classical']}")
+    print(f"unsupported classical rules: {counts['unsupported']}")
+    if unsupported:
+        print("unsupported classical types: " + ", ".join(f"{k}={v}" for k, v in sorted(unsupported.items())))
+    print("==========================================")
+    return dict(counts)
+
+
 def build_dedup_config(
     config: dict[str, Any],
     options: BuildOptions,
@@ -1306,7 +1553,7 @@ def referenced_rule_counts(config: dict[str, Any], dist: Path) -> Counter[str]:
 
 
 def suite_mrs_stats(dist: Path, suite: str) -> tuple[int, int]:
-    root = dist / suite
+    root = dist if suite == FINAL_SUITE else dist / suite
     files = [
         path
         for folder in ("domain", "ipcidr")
@@ -2045,21 +2292,20 @@ def main() -> None:
     validate_top_level_rulesets(rules, set(providers))
 
     previous_manifests = {
-        suite: read_managed_manifest(args.dist, suite)
-        for suite in SUITES
+        suite: read_managed_manifest(args.dist, suite) for suite in SUITES
     }
+    if previous_manifests["merged-dedup"] is None:
+        previous_manifests["merged-dedup"] = read_managed_manifest(args.dist, FINAL_SUITE)
     complete_config = load_yaml_mapping(args.complete_config) if args.complete_config else None
 
-    if args.dist.exists():
-        shutil.rmtree(args.dist)
-    args.dist.mkdir(parents=True, exist_ok=True)
+    staging = Path(tempfile.mkdtemp(prefix="mihomo-mrs-build-", dir=args.dist.parent))
 
     generated_providers: dict[str, dict[str, Any]] = {}
     provider_behaviors: dict[str, str] = {}
     replacements: dict[str, list[str]] = {}
     source_payloads: dict[str, list[str]] = {}
     options = BuildOptions(
-        dist=args.dist,
+        dist=staging,
         base_url=args.base_url,
         mihomo=args.mihomo,
         used_names=set(providers),
@@ -2092,20 +2338,7 @@ def main() -> None:
         "rules": rewritten_rules,
     }
     require_no_orphans = not args.allow_orphan_providers
-    validate_generated_config(args.dist, generated, require_no_orphans=require_no_orphans)
-    output = args.dist / "generated" / "mihomo-rules.yaml"
-    unmerged_suite = materialize_suite_config(
-        generated,
-        "unmerged",
-        args.dist,
-        args.base_url,
-        copy_all_base_outputs=True,
-        require_no_orphans=require_no_orphans,
-    )
-    write_yaml_atomic(output, unmerged_suite)
-    print(f"wrote {output}")
-    print(f"wrote {args.dist / 'unmerged/generated/mihomo-rules.yaml'}")
-
+    validate_generated_config(staging, generated, require_no_orphans=require_no_orphans)
     merged = build_merged_config(
         rules,
         replacements,
@@ -2118,38 +2351,47 @@ def main() -> None:
         **{key: value for key, value in data.items() if key not in {"rule-providers", "rules"}},
         **merged,
     }
-    validate_generated_config(args.dist, merged, require_no_orphans=require_no_orphans)
+    validate_generated_config(staging, merged, require_no_orphans=require_no_orphans)
     merged_suite = materialize_suite_config(
         merged,
         "merged",
-        args.dist,
+        staging,
         args.base_url,
         require_no_orphans=require_no_orphans,
     )
-    merged_output = args.dist / "generated" / "mihomo-rules-merged.yaml"
-    write_yaml_atomic(merged_output, merged_suite)
-    print(f"wrote {merged_output}")
-    print(f"wrote {args.dist / 'merged/generated/mihomo-rules.yaml'}")
-
     dedup, dedup_stats = build_dedup_config(merged_suite, options, require_no_orphans=require_no_orphans)
-    dedup_output = args.dist / "generated" / "mihomo-rules-merged-dedup.yaml"
-    write_yaml_atomic(dedup_output, dedup)
-    print(f"wrote {dedup_output}")
-    print(f"wrote {args.dist / 'merged-dedup/generated/mihomo-rules.yaml'}")
+    segment_mapping = load_segment_name_mapping(Path.cwd())
+    dedup = apply_segment_name_mapping(dedup, options, segment_mapping)
+    dedup_stats = {
+        re.sub(r"^merged-segment-(\d+)", lambda m: segment_mapping.get(f"merged-segment-{m.group(1)}", m.group(0)), name): stats
+        for name, stats in dedup_stats.items()
+    }
+    validate_generated_config(staging, dedup, require_no_orphans=require_no_orphans)
+    publish_dist = Path(tempfile.mkdtemp(prefix="mihomo-mrs-publish-", dir=args.dist.parent))
+    final = publish_final_config(dedup, staging, publish_dist, args.base_url)
+    validate_generated_config(publish_dist, final, require_no_orphans=require_no_orphans)
+    export_egern(dedup, staging, publish_dist, args.base_url)
+    write_yaml_atomic(publish_dist / "generated" / "mihomo-rules.yaml", final)
+    write_managed_manifest(publish_dist, FINAL_SUITE, args.base_url, final["rule-providers"])
+    old_dist = args.dist.with_name(f".{args.dist.name}.previous")
+    if old_dist.exists():
+        shutil.rmtree(old_dist)
+    if args.dist.exists():
+        os.replace(args.dist, old_dist)
+    os.replace(publish_dist, args.dist)
+    shutil.rmtree(old_dist, ignore_errors=True)
+    shutil.rmtree(staging, ignore_errors=True)
+    print(f"wrote {args.dist / 'generated/mihomo-rules.yaml'}")
     print()
     print_dedup_report(dedup, dedup_stats)
     print()
     print("========== MRS Suite Summary ==========")
-    print_suite_stats("Unmerged", "unmerged", unmerged_suite, args.dist)
-    print_suite_stats("Merged", "merged", merged_suite, args.dist)
-    print_suite_stats("Merged + dedup", "merged-dedup", dedup, args.dist)
+    print_suite_stats("Merged + dedup", FINAL_SUITE, final, args.dist)
     print("=======================================")
 
     if args.complete_config:
         suite_configs = {
-            "unmerged": unmerged_suite,
-            "merged": merged_suite,
-            "merged-dedup": dedup,
+            "merged-dedup": final,
         }
         refreshed = refresh_complete_config(
             complete_config,

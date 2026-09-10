@@ -1,91 +1,81 @@
-rule-providers:
+version: 1
+suite: final
+base_url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main
+providers:
   merged-segment-01-domain:
-    type: http
-    behavior: domain
-    format: mrs
+    name: merged-segment-01-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/merged-segment-01-domain.mrs
     path: ./ruleset/domain/merged-segment-01-domain.mrs
-    interval: 172800
+    behavior: domain
+    format: mrs
+    fingerprint: 8eec0635f1ec8a6292fe83e88147e446c85c05c6f6ff73ed6cceb90571d174de
   merged-segment-01-classical:
-    type: http
-    behavior: classical
-    format: yaml
+    name: merged-segment-01-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/merged-segment-01-classical.yaml
     path: ./ruleset/classical/merged-segment-01-classical.yaml
-    interval: 172800
+    behavior: classical
+    format: yaml
+    fingerprint: 825a7c3bda9355fafe6198aaaba9e8e83e7a3ed85c2f559435d9139d7b0bf871
   merged-segment-02-domain:
-    type: http
-    behavior: domain
-    format: mrs
+    name: merged-segment-02-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/merged-segment-02-domain.mrs
     path: ./ruleset/domain/merged-segment-02-domain.mrs
-    interval: 172800
+    behavior: domain
+    format: mrs
+    fingerprint: 83a79daec0b68a42cd7e9ea927642ba97fde7ca810934a75164553df74f067e0
   merged-segment-02-classical:
-    type: http
-    behavior: classical
-    format: yaml
+    name: merged-segment-02-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/merged-segment-02-classical.yaml
     path: ./ruleset/classical/merged-segment-02-classical.yaml
-    interval: 172800
+    behavior: classical
+    format: yaml
+    fingerprint: bcd3d3246ddf6942796d44039e37d86f29bb60229099c0726b57b60146981cc0
   merged-segment-02-ip:
-    type: http
-    behavior: ipcidr
-    format: mrs
+    name: merged-segment-02-ip
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/merged-segment-02-ip.mrs
     path: ./ruleset/ipcidr/merged-segment-02-ip.mrs
-    interval: 172800
-  merged-segment-03-domain:
-    type: http
-    behavior: domain
+    behavior: ipcidr
     format: mrs
+    fingerprint: fff137a9c4d9dda87102c1b651850c6530ceaa079dc2d1be33b3bc102d8865d9
+  merged-segment-03-domain:
+    name: merged-segment-03-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/merged-segment-03-domain.mrs
     path: ./ruleset/domain/merged-segment-03-domain.mrs
-    interval: 172800
-  merged-segment-03-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/merged-segment-03-classical.yaml
-    path: ./ruleset/classical/merged-segment-03-classical.yaml
-    interval: 172800
-  merged-segment-03-ip:
-    type: http
-    behavior: ipcidr
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/merged-segment-03-ip.mrs
-    path: ./ruleset/ipcidr/merged-segment-03-ip.mrs
-    interval: 172800
-  merged-segment-04-domain:
-    type: http
     behavior: domain
     format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/merged-segment-04-domain.mrs
-    path: ./ruleset/domain/merged-segment-04-domain.mrs
-    interval: 172800
-  merged-segment-04-classical:
-    type: http
+    fingerprint: 1bf86b4951a5671d9fc816ac1aef35d3664bbddaa83dddb0b98ce7f443b05415
+  merged-segment-03-classical:
+    name: merged-segment-03-classical
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/merged-segment-03-classical.yaml
+    path: ./ruleset/classical/merged-segment-03-classical.yaml
     behavior: classical
     format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/merged-segment-04-classical.yaml
-    path: ./ruleset/classical/merged-segment-04-classical.yaml
-    interval: 172800
-  merged-segment-04-ip:
-    type: http
+    fingerprint: 03a0edc0bcebe5fe6fabf6407c8f821cfe73354fe71ab5c919ed6214caed96ff
+  merged-segment-03-ip:
+    name: merged-segment-03-ip
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/merged-segment-03-ip.mrs
+    path: ./ruleset/ipcidr/merged-segment-03-ip.mrs
     behavior: ipcidr
     format: mrs
+    fingerprint: 1bfd490fefc34f5fd2b2ba957f38b0cc11a278681e4a90bca7ccbfc156b14c24
+  merged-segment-04-domain:
+    name: merged-segment-04-domain
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/merged-segment-04-domain.mrs
+    path: ./ruleset/domain/merged-segment-04-domain.mrs
+    behavior: domain
+    format: mrs
+    fingerprint: a690a93acf5476958271d11888e029c7142360b21fe0d2f79382be0c594f8667
+  merged-segment-04-classical:
+    name: merged-segment-04-classical
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/merged-segment-04-classical.yaml
+    path: ./ruleset/classical/merged-segment-04-classical.yaml
+    behavior: classical
+    format: yaml
+    fingerprint: d593aea420d883cbf882d8e4e78f0f44eec3ed89f1c0946d1427b679236d4b8f
+  merged-segment-04-ip:
+    name: merged-segment-04-ip
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/merged-segment-04-ip.mrs
     path: ./ruleset/ipcidr/merged-segment-04-ip.mrs
-    interval: 172800
-rules:
-- RULE-SET,merged-segment-01-domain,DIRECT
-- RULE-SET,merged-segment-01-classical,DIRECT
-- SUB-RULE,(RULE-SET,merged-segment-02-domain),AI-Routing
-- SUB-RULE,(RULE-SET,merged-segment-02-classical),AI-Routing
-- SUB-RULE,(RULE-SET,merged-segment-02-ip),AI-Routing
-- RULE-SET,merged-segment-03-domain,🌍 国外流量
-- RULE-SET,merged-segment-03-classical,🌍 国外流量
-- RULE-SET,merged-segment-03-ip,🌍 国外流量
-- RULE-SET,merged-segment-04-domain,DIRECT
-- RULE-SET,merged-segment-04-classical,DIRECT
-- RULE-SET,merged-segment-04-ip,DIRECT
-- MATCH,🌍 国外流量
+    behavior: ipcidr
+    format: mrs
+    fingerprint: 9aed1c8188a8f51a8d2cea2fad99bbb0f7877d49910fa488b161bbc3feadb420

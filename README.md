@@ -41,46 +41,33 @@ rules:
 
 ```text
 dist/
-├── unmerged/
-│   ├── domain/
-│   ├── ipcidr/
-│   ├── classical/
-│   ├── source/
-│   └── generated/
-├── merged/
-│   ├── domain/
-│   ├── ipcidr/
-│   ├── classical/
-│   ├── source/
-│   └── generated/
-├── merged-dedup/
-│   ├── domain/
-│   ├── ipcidr/
-│   ├── classical/
-│   └── source/
+├── domain/
+├── ipcidr/
+├── classical/
+├── source/              # 仅在 allow-no-mihomo 模式需要时存在
 └── generated/
     ├── mihomo-rules.yaml
-    ├── mihomo-rules-merged.yaml
-    └── mihomo-rules-merged-dedup.yaml
+    └── managed-state.yaml
 ```
 
-一次构建会同时保留三套完整产物：
-
-```text
-dist/unmerged/generated/mihomo-rules.yaml
-dist/merged/generated/mihomo-rules.yaml
-dist/merged-dedup/generated/mihomo-rules.yaml
-```
-
-根目录下的 `dist/generated/*.yaml` 是兼容入口，分别指向对应版本的产物：
+转换器内部仍会依次执行分类转换、合并和安全去重，但仓库只发布最终优化结果：
 
 ```text
 dist/generated/mihomo-rules.yaml
-dist/generated/mihomo-rules-merged.yaml
-dist/generated/mihomo-rules-merged-dedup.yaml
 ```
 
-未合并版保持独立 provider，方便兼容和回退。合并版只合并原始 `rules` 中连续出现、策略和附加参数完全相同的 `RULE-SET` 区间；`domain` 和 `ipcidr` 分开合并，classical fallback 保持独立，不跨普通规则、不同策略或广告等优先级边界。
+可以在仓库根目录的 `segment-names.yaml` 中自定义 merged segment 的最终基础名称：
+
+```text
+segments:
+  merged-segment-01: China
+  merged-segment-02: AI
+  merged-segment-03: Global
+```
+
+例如 `merged-segment-02-domain`、`-ip`、`-classical` 会分别变为 `AI-domain`、`AI-ip`、`AI-classical`；未配置的 segment 保持默认名字。命名会同步应用到 provider、artifact、URL、path 和所有 RULE-SET 引用。
+
+合并只发生在原始 `rules` 中连续出现、策略和附加参数完全相同的 `RULE-SET` 区间；`domain`、`ipcidr` 和 classical fallback 不跨优先级边界。
 
 合并+去重版以合并版为基础，只对最终 MRS payload 做安全精简：删除完全重复规则、删除已被已有 `+.` 后缀覆盖的精确 domain、删除已被已有父 `+.` 后缀覆盖的子 suffix、删除重复 CIDR、删除已被已有父网段覆盖的子网段。它不会对 classical 做语义去重，也不会主动生成更大的 domain suffix 或 CIDR。
 
@@ -127,7 +114,7 @@ python scripts/convert.py examples/my-rules.yaml \
 
 刷新完整配置时，本轮转换器生成的 `rule-providers` 和 `RULE-SET` 会作为转换器管理区域的唯一真源；上一轮存在但本轮不存在的旧 provider 和旧 `RULE-SET` 会被删除。其它非转换器管理的配置字段、普通规则和自定义 provider 会保留。
 
-每套生成结果都会写入 `generated/managed-state.yaml`，记录本轮由转换器管理的 provider 及其 fingerprint。下一轮刷新完整配置时，只有上一轮 manifest 明确认领且定义未被手工改动的 provider 才会被删除或替换；同名自定义 provider 会直接报错，不会静默覆盖。没有 manifest 的首次迁移只按当前 `base-url + suite` 的 URL 做兼容识别，不会根据 `path` 猜测归属。
+最终生成结果会写入唯一的 `dist/generated/managed-state.yaml`，记录本轮由转换器管理的 provider 及其 fingerprint。下一轮刷新完整配置时，只有 manifest 明确认领且定义未被手工改动的 provider 才会被删除或替换；同名自定义 provider 会直接报错，不会静默覆盖。
 
 完整配置刷新只替换转换器管理的 `RULE-SET` 区块，不会把 generated 配置里的 `IP-CIDR`、`GEOIP`、`MATCH` 等普通规则再次注入完整配置。普通规则保持原顺序和原出现次数。如果旧 managed `RULE-SET` 不是一个连续区块，刷新会失败，避免猜测插入位置。
 
@@ -144,3 +131,18 @@ python scripts/convert.py examples/my-rules.yaml \
 5. 把 `dist/` 提交回仓库。
 
 发布后的客户端 URL 会指向本仓库的 raw 文件。
+
+## Egern 输出
+
+Egern 使用与 Mihomo 相同的 fetch、parse、merge、dedup 和 segment 结果，作为最终阶段的薄导出层，不会重新抓取或重新去重。
+
+构建会额外生成：
+
+```text
+dist/egern/<segment-name>.yaml
+dist/generated/egern-rules.yaml
+```
+
+每个逻辑 segment 只生成一个 Egern Rule Set，聚合该 segment 的 domain、IP 和可机械转换的 classical 规则。`egern-rules.yaml` 只包含 Egern 的 `rules` 字段；`SUB-RULE` 会按普通 `rule_set` 处理，`MATCH` 会生成最终的 `default`。无法无歧义转换的 classical 规则会提示 warning 并跳过，不影响 Mihomo 输出。
+
+`segment-names.yaml` 同时控制 Mihomo 和 Egern 的最终 segment 名称。
