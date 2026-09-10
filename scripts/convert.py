@@ -371,6 +371,31 @@ def simple_ruleset_wrapper(rule: Any) -> tuple[list[str], str, str] | None:
     return None
 
 
+def egern_udp_and_ruleset(rule: Any) -> tuple[str, str] | None:
+    """Recognize only Mihomo's exact RULE-SET + UDP AND form."""
+    if not isinstance(rule, str):
+        return None
+    parts = split_top_level_commas(rule)
+    if len(parts) != 3 or parts[0].upper() != "AND":
+        return None
+    expression_inner, expression_wrapped = strip_balanced_outer_parentheses(parts[1])
+    expression_parts = split_top_level_commas(expression_inner if expression_wrapped else parts[1])
+    if len(expression_parts) != 2:
+        return None
+    ruleset = _ruleset_parts_in_expression(expression_parts[0])
+    network_inner, network_wrapped = strip_balanced_outer_parentheses(expression_parts[1])
+    network = split_top_level_commas(network_inner if network_wrapped else expression_parts[1])
+    if (
+        ruleset is None
+        or len(ruleset) != 2
+        or len(network) != 2
+        or network[0].upper() != "NETWORK"
+        or network[1].upper() != "UDP"
+    ):
+        return None
+    return ruleset[1], parts[2]
+
+
 def wrap_ruleset_rule(rule: str, signature: tuple[str, str]) -> str:
     prefix, suffix = signature
     if not prefix and not suffix:
@@ -1347,12 +1372,38 @@ def export_egern(
         write_yaml_atomic(egern_dir / f"{segment}.yaml", fields)
 
     egern_rules: list[dict[str, Any]] = []
-    last_reference: tuple[str, str] | None = None
+    emitted_keys: set[tuple[str, ...]] = set()
     for rule in config.get("rules", []):
         if not isinstance(rule, str):
             continue
-        if parse_rule(rule).kind == "MATCH" and len(parse_rule(rule).parts) >= 2:
-            egern_rules.append({"default": {"policy": parse_rule(rule).parts[1]}})
+        parsed = parse_rule(rule)
+        if parsed.kind == "MATCH" and len(parsed.parts) >= 2:
+            egern_rules.append({"default": {"policy": parsed.parts[1]}})
+            continue
+        udp_and = egern_udp_and_ruleset(rule)
+        if parsed.kind == "AND":
+            if udp_and is None:
+                print(f"[Egern] unsupported AND rule skipped: {rule}")
+                continue
+            provider_name, policy = udp_and
+            segment = egern_segment_name(provider_name)
+            if segment not in sets:
+                print(f"[Egern] rule references an empty or unsupported segment and was skipped: {rule}")
+                continue
+            key = ("and-network", segment, "udp", policy)
+            if key in emitted_keys:
+                continue
+            emitted_keys.add(key)
+            egern_rules.append({"and": {
+                "match": [
+                    {"rule_set": {
+                        "match": public_url(base_url, "dist", "egern", f"{segment}.yaml"),
+                        "update_interval": 172800,
+                    }},
+                    {"protocol": {"match": "udp"}},
+                ],
+                "policy": policy,
+            }})
             continue
         wrapper = simple_ruleset_wrapper(rule)
         if wrapper is None:
@@ -1373,11 +1424,11 @@ def export_egern(
         if not has_regular and not has_no_resolve:
             print(f"[Egern] rule references an empty or unsupported segment and was skipped: {rule}")
             continue
-        reference = (segment, policy_parts[0])
-        if reference == last_reference:
-            continue
-        last_reference = reference
         for target in ([segment] if has_regular else []) + ([no_resolve_segment] if has_no_resolve else []):
+            key = ("rule_set", target, policy_parts[0])
+            if key in emitted_keys:
+                continue
+            emitted_keys.add(key)
             egern_rules.append({"rule_set": {
                 "match": public_url(base_url, "dist", "egern", f"{target}.yaml"),
                 "policy": policy_parts[0],

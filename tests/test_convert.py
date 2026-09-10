@@ -829,6 +829,72 @@ class SegmentNameMappingTest(ConvertTestCase):
 
 
 class EgernExporterTest(unittest.TestCase):
+    def test_udp_and_ruleset_is_exported_strictly(self) -> None:
+        self.assertEqual(
+            convert.egern_udp_and_ruleset(
+                "AND,((RULE-SET,Global-domain),(NETWORK,UDP)),TUIC"
+            ),
+            ("Global-domain", "TUIC"),
+        )
+        self.assertIsNone(
+            convert.egern_udp_and_ruleset(
+                "AND,((RULE-SET,Global-domain),(DST-PORT,443)),TUIC"
+            )
+        )
+
+    def test_udp_and_uses_final_egern_segment_name(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            staging = Path(tmp) / "staging"
+            output = Path(tmp) / "output"
+            convert.write_yaml_payload(staging / "source/domain/Renamed-domain.yaml", ["example.com"])
+            config = {
+                "rule-providers": {
+                    "Renamed-domain": {
+                        "behavior": "domain",
+                        "format": "mrs",
+                        "url": f"{BASE_URL}/dist/domain/Renamed-domain.mrs",
+                    }
+                },
+                "rules": ["AND,((RULE-SET,Renamed-domain),(NETWORK,udp)),Proxy"],
+            }
+            convert.export_egern(config, staging, output, BASE_URL)
+            rules = yaml.safe_load((output / "generated/egern-rules.yaml").read_text())["rules"]
+            self.assertEqual(
+                rules[0]["and"]["match"][0]["rule_set"]["match"],
+                f"{BASE_URL}/dist/egern/Renamed.yaml",
+            )
+
+    def test_production_global_rules_collapse_and_preserve_order(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            staging = Path(tmp) / "staging"
+            output = Path(tmp) / "output"
+            providers = {}
+            for name, behavior, folder in (
+                ("Global-domain", "domain", "domain"),
+                ("Global-classical", "classical", "classical"),
+                ("Global-ip", "ipcidr", "ipcidr"),
+            ):
+                source = staging / (f"source/{folder}/{name}.yaml" if behavior != "classical" else f"classical/{name}.yaml")
+                convert.write_yaml_payload(source, ["example.com"] if behavior == "domain" else ["1.2.3.0/24"] if behavior == "ipcidr" else ["DOMAIN,example.com"])
+                providers[name] = {"behavior": behavior, "format": "yaml", "url": f"{BASE_URL}/dist/{folder}/{name}.yaml"}
+            rules = [
+                "AND,((RULE-SET,Global-domain),(NETWORK,UDP)),TUIC",
+                "RULE-SET,Global-domain,Foreign",
+                "AND,((RULE-SET,Global-classical),(NETWORK,UDP)),TUIC",
+                "RULE-SET,Global-classical,Foreign",
+                "AND,((RULE-SET,Global-ip),(NETWORK,UDP)),TUIC",
+                "RULE-SET,Global-ip,Foreign",
+                "MATCH,Foreign",
+            ]
+            convert.export_egern({"rule-providers": providers, "rules": rules}, staging, output, BASE_URL)
+            exported = yaml.safe_load((output / "generated/egern-rules.yaml").read_text())["rules"]
+            self.assertEqual(len(exported), 3)
+            self.assertEqual(exported[0]["and"]["policy"], "TUIC")
+            self.assertEqual(exported[0]["and"]["match"][0]["rule_set"]["match"], f"{BASE_URL}/dist/egern/Global.yaml")
+            self.assertEqual(exported[0]["and"]["match"][1], {"protocol": {"match": "udp"}})
+            self.assertEqual(exported[1], {"rule_set": {"match": f"{BASE_URL}/dist/egern/Global.yaml", "policy": "Foreign", "update_interval": 172800}})
+            self.assertEqual(exported[2], {"default": {"policy": "Foreign"}})
+
     def test_payload_mapping_and_rule_flattening(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             staging = Path(tmp) / "staging"
