@@ -26,7 +26,7 @@ rules:
         update_interval: 172800
     - protocol:
         match: udp
-    policy: 🇺🇸 美国｜TUIC v5
+    policy: 🚀 极速线路
 - and:
     match:
     - rule_set:
@@ -34,7 +34,7 @@ rules:
         update_interval: 172800
     - protocol:
         match: udp
-    policy: 🇺🇸 美国｜TUIC v5
+    policy: 🚀 极速线路
 - rule_set:
     match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/Global.yaml
     policy: 🌍 国外流量
@@ -49,6 +49,6 @@ rules:
     update_interval: 172800
 - protocol:
     match: udp
-    policy: 🇺🇸 美国｜TUIC v5
+    policy: 🚀 极速线路
 - default:
     policy: 🌍 国外流量
