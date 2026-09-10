@@ -3,7 +3,7 @@ sub-rules:
   - NETWORK,UDP,REJECT
   - MATCH,🤖 AI
   Global-Routing:
-  - NETWORK,UDP,🚀 极速线路
+  - NETWORK,UDP,🇺🇸 美国｜TUIC v5
   - MATCH,🌍 国外流量
 rule-providers:
   Direct-domain:
@@ -95,5 +95,5 @@ rules:
 - RULE-SET,China-domain,DIRECT
 - RULE-SET,China-classical,DIRECT
 - RULE-SET,China-ip,DIRECT
-- NETWORK,UDP,🚀 极速线路
+- NETWORK,UDP,🇺🇸 美国｜TUIC v5
 - MATCH,🌍 国外流量
