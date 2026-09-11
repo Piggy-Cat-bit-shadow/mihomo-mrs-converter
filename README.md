@@ -11,7 +11,7 @@ rules:
   ...
 ```
 
-它不会读取、生成或修改 `proxies`、`proxy-providers`、`proxy-groups`、DNS、端口、TUN、sniffer 或其他 Clash 配置。
+它不会读取、生成或修改 `proxies`、`proxy-providers`、`proxy-groups`、DNS 配置、端口、TUN、sniffer 或其他 Clash 配置；但会额外生成 DNS 专用规则文件。
 
 ## 转换原则
 
@@ -136,6 +136,52 @@ python scripts/convert.py examples/my-rules.yaml \
 5. 把 `dist/` 提交回仓库。
 
 发布后的客户端 URL 会指向本仓库的 raw 文件。
+
+## DNS Output
+
+DNS 输出直接使用本次构建已经完成 fetch、parse、classify、merge、dedup 的结果，不会重新抓取或解析上游规则。固定分组为：
+
+```text
+China = Direct + China
+Global = AI + Global
+```
+
+生成的 6 个文件：`dist/dns/mihomo/China-domain.mrs`、`dist/dns/mihomo/China-classical.yaml`、`dist/dns/mihomo/Global-domain.mrs`、`dist/dns/mihomo/Global-classical.yaml`、`dist/dns/egern/China.yaml`、`dist/dns/egern/Global.yaml`。
+
+Mihomo 的 domain 文件是 `behavior: domain`、`format: mrs`；classical 文件只包含域名匹配规则（如 `DOMAIN-KEYWORD`、`DOMAIN-WILDCARD`、`DOMAIN-REGEX`）。Egern 文件是纯域名型 DNS Rule Set，可用于 DNS `forward` / rule-set 类分流，不包含 IP、ASN、进程或端口规则。
+
+例如 Mihomo provider：
+
+```yaml
+rule-providers:
+  DNS-China-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/dns/mihomo/China-domain.mrs
+    path: ./ruleset/dns/China-domain.mrs
+    interval: 172800
+  DNS-China-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/dns/mihomo/China-classical.yaml
+    path: ./ruleset/dns/China-classical.yaml
+    interval: 172800
+```
+
+国外兜底示例：
+
+```yaml
+dns:
+  nameserver:
+    - <Global DNS>
+  nameserver-policy:
+    "rule-set:DNS-China-domain,DNS-China-classical":
+      - <China DNS>
+```
+
+国内兜底时，将 `DNS-Global-domain` / `DNS-Global-classical` 指向国外 DNS，并将默认 nameserver 设为国内 DNS。项目同时生成 China / Global 两套完整 DNS 规则，但不替用户决定哪一侧作为默认 nameserver。
 
 ## Egern 输出
 

@@ -90,6 +90,71 @@ class SourceDomainValueTest(unittest.TestCase):
             self.assertIsNone(convert.source_domain_value(convert.parse_rule("DOMAIN-SUFFIX,example.com,foo,bar")))
 
 
+class DnsExportTest(unittest.TestCase):
+    def test_dns_export_groups_filters_and_deduplicates_without_fetching(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            staging = root / "staging"
+            output = root / "output"
+            providers = {}
+            payloads = {
+                "Direct-domain": ["example.com", "+.example.com"],
+                "China-domain": ["example.com", "+.cn"],
+                "AI-domain": ["example.com"],
+                "Global-domain": ["example.com", "+.global"],
+                "Direct-classical": ["DOMAIN-KEYWORD,google", "PROCESS-NAME,test"],
+                "China-classical": ["DOMAIN-REGEX,^example.*$", "IP-CIDR,1.2.3.0/24,no-resolve"],
+                "AI-classical": ["DOMAIN-WILDCARD,clients*.google.com"],
+                "Global-classical": ["DOMAIN-KEYWORD,google"],
+            }
+            for name, payload in payloads.items():
+                behavior = "domain" if name.endswith("-domain") else "classical"
+                relative = f"merged-dedup/source/domain/{name}.yaml" if behavior == "domain" else f"merged-dedup/classical/{name}.yaml"
+                path = staging / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                convert.write_yaml_payload(path, payload)
+                providers[name] = {
+                    "behavior": behavior,
+                    "url": f"{BASE_URL}/dist/{relative}",
+                    "path": f"./ruleset/merged-dedup/{name}.yaml",
+                }
+            config = {"rule-providers": providers, "rules": []}
+
+            def fake_mrs(_mihomo: str, _behavior: str, source: Path, destination: Path) -> None:
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(source.read_bytes())
+
+            with patch.object(convert, "convert_source_to_mrs", side_effect=fake_mrs):
+                convert.export_dns(config, staging, output, BASE_URL, "mihomo")
+
+            china = yaml.safe_load((output / "dns/mihomo/China-classical.yaml").read_text())
+            global_ = yaml.safe_load((output / "dns/mihomo/Global-classical.yaml").read_text())
+            self.assertEqual(china["payload"], ["DOMAIN-KEYWORD,google", "DOMAIN-REGEX,^example.*$"])
+            self.assertEqual(global_["payload"], ["DOMAIN-WILDCARD,clients*.google.com", "DOMAIN-KEYWORD,google"])
+            self.assertTrue((output / "dns/mihomo/China-domain.mrs").exists())
+            self.assertTrue((output / "dns/mihomo/Global-domain.mrs").exists())
+            self.assertEqual(
+                yaml.safe_load((output / "dns/egern/China.yaml").read_text()),
+                {"domain_suffix_set": ["example.com", "cn"], "domain_keyword_set": ["google"], "domain_regex_set": ["^example.*$"]},
+            )
+
+    def test_empty_dns_classical_is_stable_payload(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            staging = root / "staging"
+            output = root / "output"
+            providers = {}
+            for segment in ("Direct", "China", "AI", "Global"):
+                name = f"{segment}-domain"
+                path = staging / "merged-dedup/source/domain" / f"{name}.yaml"
+                convert.write_yaml_payload(path, [f"{segment.lower()}.example"])
+                providers[name] = {"behavior": "domain", "url": f"{BASE_URL}/dist/merged-dedup/source/domain/{name}.yaml"}
+            config = {"rule-providers": providers, "rules": []}
+            with patch.object(convert, "convert_source_to_mrs", side_effect=lambda _m, _b, s, d: (d.parent.mkdir(parents=True, exist_ok=True), d.write_bytes(s.read_bytes()))):
+                convert.export_dns(config, staging, output, BASE_URL, "mihomo")
+            self.assertEqual(yaml.safe_load((output / "dns/mihomo/China-classical.yaml").read_text()), {"payload": []})
+
+
 class NestedRulesetCompatibilityTest(unittest.TestCase):
     def setUp(self) -> None:
         self.replacements = {"A": ["A-domain", "A-ip", "A-classical"], "B": ["B-domain"]}

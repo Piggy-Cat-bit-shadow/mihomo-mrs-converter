@@ -13,7 +13,7 @@ import tempfile
 import re
 import urllib.request
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -59,6 +59,7 @@ class BuildOptions:
     used_names: set[str]
     used_paths: set[str]
     memory_cache: dict[str, str]
+    final_payloads: dict[str, list[str]] = field(default_factory=dict)
 
 
 @dataclass
@@ -541,6 +542,18 @@ def dedup_domain_payload(rules: list[str]) -> tuple[list[str], DedupStats]:
 
     stats.output_count = len(output)
     return output, stats
+
+
+def dedup_exact_rules(rules: list[str]) -> tuple[list[str], int]:
+    """Stable exact-string deduplication for classical DNS-only rules."""
+    seen: set[str] = set()
+    output: list[str] = []
+    for rule in rules:
+        if rule in seen:
+            continue
+        seen.add(rule)
+        output.append(rule)
+    return output, len(rules) - len(output)
 
 
 def parse_ip_network(rule: str) -> ipaddress._BaseNetwork | None:
@@ -1616,6 +1629,92 @@ def export_egern(
     return dict(counts)
 
 
+DNS_CLASSICAL_KINDS = {"DOMAIN-KEYWORD", "DOMAIN-WILDCARD", "DOMAIN-REGEX"}
+DNS_SEGMENT_GROUPS = {
+    "China": {"Direct", "China"},
+    "Global": {"AI", "Global"},
+}
+
+
+def export_dns(
+    config: dict[str, Any], staging: Path, output_dist: Path, base_url: str, mihomo: str | None,
+    payloads: dict[str, list[str]] | None = None,
+) -> dict[str, int]:
+    """Export DNS-only views from the already-final, deduplicated providers."""
+    if not mihomo:
+        raise SystemExit("DNS domain MRS output requires a mihomo binary")
+
+    domain_rules: dict[str, list[str]] = {group: [] for group in DNS_SEGMENT_GROUPS}
+    classical_rules: dict[str, list[str]] = {group: [] for group in DNS_SEGMENT_GROUPS}
+
+    for name, provider in config["rule-providers"].items():
+        segment = egern_segment_name(name)
+        group = next((group for group, members in DNS_SEGMENT_GROUPS.items() if segment in members), None)
+        if group is None:
+            continue
+        if payloads is not None and name in payloads:
+            payload = payloads[name]
+        else:
+            payload_path = source_path_for_provider(staging, provider)
+            if payload_path is None:
+                payload_path = generated_artifact_path(staging, provider)
+            if payload_path is None or not payload_path.exists():
+                continue
+            payload = read_yaml_payload(payload_path)
+        if provider.get("behavior") == "domain":
+            domain_rules[group].extend(payload)
+        elif provider.get("behavior") == "classical":
+            classical_rules[group].extend(
+                rule for rule in payload if parse_rule(rule).kind in DNS_CLASSICAL_KINDS
+            )
+
+    present_segments = {
+        egern_segment_name(name)
+        for name in config["rule-providers"]
+        if egern_segment_name(name) in {"Direct", "China", "AI", "Global"}
+    }
+    missing = sorted({"Direct", "China", "AI", "Global"} - present_segments)
+    if missing:
+        raise SystemExit("DNS export requires missing segment(s): " + ", ".join(missing))
+
+    dns_root = output_dist / "dns"
+    counts: Counter[str] = Counter()
+    for group in DNS_SEGMENT_GROUPS:
+        optimized_domains, _ = dedup_domain_payload(domain_rules[group])
+        source_path = staging / "dns" / "source" / f"{group}-domain.yaml"
+        write_yaml_payload(source_path, optimized_domains)
+        convert_source_to_mrs(
+            mihomo, "domain", source_path, dns_root / "mihomo" / f"{group}-domain.mrs"
+        )
+
+        optimized_classical, _ = dedup_exact_rules(classical_rules[group])
+        write_yaml_payload(dns_root / "mihomo" / f"{group}-classical.yaml", optimized_classical)
+
+        egern_fields: dict[str, list[str]] = {}
+        for rule in optimized_domains:
+            field = "domain_suffix_set" if rule.startswith("+.") else "domain_set"
+            egern_fields.setdefault(field, []).append(rule[2:] if rule.startswith("+.") else rule)
+        for rule in optimized_classical:
+            classified = classify_egern_classical(rule)
+            if classified is not None:
+                field, value, no_resolve = classified
+                if not no_resolve:
+                    egern_fields.setdefault(field, []).append(value)
+        egern_fields, _ = optimize_egern_rule_set(egern_fields)
+        write_yaml_atomic(dns_root / "egern" / f"{group}.yaml", egern_fields)
+        counts[f"{group}-domain"] = len(optimized_domains)
+        counts[f"{group}-classical"] = len(optimized_classical)
+        counts[f"{group}-egern"] = sum(
+            len(values) for field, values in egern_fields.items() if field != "no_resolve"
+        )
+
+    print("DNS outputs:")
+    for group in DNS_SEGMENT_GROUPS:
+        print(f"  Mihomo {group}: domain={counts[f'{group}-domain']}, classical-domain={counts[f'{group}-classical']}")
+        print(f"  Egern {group}: domain entries={counts[f'{group}-egern']}")
+    return dict(counts)
+
+
 def build_dedup_config(
     config: dict[str, Any],
     options: BuildOptions,
@@ -1693,6 +1792,13 @@ def build_dedup_config(
     output = suite_root / "generated" / "mihomo-rules.yaml"
     validate_generated_config(options.dist, dedup_config, require_no_orphans=require_no_orphans)
     write_yaml_atomic(output, dedup_config)
+    options.final_payloads = {}
+    for name, provider in dedup_config["rule-providers"].items():
+        payload_path = source_path_for_provider(options.dist, provider)
+        if payload_path is None:
+            payload_path = generated_artifact_path(options.dist, provider)
+        if payload_path is not None and payload_path.exists():
+            options.final_payloads[name] = read_yaml_payload(payload_path)
     return dedup_config, stats_by_provider
 
 
@@ -2620,6 +2726,14 @@ def main() -> None:
     dedup, dedup_stats = build_dedup_config(merged_suite, options, require_no_orphans=require_no_orphans)
     segment_mapping = load_segment_name_mapping(Path.cwd())
     dedup = apply_segment_name_mapping(dedup, options, segment_mapping)
+    options.final_payloads = {
+        re.sub(
+            r"^merged-segment-(\d+)",
+            lambda m: segment_mapping.get(f"merged-segment-{m.group(1)}", m.group(0)),
+            name,
+        ): payload
+        for name, payload in options.final_payloads.items()
+    }
     dedup_stats = {
         re.sub(r"^merged-segment-(\d+)", lambda m: segment_mapping.get(f"merged-segment-{m.group(1)}", m.group(0)), name): stats
         for name, stats in dedup_stats.items()
@@ -2630,6 +2744,8 @@ def main() -> None:
     final = publish_final_config(dedup, staging, publish_dist, args.base_url)
     validate_generated_config(publish_dist, final, require_no_orphans=require_no_orphans)
     export_egern(dedup, staging, publish_dist, args.base_url)
+    if args.mihomo:
+        export_dns(dedup, staging, publish_dist, args.base_url, args.mihomo, options.final_payloads)
     write_yaml_atomic(publish_dist / "generated" / "mihomo-rules.yaml", final)
     old_dist = args.dist.with_name(f".{args.dist.name}.previous")
     if old_dist.exists():
