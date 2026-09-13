@@ -47,6 +47,10 @@ rules:
     match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/China.yaml
     policy: DIRECT
     update_interval: 172800
+- rule_set:
+    match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/China-no-resolve.yaml
+    policy: DIRECT
+    update_interval: 172800
 - protocol:
     match: udp
     policy: 🚀 极速线路

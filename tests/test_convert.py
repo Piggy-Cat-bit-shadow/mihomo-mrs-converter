@@ -90,6 +90,27 @@ class SourceDomainValueTest(unittest.TestCase):
             self.assertIsNone(convert.source_domain_value(convert.parse_rule("DOMAIN-SUFFIX,example.com,foo,bar")))
 
 
+class RulesetReferenceTest(unittest.TestCase):
+    def test_policy_and_modifier_are_parsed_separately(self) -> None:
+        reference = convert.parse_ruleset_reference("RULE-SET,A,DIRECT,no-resolve")
+        self.assertIsNotNone(reference)
+        self.assertEqual(reference.provider, "A")
+        self.assertEqual(reference.policy, "DIRECT")
+        self.assertEqual(reference.modifiers, ("no-resolve",))
+
+        plain = convert.parse_ruleset_reference("RULE-SET,A,DIRECT")
+        self.assertEqual((plain.provider, plain.policy, plain.modifiers), ("A", "DIRECT", ()))
+
+    def test_sub_rule_policy_is_outer_and_modifier_is_inner(self) -> None:
+        reference = convert.parse_ruleset_reference("SUB-RULE,(RULE-SET,A,no-resolve),AI-Routing")
+        self.assertEqual((reference.provider, reference.policy, reference.modifiers), ("A", "AI-Routing", ("no-resolve",)))
+
+    def test_unknown_modifier_is_an_error(self) -> None:
+        with self.assertRaises(SystemExit) as error:
+            convert.parse_ruleset_reference("RULE-SET,A,DIRECT,something-unknown")
+        self.assertIn("something-unknown", str(error.exception))
+
+
 class LoonExportTest(unittest.TestCase):
     def make_provider(self, root: Path, name: str, behavior: str, payload: list[str]) -> dict[str, str]:
         source_dir = {"domain": "domain", "ipcidr": "ipcidr"}.get(behavior, "classical")
@@ -172,6 +193,35 @@ class LoonExportTest(unittest.TestCase):
             convert.export_loon(config, root, second, BASE_URL)
             self.assertEqual((first / "loon/A.lsr").read_bytes(), (second / "loon/A.lsr").read_bytes())
             self.assertEqual((first / "generated/loon-rules.conf").read_bytes(), (second / "generated/loon-rules.conf").read_bytes())
+
+    def test_provider_no_resolve_stays_in_one_loon_file_and_egern_target(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config = {
+                "rule-providers": {
+                    "A-domain": self.make_provider(root, "A-domain", "domain", ["a.example"]),
+                    "A-ip": self.make_provider(root, "A-ip", "ipcidr", ["1.1.1.0/24", "2001:db8::/32"]),
+                },
+                "rules": ["RULE-SET,A-domain,DIRECT", "RULE-SET,A-ip,DIRECT,no-resolve"],
+            }
+            output = root / "output"
+            convert.export_loon(config, root, output, BASE_URL)
+            lines = (output / "loon/A.lsr").read_text(encoding="utf-8").splitlines()
+            self.assertIn("IP-CIDR,1.1.1.0/24,no-resolve", lines)
+            self.assertIn("IP-CIDR6,2001:db8::/32,no-resolve", lines)
+            self.assertEqual(len(list((output / "loon").glob("*.lsr"))), 1)
+            self.assertFalse((output / "loon/A-no-resolve.lsr").exists())
+
+            egern_output = root / "egern-output"
+            convert.export_egern(config, root, egern_output, BASE_URL)
+            self.assertTrue((egern_output / "egern/A.yaml").exists())
+            self.assertTrue((egern_output / "egern/A-no-resolve.yaml").exists())
+            no_resolve = yaml.safe_load((egern_output / "egern/A-no-resolve.yaml").read_text())
+            self.assertTrue(no_resolve["no_resolve"])
+            egern_rules = yaml.safe_load((egern_output / "generated/egern-rules.yaml").read_text())["rules"]
+            urls = [item["rule_set"]["match"] for item in egern_rules if "rule_set" in item]
+            self.assertTrue(any(url.endswith("/A.yaml") for url in urls))
+            self.assertTrue(any(url.endswith("/A-no-resolve.yaml") for url in urls))
 
 
 class DnsExportTest(unittest.TestCase):
@@ -304,6 +354,24 @@ class ProviderConversionTest(ConvertTestCase):
             )
             self.assertEqual(sum(result.original_rules.values()), 2)
             self.assertEqual(result.original_rules, result.rebuilt_rules)
+
+    def test_no_resolve_only_propagates_to_ipcidr_child_after_split(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            result = self.process_with_text(
+                "Provider",
+                http_provider("ipcidr"),
+                "# IP-ASN: 1\npayload:\n- 1.1.1.0/24\n- 13335\n",
+                Path(tmp),
+            )
+            behaviors = {name: provider["behavior"] for name, provider in result.providers.items()}
+            rewritten = convert.rewrite_rules(
+                ["RULE-SET,Provider,DIRECT,no-resolve"],
+                {"Provider": result.generated_names},
+                behaviors,
+            )
+            self.assertIn("RULE-SET,Provider,DIRECT,no-resolve", rewritten)
+            self.assertIn("RULE-SET,Provider-classical,DIRECT", rewritten)
+            self.assertNotIn("Provider-classical,DIRECT,no-resolve", " ".join(rewritten))
 
     def test_ipcidr_does_not_guess_bare_number_as_asn(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

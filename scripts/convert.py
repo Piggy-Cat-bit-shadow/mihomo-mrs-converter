@@ -41,6 +41,14 @@ class RuleLine:
     parts: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class RulesetReference:
+    provider: str
+    policy: str
+    modifiers: tuple[str, ...]
+    wrapper_kind: str
+
+
 @dataclass
 class ProviderResult:
     original_name: str
@@ -380,6 +388,41 @@ def simple_ruleset_wrapper(rule: Any) -> tuple[list[str], str, str] | None:
             assert direct is not None  # checked above without stripping another layer
             return direct, ",".join(parts[:index]), ",".join(parts[index + 1:])
     return None
+
+
+def parse_ruleset_reference(rule: Any) -> RulesetReference | None:
+    """Parse a simple RULE-SET reference without confusing modifiers for policy."""
+    wrapper = simple_ruleset_wrapper(rule)
+    if wrapper is None:
+        return None
+    parts, prefix, suffix = wrapper
+    if len(parts) < 2 or not parts[1]:
+        raise SystemExit(f"invalid RULE-SET reference: {rule!r}")
+    wrapper_kind = prefix.upper() if prefix else "RULE-SET"
+    if prefix and prefix.upper() == "SUB-RULE":
+        policy = suffix.strip()
+        modifiers = tuple(parts[2:])
+    elif suffix:
+        policy = suffix.strip()
+        modifiers = tuple(parts[2:])
+    else:
+        if len(parts) < 3 or not parts[2]:
+            raise SystemExit(f"RULE-SET reference has no policy: {rule!r}")
+        policy = parts[2]
+        modifiers = tuple(parts[3:])
+    unknown = [modifier for modifier in modifiers if modifier.lower() != "no-resolve"]
+    if unknown:
+        raise SystemExit(
+            f"RULE-SET reference has unknown modifier(s) for provider {parts[1]!r}: "
+            f"{', '.join(unknown)} in rule {rule!r}"
+        )
+    if not policy:
+        raise SystemExit(f"RULE-SET reference has no policy: {rule!r}")
+    return RulesetReference(parts[1], policy, tuple(modifiers), wrapper_kind)
+
+
+def ruleset_routing_signature(reference: RulesetReference) -> tuple[str, str]:
+    return reference.wrapper_kind, reference.policy
 
 
 def egern_udp_and_ruleset(rule: Any) -> tuple[str, str] | None:
@@ -973,6 +1016,8 @@ def merge_adjacent_classical_providers(
         provider = providers.get(parts[1])
         if not isinstance(provider, dict) or provider.get("behavior") != "classical":
             return None
+        reference = parse_ruleset_reference(item)
+        assert reference is not None
         return parts[1], tuple(parts[2:]), (prefix, suffix), provider
 
     def sub_rule_block_candidate(
@@ -989,6 +1034,8 @@ def merge_adjacent_classical_providers(
             or prefix.upper() != "SUB-RULE"
         ):
             return None
+        reference = parse_ruleset_reference(item)
+        assert reference is not None
         return parts[1], tuple(parts[2:]), (prefix, suffix), provider
 
     while rule_index < len(rules):
@@ -998,11 +1045,12 @@ def merge_adjacent_classical_providers(
             next_index = rule_index + 1
             while next_index < len(rules):
                 block_item = sub_rule_block_candidate(rules[next_index])
-                if (
-                    block_item is None
-                    or block_item[1] != block_first[1]
-                    or block_item[2] != block_first[2]
-                ):
+                if block_item is None:
+                    break
+                block_reference = parse_ruleset_reference(rules[rule_index + len(block)])
+                first_reference = parse_ruleset_reference(rules[rule_index])
+                assert block_reference is not None and first_reference is not None
+                if ruleset_routing_signature(block_reference) != ruleset_routing_signature(first_reference):
                     break
                 block.append(block_item)
                 next_index += 1
@@ -1044,7 +1092,9 @@ def merge_adjacent_classical_providers(
                         rewritten_rules.append(rules[rule_index + item_index])
                         continue
                     if not first_classical_seen:
-                        nested = ",".join(["RULE-SET", merged_name, *suffix_item])
+                        nested = ",".join(
+                            ["RULE-SET", merged_name, *ruleset_suffix_for_behavior(suffix_item, "classical")]
+                        )
                         rewritten_rules.append(wrap_ruleset_rule(nested, signature_item))
                         first_classical_seen = True
                 rule_index = next_index
@@ -1058,7 +1108,9 @@ def merge_adjacent_classical_providers(
 
         names = [first[0]]
         suffix = first[1]
-        signature = first[2]
+        signature = ruleset_routing_signature(parse_ruleset_reference(rules[rule_index]))
+        assert signature is not None
+        wrapper_signature = first[2]
         source_providers = [first[3]]
         source_paths: list[Path] = []
         first_path = generated_artifact_path(options.dist, first[3])
@@ -1071,7 +1123,11 @@ def merge_adjacent_classical_providers(
 
         while next_index < len(rules):
             next_candidate = candidate(rules[next_index])
-            if next_candidate is None or next_candidate[1] != suffix or next_candidate[2] != signature:
+            if next_candidate is None:
+                break
+            next_reference = parse_ruleset_reference(rules[next_index])
+            assert next_reference is not None
+            if ruleset_routing_signature(next_reference) != signature:
                 break
             next_path = generated_artifact_path(options.dist, next_candidate[3])
             if next_path is None or not next_path.exists():
@@ -1112,8 +1168,10 @@ def merge_adjacent_classical_providers(
             old_artifact = generated_artifact_path(options.dist, old_provider)
             if old_artifact is not None and old_artifact.parent == suite_root / "classical":
                 old_artifact.unlink(missing_ok=True)
-        nested = ",".join(["RULE-SET", merged_name, *suffix])
-        rewritten_rules.append(wrap_ruleset_rule(nested, signature))
+        nested = ",".join(
+            ["RULE-SET", merged_name, *ruleset_suffix_for_behavior(suffix, "classical")]
+        )
+        rewritten_rules.append(wrap_ruleset_rule(nested, wrapper_signature))
         rule_index = next_index
 
     return {**config, "rule-providers": providers, "rules": rewritten_rules}
@@ -1136,8 +1194,9 @@ def canonicalize_dedup_provider_names(
         if wrapper is None or wrapper[0][1] not in providers:
             rule_index += 1
             continue
-        signature = (wrapper[1], wrapper[2])
-        suffix = tuple(wrapper[0][2:])
+        reference = parse_ruleset_reference(config["rules"][rule_index])
+        assert reference is not None
+        signature = ruleset_routing_signature(reference)
         block: list[tuple[str, tuple[str, ...], tuple[str, str], dict[str, Any]]] = []
         next_index = rule_index
         while next_index < len(config["rules"]):
@@ -1145,7 +1204,9 @@ def canonicalize_dedup_provider_names(
             if next_wrapper is None or next_wrapper[0][1] not in providers:
                 break
             provider = providers[next_wrapper[0][1]]
-            if (next_wrapper[1], next_wrapper[2]) != signature or tuple(next_wrapper[0][2:]) != suffix:
+            next_reference = parse_ruleset_reference(config["rules"][next_index])
+            assert next_reference is not None
+            if ruleset_routing_signature(next_reference) != signature:
                 break
             if provider.get("behavior") not in {"domain", "ipcidr", "classical"}:
                 break
@@ -1227,8 +1288,9 @@ def canonicalize_dedup_provider_names(
             rewritten_rules.append(canonical_rule(item))
             rule_index += 1
             continue
-        signature = (wrapper[1], wrapper[2])
-        suffix = tuple(wrapper[0][2:])
+        reference = parse_ruleset_reference(item)
+        assert reference is not None
+        signature = ruleset_routing_signature(reference)
         block: list[Any] = []
         next_index = rule_index
         while next_index < len(config["rules"]):
@@ -1236,8 +1298,7 @@ def canonicalize_dedup_provider_names(
             if (
                 next_wrapper is None
                 or next_wrapper[0][1] not in renamed
-                or (next_wrapper[1], next_wrapper[2]) != signature
-                or tuple(next_wrapper[0][2:]) != suffix
+                or ruleset_routing_signature(parse_ruleset_reference(config["rules"][next_index])) != signature
             ):
                 break
             block.append(config["rules"][next_index])
@@ -1370,7 +1431,9 @@ def loon_segment_name(provider_name: str) -> str:
     return match.group(1) if match else provider_name
 
 
-def loon_rule_from_provider(behavior: str, rule: str, segment: str) -> tuple[str, str] | None:
+def loon_rule_from_provider(
+    behavior: str, rule: str, segment: str, modifiers: tuple[str, ...] = ()
+) -> tuple[str, str] | None:
     """Convert one normalized provider entry to a native Loon rule."""
     if behavior == "domain":
         if rule.startswith("+."):
@@ -1381,7 +1444,8 @@ def loon_rule_from_provider(behavior: str, rule: str, segment: str) -> tuple[str
         if network is None:
             raise ValueError("normalized ipcidr provider entry is not a CIDR")
         kind = "IP-CIDR" if network.version == 4 else "IP-CIDR6"
-        return kind, f"{kind},{rule}"
+        suffix = ["no-resolve"] if "no-resolve" in {item.lower() for item in modifiers} else []
+        return kind, ",".join([kind, rule, *suffix])
 
     parsed = parse_rule(rule)
     kind = parsed.kind
@@ -1420,6 +1484,14 @@ def export_loon(
     rules_by_segment: dict[str, list[tuple[str, str]]] = {}
     unsupported: Counter[str] = Counter()
     first_segment_index: dict[str, int] = {}
+    provider_modifiers: dict[str, set[str]] = {}
+
+    for raw_rule in config.get("rules", []):
+        reference = parse_ruleset_reference(raw_rule)
+        if reference is not None:
+            provider_modifiers.setdefault(reference.provider, set()).update(
+                modifier.lower() for modifier in reference.modifiers
+            )
 
     for name, provider in config["rule-providers"].items():
         segment = loon_segment_name(name)
@@ -1433,7 +1505,12 @@ def export_loon(
         seen = {line for _, line in entries}
         for raw_rule in payload:
             try:
-                converted = loon_rule_from_provider(provider.get("behavior", ""), raw_rule, segment)
+                converted = loon_rule_from_provider(
+                    provider.get("behavior", ""),
+                    raw_rule,
+                    segment,
+                    tuple(provider_modifiers.get(name, set())),
+                )
             except ValueError as exc:
                 unsupported[segment] += 1
                 print(f"[Loon] unsupported rule skipped: segment={segment} type={parse_rule(raw_rule).kind or '<empty>'} rule={raw_rule!r}; reason={exc}")
@@ -1464,16 +1541,13 @@ def export_loon(
         parsed = parse_rule(raw_rule)
         wrapper = simple_ruleset_wrapper(raw_rule)
         if wrapper is not None:
-            parts, prefix, suffix = wrapper
+            reference = parse_ruleset_reference(raw_rule)
+            assert reference is not None
             refs = find_ruleset_refs(raw_rule)
             if len(refs) != 1:
                 print(f"[Loon] unsupported rule skipped: segment=<unknown> type={parsed.kind} rule={raw_rule!r}; reason=ambiguous RULE-SET reference")
                 continue
-            policy_parts = (suffix,) if suffix else tuple(parts[2:])
-            if len(policy_parts) != 1 or not policy_parts[0]:
-                print(f"[Loon] unsupported rule skipped: segment={loon_segment_name(refs[0])} type={parsed.kind} rule={raw_rule!r}; reason=missing policy")
-                continue
-            record_policy(refs[0], policy_parts[0], raw_rule)
+            record_policy(refs[0], reference.policy, raw_rule)
             continue
         if parsed.kind == "NETWORK" and len(parsed.parts) == 3 and parsed.parts[1].upper() in {"TCP", "UDP"}:
             loon_rules.append(f"PROTOCOL,{parsed.parts[1].upper()},{parsed.parts[2]}")
@@ -1615,6 +1689,14 @@ def export_egern(
     counts = Counter()
     unsupported = Counter()
     unsupported_classical_examples: dict[str, list[str]] = {}
+    provider_modifiers: dict[str, set[str]] = {}
+
+    for raw_rule in config.get("rules", []):
+        reference = parse_ruleset_reference(raw_rule)
+        if reference is not None:
+            provider_modifiers.setdefault(reference.provider, set()).update(
+                modifier.lower() for modifier in reference.modifiers
+            )
 
     def add(segment: str, field: str, value: str) -> bool:
         values = sets.setdefault(segment, {}).setdefault(field, [])
@@ -1643,7 +1725,14 @@ def export_egern(
                 except ValueError:
                     unsupported["invalid-ip"] += 1
                     continue
-                add(segment, "ip_cidr6_set" if version == 6 else "ip_cidr_set", rule)
+                target = (
+                    f"{segment}-no-resolve"
+                    if "no-resolve" in provider_modifiers.get(name, set())
+                    else segment
+                )
+                if target.endswith("-no-resolve"):
+                    sets.setdefault(target, {})["no_resolve"] = True
+                add(target, "ip_cidr6_set" if version == 6 else "ip_cidr_set", rule)
                 counts["ipv6" if version == 6 else "ipv4"] += 1
             elif behavior == "classical":
                 classified = classify_egern_classical(rule)
@@ -1683,6 +1772,12 @@ def export_egern(
         if no_resolve in sets:
             targets.append(no_resolve)
         return targets
+
+    def referenced_segment_targets(segment: str, modifiers: tuple[str, ...]) -> list[str]:
+        if "no-resolve" in {modifier.lower() for modifier in modifiers}:
+            target = f"{segment}-no-resolve"
+            return [target] if target in sets else []
+        return segment_targets(segment)
 
     def emit_ruleset(target: str, policy: str) -> None:
         key = ("rule_set", target, policy)
@@ -1749,23 +1844,21 @@ def export_egern(
         wrapper = simple_ruleset_wrapper(rule)
         if wrapper is None:
             continue
+        reference = parse_ruleset_reference(rule)
+        assert reference is not None
         parts, prefix, suffix = wrapper
         refs = find_ruleset_refs(rule)
         if len(refs) != 1:
             print(f"[Egern] unsupported rule skipped: {rule}")
             continue
-        policy_parts = (suffix,) if suffix else tuple(parts[2:])
-        if len(policy_parts) != 1 or not policy_parts[0]:
-            print(f"[Egern] rule has no unambiguous policy and was skipped: {rule}")
-            continue
         segment = egern_segment_name(refs[0])
-        targets = segment_targets(segment)
+        targets = referenced_segment_targets(segment, reference.modifiers)
         if not targets:
             print(f"[Egern] rule references an empty or unsupported segment and was skipped: {rule}")
             continue
 
         sub_rules = config.get("sub-rules", {})
-        sub_rule_name = policy_parts[0]
+        sub_rule_name = reference.policy
         if prefix.upper() == "SUB-RULE" and isinstance(sub_rules, dict) and sub_rule_name in sub_rules:
             members = parse_egern_sub_rule_members(sub_rules[sub_rule_name])
             if members is None:
@@ -1780,7 +1873,7 @@ def export_egern(
             continue
 
         for target in targets:
-            emit_ruleset(target, policy_parts[0])
+            emit_ruleset(target, reference.policy)
     write_yaml_atomic(output_dist / "generated" / "egern-rules.yaml", {"rules": egern_rules})
     counts["segments"] = len(sets)
     counts["unsupported"] = sum(unsupported.values())
@@ -2493,7 +2586,6 @@ def build_merged_segment_rules(
     used_names: set[str],
     used_paths: set[str],
 ) -> tuple[list[str], dict[str, dict[str, Any]], set[str]]:
-    suffix = tuple(parts_list[0][2:])
     expanded_names = [
         generated_name
         for parts in parts_list
@@ -2503,12 +2595,21 @@ def build_merged_segment_rules(
     replaced: set[str] = set()
     merged_rules: list[str] = []
 
-    for behavior in ("domain", "ipcidr"):
+    groups: dict[tuple[str, tuple[str, ...]], list[str]] = {}
+    for parts in parts_list:
+        modifiers = tuple(parts[2:])
+        for generated_name in replacements[parts[1]]:
+            behavior = provider_behaviors[generated_name]
+            key = (behavior, tuple(ruleset_suffix_for_behavior(modifiers, behavior)))
+            groups.setdefault(key, []).append(generated_name)
+
+    merged_by_group: dict[tuple[str, tuple[str, ...]], str] = {}
+    for (behavior, modifiers), names in groups.items():
         merged_name, provider = write_merged_ruleset(
             segment_index,
             behavior,
-            suffix,
-            expanded_names,
+            modifiers,
+            names,
             generated_providers,
             source_payloads,
             options,
@@ -2517,22 +2618,28 @@ def build_merged_segment_rules(
         )
         if merged_name and provider:
             merged_providers[merged_name] = provider
+            merged_by_group[(behavior, modifiers)] = merged_name
             replaced.update(
                 name
-                for name in expanded_names
+                for name in names
                 if name in source_payloads and generated_providers[name]["behavior"] == behavior
             )
-            merged_rules.append(
-                ",".join(["RULE-SET", merged_name, *ruleset_suffix_for_behavior(suffix, behavior)])
-            )
 
-    for generated_name in expanded_names:
-        if generated_name in replaced:
-            continue
-        behavior = provider_behaviors[generated_name]
-        merged_rules.append(
-            ",".join(["RULE-SET", generated_name, *ruleset_suffix_for_behavior(suffix, behavior)])
-        )
+    emitted_merged: set[tuple[str, tuple[str, ...]]] = set()
+    for parts in parts_list:
+        original_modifiers = tuple(parts[2:])
+        for generated_name in replacements[parts[1]]:
+            behavior = provider_behaviors[generated_name]
+            modifiers = tuple(ruleset_suffix_for_behavior(original_modifiers, behavior))
+            group = (behavior, modifiers)
+            merged_name = merged_by_group.get(group)
+            if merged_name:
+                if group in emitted_merged:
+                    continue
+                emitted_merged.add(group)
+                merged_rules.append(",".join(["RULE-SET", merged_name, *modifiers]))
+                continue
+            merged_rules.append(",".join(["RULE-SET", generated_name, *modifiers]))
 
     return merged_rules, merged_providers, replaced
 
@@ -2571,17 +2678,18 @@ def build_merged_config(
             continue
 
         parts = wrapper[0]
-        signature = (wrapper[1], wrapper[2])
+        reference = parse_ruleset_reference(rules[index])
+        assert reference is not None
+        routing_signature = ruleset_routing_signature(reference)
+        wrapper_signature = (wrapper[1], wrapper[2])
         segment = [parts]
-        suffix = tuple(parts[2:])
         index += 1
         while index < len(rules):
             next_wrapper = simple_ruleset_wrapper(rules[index])
             if (
                 next_wrapper is None
                 or next_wrapper[0][1] not in replacements
-                or tuple(next_wrapper[0][2:]) != suffix
-                or (next_wrapper[1], next_wrapper[2]) != signature
+                or ruleset_routing_signature(parse_ruleset_reference(rules[index])) != routing_signature
             ):
                 break
             segment.append(next_wrapper[0])
@@ -2599,7 +2707,7 @@ def build_merged_config(
             used_paths,
         )
         segment_index += 1
-        merged_rules.extend(wrap_ruleset_rule(rule, signature) for rule in segment_rules)
+        merged_rules.extend(wrap_ruleset_rule(rule, wrapper_signature) for rule in segment_rules)
         merged_providers.update(segment_providers)
         for rule in segment_rules:
             rule_parts = ruleset_parts(rule)
@@ -2639,6 +2747,8 @@ def validate_top_level_rulesets(rules: list[Any], provider_names: set[str]) -> N
         for name in find_ruleset_refs(item):
             if name not in provider_names:
                 raise SystemExit(f"RULE-SET references missing provider {name!r} in rule: {item}")
+        if find_ruleset_refs(item):
+            parse_ruleset_reference(item)
 
 
 def validate_generated_rulesets(rules: list[Any], provider_names: set[str]) -> None:

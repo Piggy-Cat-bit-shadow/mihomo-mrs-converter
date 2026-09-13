@@ -76,12 +76,26 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/China-classical.yaml
     path: ./ruleset/classical/China-classical.yaml
     interval: 172800
+  China-classical-part-02:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/China-classical-part-02.yaml
+    path: ./ruleset/classical/China-classical-part-02.yaml
+    interval: 172800
   China-ip:
     type: http
     behavior: ipcidr
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/China-ip.mrs
     path: ./ruleset/ipcidr/China-ip.mrs
+    interval: 172800
+  China-ip-part-02:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/China-ip-part-02.mrs
+    path: ./ruleset/ipcidr/China-ip-part-02.mrs
     interval: 172800
 rules:
 - RULE-SET,Direct-domain,DIRECT
@@ -94,6 +108,8 @@ rules:
 - SUB-RULE,(RULE-SET,Global-ip),Global-Routing
 - RULE-SET,China-domain,DIRECT
 - RULE-SET,China-classical,DIRECT
+- RULE-SET,China-classical-part-02,DIRECT
 - RULE-SET,China-ip,DIRECT
+- RULE-SET,China-ip-part-02,DIRECT,no-resolve
 - NETWORK,UDP,🚀 极速线路
 - MATCH,🌍 国外流量
