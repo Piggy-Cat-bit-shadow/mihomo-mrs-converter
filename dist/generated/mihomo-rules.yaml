@@ -98,6 +98,8 @@ rule-providers:
     path: ./ruleset/ipcidr/China-ip-part-02.mrs
     interval: 172800
 rules:
+- IP-CIDR6,::/128,REJECT-DROP
+- IP-CIDR,0.0.0.0/32,REJECT-DROP
 - RULE-SET,Direct-domain,DIRECT
 - RULE-SET,Direct-classical,DIRECT
 - SUB-RULE,(RULE-SET,AI-domain),AI-Routing
