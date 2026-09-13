@@ -336,6 +336,8 @@ rule-providers:
     path: ./ruleset/ipcidr/ChinaMax-ip.yaml
     interval: 172800
 rules:
+- IP-CIDR6,::/128,REJECT-DROP
+- IP-CIDR,0.0.0.0/32,REJECT-DROP
 - RULE-SET,Lan,DIRECT
 - RULE-SET,private,DIRECT
 - RULE-SET,me-China,DIRECT
