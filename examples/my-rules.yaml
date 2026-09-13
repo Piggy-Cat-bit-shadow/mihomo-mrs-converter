@@ -386,6 +386,6 @@ rules:
 - RULE-SET,alibaba,DIRECT
 - RULE-SET,ChinaMax-domain,DIRECT
 - RULE-SET,ChinaMax-classical,DIRECT
-- RULE-SET,ChinaMax-ip,DIRECT
+- RULE-SET,ChinaMax-ip,DIRECT,no-resolve
 - NETWORK,UDP,🚀 极速线路
 - MATCH,🌍 国外流量
