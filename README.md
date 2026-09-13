@@ -222,3 +222,14 @@ Egern exporter 在最终 segment 聚合后执行保守语义去重：仅删除�
 `segment-names.yaml` 同时控制 Mihomo 和 Egern 的最终 segment 名称。
 
 对于简单的 `IP-CIDR`、`IP-CIDR6` 和 `IP-ASN` `no-resolve` 规则，Egern 会按逻辑 segment 生成可选的 `<segment>-no-resolve.yaml`，并设置 `no_resolve: true`；普通 segment 与辅助文件使用相同 policy。`DOMAIN-REGEX` 和 `DOMAIN-WILDCARD` 会输出到对应 typed set，`PROCESS-NAME` 仍属于 unsupported best-effort 范围。
+
+## Loon 输出
+
+构建还会生成独立的 Loon 原生规则列表：
+
+```text
+dist/loon/<segment>.lsr
+dist/generated/loon-rules.conf
+```
+
+`.lsr` 是普通 UTF-8 文本，不使用 MRS，也不依赖 Egern 产物。domain、classical 和 IP provider 会按逻辑 segment 合并；`no-resolve` 保留在对应的单条 IP 规则中。`SUB-RULE` 不展开，只机械继承其第三个参数的 policy 名称。`loon-rules.conf` 是包含 `[Remote Rule]` 和顶层 `[Rule]` 的 Loon 配置片段，可复制或整合到用户自己的配置中。

@@ -90,6 +90,90 @@ class SourceDomainValueTest(unittest.TestCase):
             self.assertIsNone(convert.source_domain_value(convert.parse_rule("DOMAIN-SUFFIX,example.com,foo,bar")))
 
 
+class LoonExportTest(unittest.TestCase):
+    def make_provider(self, root: Path, name: str, behavior: str, payload: list[str]) -> dict[str, str]:
+        source_dir = {"domain": "domain", "ipcidr": "ipcidr"}.get(behavior, "classical")
+        relative = Path("source") / source_dir / f"{name}.yaml"
+        convert.write_yaml_payload(root / relative, payload)
+        return {
+            "type": "http",
+            "behavior": behavior,
+            "format": "yaml",
+            "url": f"{BASE_URL}/dist/{relative.as_posix()}",
+            "path": f"./ruleset/{name}.yaml",
+        }
+
+    def test_segments_are_merged_and_sub_rule_policy_is_not_expanded(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            providers = {
+                "AI-domain": self.make_provider(root, "AI-domain", "domain", ["ai.example"]),
+                "AI-classical": self.make_provider(root, "AI-classical", "classical", ["DOMAIN-KEYWORD,ai"]),
+                "AI-ip": self.make_provider(root, "AI-ip", "ipcidr", ["1.1.1.0/24"]),
+            }
+            config = {
+                "sub-rules": {"AI-Routing": ["NETWORK,UDP,REJECT", "MATCH,🤖 AI"]},
+                "rule-providers": providers,
+                "rules": [
+                    "SUB-RULE,(RULE-SET,AI-domain),AI-Routing",
+                    "SUB-RULE,(RULE-SET,AI-classical),AI-Routing",
+                    "SUB-RULE,(RULE-SET,AI-ip),AI-Routing",
+                    "NETWORK,UDP,🚀 极速线路",
+                    "MATCH,🌍 国外流量",
+                ],
+            }
+            output = root / "output"
+            convert.export_loon(config, root, output, BASE_URL)
+            self.assertEqual(sorted(path.name for path in (output / "loon").glob("*.lsr")), ["AI.lsr"])
+            self.assertEqual(
+                (output / "loon/AI.lsr").read_text(encoding="utf-8").splitlines(),
+                ["DOMAIN,ai.example", "DOMAIN-KEYWORD,ai", "IP-CIDR,1.1.1.0/24"],
+            )
+            remote = (output / "generated/loon-rules.conf").read_text(encoding="utf-8")
+            self.assertIn("policy=AI-Routing,tag=AI,enabled=true", remote)
+            self.assertNotIn("policy=REJECT", remote)
+            self.assertNotIn("AI-udp.lsr", remote)
+            self.assertIn("PROTOCOL,UDP,🚀 极速线路", remote)
+            self.assertIn("FINAL,🌍 国外流量", remote)
+            self.assertFalse((output / "loon/AI-no-resolve.lsr").exists())
+
+    def test_native_mappings_ipv6_and_policy_conflict(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config = {
+                "rule-providers": {
+                    "Direct-classical": self.make_provider(
+                        root, "Direct-classical", "classical",
+                        ["DOMAIN,example.com", "DOMAIN-SUFFIX,example.org", "IP-CIDR,1.1.1.0/24,no-resolve", "IP-CIDR6,2001:db8::/32", "IP-ASN,13335,no-resolve", "DST-PORT,443"],
+                    ),
+                },
+                "rules": ["RULE-SET,Direct-classical,DIRECT"],
+            }
+            output = root / "output"
+            convert.export_loon(config, root, output, BASE_URL)
+            self.assertEqual(
+                (output / "loon/Direct.lsr").read_text(encoding="utf-8").splitlines(),
+                ["DOMAIN,example.com", "DOMAIN-SUFFIX,example.org", "IP-CIDR,1.1.1.0/24,no-resolve", "IP-CIDR6,2001:db8::/32", "IP-ASN,13335,no-resolve", "DEST-PORT,443"],
+            )
+            config["rules"].append("RULE-SET,Direct-classical,PROXY")
+            with self.assertRaises(SystemExit):
+                convert.export_loon(config, root, output, BASE_URL)
+
+    def test_output_is_deterministic(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config = {
+                "rule-providers": {"A-domain": self.make_provider(root, "A-domain", "domain", ["a.example", "+.example"])},
+                "rules": ["RULE-SET,A-domain,DIRECT"],
+            }
+            first = root / "one"
+            second = root / "two"
+            convert.export_loon(config, root, first, BASE_URL)
+            convert.export_loon(config, root, second, BASE_URL)
+            self.assertEqual((first / "loon/A.lsr").read_bytes(), (second / "loon/A.lsr").read_bytes())
+            self.assertEqual((first / "generated/loon-rules.conf").read_bytes(), (second / "generated/loon-rules.conf").read_bytes())
+
+
 class DnsExportTest(unittest.TestCase):
     def test_dns_export_groups_filters_and_deduplicates_without_fetching(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -167,6 +167,23 @@ jobs:
                               raise SystemExit(f"invalid IPv6 Egern CIDR: {artifact}: {value}")
           if len(referenced) != len([*Path("dist/egern").glob("*.yaml")]):
               raise SystemExit("stale or unreferenced Egern Rule Set artifact")
+          loon_dir = Path("dist/loon")
+          loon_conf = Path("dist/generated/loon-rules.conf")
+          if not loon_conf.exists() or not loon_dir.exists():
+              raise SystemExit("missing Loon output")
+          loon_text = loon_conf.read_text(encoding="utf-8")
+          if "[Remote Rule]" not in loon_text or "[Rule]" not in loon_text:
+              raise SystemExit("invalid Loon config fragment")
+          if any(path.name.endswith("-no-resolve.lsr") for path in loon_dir.glob("*.lsr")):
+              raise SystemExit("Loon must keep no-resolve on individual rules")
+          remote_lines = [line for line in loon_text.splitlines() if "/dist/loon/" in line]
+          remote_names = [line.split("/dist/loon/", 1)[1].split(",", 1)[0] for line in remote_lines]
+          if len(remote_names) != len(set(remote_names)):
+              raise SystemExit("duplicate Loon remote rules")
+          for path in loon_dir.glob("*.lsr"):
+              lines = [line for line in path.read_text(encoding="utf-8").splitlines() if line]
+              if len(lines) != len(set(lines)):
+                  raise SystemExit(f"duplicate Loon rules: {path}")
           PY
           if [ -f dist/source/domain/openai.yaml ]; then
             grep -q -- '- +.chatgpt.com' dist/source/domain/openai.yaml
