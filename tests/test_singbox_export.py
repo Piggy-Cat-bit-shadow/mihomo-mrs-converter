@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.singbox_export import SingBoxExportError, _groups, export_singbox
+from scripts.singbox_export import SingBoxExportError, _aggregate_buckets, _groups, _provider_matchers, export_singbox
 
 
 SING_BOX = shutil.which("sing-box") or "sing-box"
@@ -31,13 +31,32 @@ class SingBoxExportTest(unittest.TestCase):
             "rules": ["RULE-SET,China-domain,DIRECT", "RULE-SET,China-ip,DIRECT,no-resolve", "MATCH,DIRECT"],
         }
         groups = _groups(config)
-        self.assertEqual([group["tag"] for group in groups], ["China", "China-no-resolve"])
+        self.assertEqual([group["tag"] for group in groups], ["China", "China"])
 
     def test_committed_example_artifacts_use_canonical_tags(self):
         route = json.loads(Path("dist/generated/singbox-rules.json").read_text(encoding="utf-8"))["route"]
         tags = [item["tag"] for item in route["rule_set"]]
-        self.assertEqual(tags, ["Direct", "AI", "Global", "China", "China-no-resolve"])
+        self.assertEqual(tags, ["Direct", "Direct-no-resolve", "AI", "AI-ip", "Global", "Global-ip", "Global-no-resolve", "China", "China-ip", "China-no-resolve"])
         self.assertFalse(any(tag.startswith("segment-") or tag == "China-2" for tag in tags))
+
+    def test_classical_ip_modifiers_are_separate_buckets(self):
+        matchers = _provider_matchers("Direct-classical", "classical", [
+            "DOMAIN,example.com", "IP-CIDR,10.0.0.0/8,no-resolve", "IP-CIDR,8.8.8.0/24",
+        ], lambda _: {})
+        buckets = _aggregate_buckets(matchers)
+        self.assertIn("domain", buckets["base"][0])
+        self.assertEqual(buckets["ip"][0], {"ip_cidr": ["8.8.8.0/24"]})
+        self.assertEqual(buckets["no-resolve"][0], {"ip_cidr": ["10.0.0.0/8"]})
+
+    def test_normal_ip_has_resolve_path_but_pure_no_resolve_does_not(self):
+        normal = {"rule-providers": {"A": {"behavior": "classical"}}, "rules": ["RULE-SET,A,DIRECT", "MATCH,DIRECT"]}
+        with tempfile.TemporaryDirectory() as tmp:
+            result = export_singbox(normal, {"A": ["IP-CIDR,8.8.8.0/24"]}, Path(tmp), "https://x", SING_BOX)
+            self.assertIn({"action": "resolve"}, result["route"]["route"]["rules"])
+        no_resolve = {"rule-providers": {"A": {"behavior": "classical"}}, "rules": ["RULE-SET,A,DIRECT,no-resolve", "MATCH,DIRECT"]}
+        with tempfile.TemporaryDirectory() as tmp:
+            result = export_singbox(no_resolve, {"A": ["IP-CIDR,10.0.0.0/8"]}, Path(tmp), "https://x", SING_BOX)
+            self.assertNotIn({"action": "resolve"}, result["route"]["route"]["rules"])
 
     def test_provider_serialization_and_policy_preservation(self):
         config = {
