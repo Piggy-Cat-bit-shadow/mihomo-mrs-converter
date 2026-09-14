@@ -11,6 +11,9 @@ concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  SING_BOX_VERSION: "1.14.0"
+
 permissions:
   contents: write
 
@@ -38,6 +41,16 @@ jobs:
       - name: Check mihomo version
         run: mihomo -v
 
+      - name: Install sing-box
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://github.com/SagerNet/sing-box/releases/download/v${SING_BOX_VERSION}/sing-box-${SING_BOX_VERSION}-linux-amd64.tar.gz" -o sing-box.tar.gz
+          tar -xzf sing-box.tar.gz
+          install "sing-box-${SING_BOX_VERSION}-linux-amd64/sing-box" /usr/local/bin/sing-box
+
+      - name: Check sing-box version
+        run: sing-box version
+
       - name: Run tests
         run: python -m unittest discover -s tests
 
@@ -45,6 +58,32 @@ jobs:
         run: |
           python scripts/convert.py examples/my-rules.yaml \
             --base-url "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}"
+
+      - name: Validate Sing-box output
+        run: |
+          set -euo pipefail
+          test -s dist/generated/singbox-rules.json
+          test -d dist/singbox
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path("dist")
+          route = json.loads((root / "generated/singbox-rules.json").read_text(encoding="utf-8"))["route"]
+          tags = [item["tag"] for item in route["rule_set"]]
+          urls = [item["url"] for item in route["rule_set"]]
+          if len(tags) != len(set(tags)) or len(urls) != len(set(urls)):
+              raise SystemExit("duplicate Sing-box tag or URL")
+          expected = {url.split("/dist/", 1)[1] for url in urls}
+          actual = {str(path.relative_to(root)) for path in (root / "singbox").glob("*.srs")}
+          if expected != actual or any("/dist/singbox/" not in url for url in urls):
+              raise SystemExit("Sing-box route/artifact mismatch")
+          if not isinstance(route.get("rules"), list):
+              raise SystemExit("invalid Sing-box route rules")
+          PY
+          for srs in dist/singbox/*.srs; do
+            sing-box rule-set decompile "$srs" -o /tmp/"$(basename "$srs").json"
+            python -m json.tool /tmp/"$(basename "$srs").json" >/dev/null
+          done
 
       - name: Validate generated rules
         run: |

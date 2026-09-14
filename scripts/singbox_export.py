@@ -1,0 +1,362 @@
+"""The Sing-box-only part of the converter.
+
+This module deliberately has no provider downloader or Clash pipeline.  It
+serializes the already normalized payloads produced by convert.py.
+"""
+from __future__ import annotations
+
+import ipaddress
+import csv
+import io
+import json
+import re
+import shutil
+import ssl
+import subprocess
+import tempfile
+import urllib.request
+from http.client import IncompleteRead
+
+try:
+    import certifi
+except ImportError:  # pragma: no cover
+    certifi = None
+from pathlib import Path
+from typing import Any, Callable
+
+try:
+    from .convert import parse_rule, parse_ruleset_reference, simple_ruleset_wrapper, split_top_level_commas
+except ImportError:  # direct `python scripts/convert.py` execution
+    from convert import parse_rule, parse_ruleset_reference, simple_ruleset_wrapper, split_top_level_commas
+
+
+class SingBoxExportError(RuntimeError):
+    pass
+
+
+def _policy_action(policy: str) -> dict[str, Any]:
+    if policy == "DIRECT":
+        return {"action": "route", "outbound": "direct"}
+    if policy == "REJECT":
+        return {"action": "reject"}
+    if policy == "REJECT-DROP":
+        return {"action": "reject", "method": "drop"}
+    return {"action": "route", "outbound": policy}
+
+
+def _wildcard_regex(value: str) -> str:
+    if not value:
+        raise ValueError("empty wildcard")
+    out = ""
+    for char in value:
+        if char == "*":
+            out += ".*"
+        elif char == "?":
+            out += "."
+        else:
+            out += re.escape(char)
+    return "(?i)^" + out + "$"
+
+
+def _domain_value(value: str) -> tuple[str, str]:
+    value = value.strip()
+    if value.startswith("+."):
+        return "domain_suffix", value[2:].strip(".").lower()
+    if value.startswith("."):
+        return "domain_regex", "(?i)^.+\\." + re.escape(value[1:].strip(".")) + "$"
+    if "*" in value or "?" in value:
+        return "domain_regex", _wildcard_regex(value)
+    return "domain", value.rstrip(".").lower()
+
+
+def _matcher(kind: str, value: str, context: str) -> tuple[str, Any]:
+    kind = kind.upper()
+    if kind in {"DOMAIN", "DOMAIN-SUFFIX"}:
+        return _domain_value(value if kind == "DOMAIN" else "+." + value.lstrip("."))
+    if kind == "DOMAIN-KEYWORD":
+        return "domain_keyword", value.strip().lower()
+    if kind == "DOMAIN-REGEX":
+        return "domain_regex", value
+    if kind == "DOMAIN-WILDCARD":
+        return "domain_regex", _wildcard_regex(value)
+    if kind in {"IP-CIDR", "IP-CIDR6", "SRC-IP-CIDR"}:
+        try:
+            network = ipaddress.ip_network(value, strict=False)
+        except ValueError as exc:
+            raise SingBoxExportError(f"{context}: invalid CIDR {value!r}") from exc
+        return ("source_ip_cidr" if kind == "SRC-IP-CIDR" else "ip_cidr"), [str(network)]
+    if kind in {"IP-ASN", "SRC-IP-ASN"}:
+        raise SingBoxExportError(f"{context}: ASN expansion is required before SRS serialization ({kind})")
+    if kind in {"NETWORK", "PROCESS-NAME", "PROCESS-PATH", "PROCESS-PATH-REGEX"}:
+        fields = {"NETWORK": "network", "PROCESS-NAME": "process_name", "PROCESS-PATH": "process_path", "PROCESS-PATH-REGEX": "process_path_regex"}
+        return fields[kind], [value.lower() if kind == "NETWORK" else value]
+    if kind in {"DST-PORT", "SRC-PORT"}:
+        field = "port" if kind == "DST-PORT" else "source_port"
+        single: list[int] = []
+        ranges: list[str] = []
+        for item in value.split("/"):
+            try:
+                if "-" in item:
+                    left, right = item.split("-", 1)
+                    if not (0 <= int(left) <= int(right) <= 65535): raise ValueError
+                    ranges.append(f"{int(left)}:{int(right)}")
+                else:
+                    number = int(item)
+                    if not 0 <= number <= 65535: raise ValueError
+                    single.append(number)
+            except ValueError as exc:
+                raise SingBoxExportError(f"{context}: invalid port {value!r}") from exc
+        result: list[tuple[str, Any]] = []
+        if single: result.append((field, single))
+        if ranges: result.append((field + "_range", ranges))
+        return result  # type: ignore[return-value]
+    raise SingBoxExportError(f"{context}: unsupported matcher {kind!r}")
+
+
+def _default_asn_resolver(asns: set[str]) -> dict[str, list[str]]:
+    """Resolve ASN to CIDRs only for this exporter; never mutates main IR."""
+    context = ssl.create_default_context(cafile=certifi.where()) if certifi else ssl.create_default_context()
+    metadata = json.loads(urllib.request.urlopen("https://api.github.com/repos/FyraLabs/geolite2/releases/latest", context=context, timeout=60).read())
+    result = {asn: [] for asn in asns}
+    def download(url: str) -> bytes:
+        data = bytearray()
+        for attempt in range(20):
+            headers = {"User-Agent": "mihomo-mrs-converter"}
+            if data: headers["Range"] = f"bytes={len(data)}-"
+            try:
+                response = urllib.request.urlopen(urllib.request.Request(url, headers=headers), context=context, timeout=60)
+                if data and response.status != 206: raise SingBoxExportError("ASN server ignored HTTP Range resume")
+                expected = response.headers.get("Content-Length")
+                expected_total = len(data) + int(expected) if expected else None
+                data.extend(response.read())
+                if expected_total is None or len(data) >= expected_total: return bytes(data)
+            except IncompleteRead as exc:
+                data.extend(exc.partial)
+            if attempt == 19: raise SingBoxExportError("ASN database download remained incomplete")
+        raise SingBoxExportError("ASN database download failed")
+
+    for asset in metadata.get("assets", []):
+        url = asset.get("browser_download_url", "")
+        if not asset.get("name", "").endswith(".csv") or "GeoLite2-ASN-Blocks-" not in asset.get("name", ""):
+            continue
+        raw = download(url)
+        for row in csv.DictReader(io.TextIOWrapper(io.BytesIO(raw), encoding="utf-8")):
+            asn = row.get("autonomous_system_number")
+            if asn in result and row.get("network"):
+                result[asn].append(str(ipaddress.ip_network(row["network"], strict=False)))
+    missing = sorted(asn for asn, networks in result.items() if not networks)
+    if missing:
+        raise SingBoxExportError("ASN database has no prefix for: " + ", ".join(missing))
+    return result
+
+
+def _provider_matchers(name: str, behavior: str, payload: list[str], asn_resolver: Callable[[set[str]], dict[str, list[str]]]) -> list[dict[str, Any]]:
+    result: list[dict[str, Any]] = []
+    for number, raw in enumerate(payload):
+        context = f"provider {name} payload[{number}] raw={raw!r}"
+        rule = parse_rule(raw)
+        if behavior == "domain":
+            field, value = _domain_value(raw)
+            result.append({field: [value]})
+            continue
+        if behavior == "ipcidr":
+            field, value = _matcher("IP-CIDR", raw, context)
+            result.append({field: value})
+            continue
+        if rule.kind in {"DOMAIN", "DOMAIN-SUFFIX", "DOMAIN-KEYWORD", "DOMAIN-REGEX", "DOMAIN-WILDCARD", "IP-CIDR", "IP-CIDR6", "SRC-IP-CIDR", "NETWORK", "PROCESS-NAME", "PROCESS-PATH", "PROCESS-PATH-REGEX", "DST-PORT", "SRC-PORT", "IP-ASN", "SRC-IP-ASN"}:
+            if len(rule.parts) < 2:
+                raise SingBoxExportError(f"{context}: missing matcher value")
+            if rule.kind in {"IP-ASN", "SRC-IP-ASN"}:
+                raise SingBoxExportError(f"{context}: ASN expansion must be performed before serialization")
+            parsed = _matcher(rule.kind, rule.parts[1], context)
+            if isinstance(parsed, list):
+                for field, value in parsed: result.append({field: value})
+            else:
+                field, value = parsed
+                result.append({field: value if isinstance(value, list) else [value]})
+            continue
+        raise SingBoxExportError(f"{context}: unsupported classical rule kind {rule.kind!r}")
+    return result
+
+
+def _aggregate(matchers: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    # Only destination matcher families are OR-safe to combine.  Every other
+    # matcher remains its own object, preventing accidental IP AND port rules.
+    destination = {"domain", "domain_suffix", "domain_keyword", "domain_regex", "ip_cidr"}
+    result: list[dict[str, Any]] = []
+    bucket: dict[str, list[Any]] = {}
+    for matcher in matchers:
+        if set(matcher) <= destination:
+            for field, values in matcher.items(): bucket.setdefault(field, []).extend(values)
+        else:
+            result.append(matcher)
+    if bucket:
+        result.insert(0, {field: list(dict.fromkeys(values)) for field, values in bucket.items()})
+    return result
+
+
+def _groups(config: dict[str, Any], segment_names: dict[str, str] | None = None) -> list[dict[str, Any]]:
+    groups: list[dict[str, Any]] = []
+    current: dict[str, Any] | None = None
+    occurrence: dict[tuple[str, tuple[str, ...], str], int] = {}
+    for index, raw in enumerate(config.get("rules", [])):
+        wrapper = simple_ruleset_wrapper(raw)
+        if wrapper is None:
+            current = None
+            continue
+        reference = parse_ruleset_reference(raw)
+        assert reference is not None
+        provider = wrapper[0][1]
+        key = (reference.policy, reference.modifiers, reference.wrapper_kind)
+        if current is None or current["key"] != key:
+            occurrence[key] = occurrence.get(key, 0) + 1
+            ordinal = occurrence[key]
+            base = (segment_names or {}).get(f"merged-segment-{len(groups) + 1:02d}")
+            if base and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", base):
+                tag = base if ordinal == 1 else f"{base}-{ordinal}"
+            else:
+                tag = f"segment-{len(groups) + 1:02d}-{ordinal:02d}"
+            current = {"key": key, "tag": tag, "policy": reference.policy, "modifiers": list(reference.modifiers), "wrapper": reference.wrapper_kind, "providers": [], "indexes": []}
+            groups.append(current)
+        current["providers"].append(provider)
+        current["indexes"].append(index)
+    return groups
+
+
+def _subrule_actions(config: dict[str, Any], name: str) -> list[tuple[dict[str, Any], dict[str, Any]]]:
+    members = (config.get("sub-rules") or {}).get(name)
+    if members is None:
+        raise SingBoxExportError(f"SUB-RULE {name!r} is not defined")
+    actions: list[tuple[dict[str, Any], dict[str, Any]]] = []
+    for index, raw in enumerate(members):
+        parts = split_top_level_commas(raw)
+        if len(parts) == 3 and parts[0].upper() == "NETWORK" and parts[1].upper() in {"TCP", "UDP"}:
+            actions.append(({"network": [parts[1].lower()]}, _policy_action(parts[2])))
+        elif len(parts) == 2 and parts[0].upper() == "MATCH":
+            actions.append(({}, _policy_action(parts[1])))
+        else:
+            raise SingBoxExportError(f"sub-rules[{name!r}][{index}]: unsupported member {raw!r}")
+    if not actions or not any(not match for match, _ in actions):
+        raise SingBoxExportError(f"SUB-RULE {name!r} has no terminal MATCH")
+    return actions
+
+
+def _route_rules(config: dict[str, Any], groups: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], str | None]:
+    by_index = {index: group for group in groups for index in group["indexes"]}
+    rules: list[dict[str, Any]] = []
+    final: str | None = None
+    for index, raw in enumerate(config.get("rules", [])):
+        if not isinstance(raw, str): raise SingBoxExportError(f"rules[{index}]: rule must be a string")
+        parts = split_top_level_commas(raw)
+        kind = parts[0].upper() if parts else ""
+        if kind == "MATCH":
+            if index != len(config["rules"]) - 1 or len(parts) != 2: raise SingBoxExportError(f"rules[{index}]: MATCH must be terminal and have one policy")
+            action = _policy_action(parts[1])
+            if action["action"] == "route": final = action["outbound"]
+            else: rules.append(action)
+            continue
+        group = by_index.get(index)
+        if group is not None:
+            if index != group["indexes"][0]: continue
+            if group["wrapper"] == "SUB-RULE":
+                ref = parse_ruleset_reference(raw); assert ref is not None
+                for match, action in _subrule_actions(config, ref.policy):
+                    entry = {"rule_set": [group["tag"]], **match, **action}; rules.append(entry)
+            else:
+                rules.append({"rule_set": [group["tag"]], **_policy_action(group["policy"])})
+            continue
+        if kind == "NETWORK" and len(parts) == 3 and parts[1].upper() in {"TCP", "UDP"}:
+            rules.append({"network": [parts[1].lower()], **_policy_action(parts[2])}); continue
+        if kind == "RULE-SET":
+            raise SingBoxExportError(f"rules[{index}]: RULE-SET was not assigned a segment")
+        if len(parts) < 3:
+            raise SingBoxExportError(f"rules[{index}]: malformed top-level rule {raw!r}")
+        policy_index = len(parts) - 1
+        while policy_index > 1 and parts[policy_index - 1].lower() in {"no-resolve", "src"}:
+            policy_index -= 1
+        policy = parts[policy_index]
+        modifiers = parts[policy_index + 1:]
+        if any(item.lower() not in {"no-resolve", "src"} for item in modifiers):
+            raise SingBoxExportError(f"rules[{index}]: unsupported modifier in {raw!r}")
+        matcher_parts = parts[:policy_index]
+        if not policy or len(matcher_parts) < 2:
+            raise SingBoxExportError(f"rules[{index}]: malformed top-level rule {raw!r}")
+        parsed = _matcher(matcher_parts[0], ",".join(matcher_parts[1:]), f"rules[{index}]")
+        if isinstance(parsed, list):
+            for field, value in parsed:
+                rules.append({field: value, **_policy_action(policy)})
+        else:
+            field, value = parsed
+            entry = {field: value if isinstance(value, list) else [value], **_policy_action(policy)}
+            rules.append(entry)
+    return rules, final
+
+
+def _representative(source_rules: list[dict[str, Any]]) -> str | None:
+    for rule in source_rules:
+        if "domain" in rule: return rule["domain"][0]
+        if "domain_suffix" in rule: return "audit." + rule["domain_suffix"][0]
+        if "ip_cidr" in rule: return str(ipaddress.ip_network(rule["ip_cidr"][0]).network_address)
+        if "domain_keyword" in rule: return "audit-" + rule["domain_keyword"][0] + ".invalid"
+    return None
+
+
+def export_singbox(config: dict[str, Any], final_payloads: dict[str, list[str]], output_dist: Path, base_url: str, sing_box: str | None, asn_resolver: Callable[[set[str]], dict[str, list[str]]] | None = None, segment_names: dict[str, str] | None = None) -> dict[str, Any]:
+    if not sing_box: raise SingBoxExportError("sing-box binary not found; install it or pass --allow-no-sing-box for source-only output")
+    groups = _groups(config, segment_names)
+    asn_resolver = asn_resolver or _default_asn_resolver
+    if not groups: raise SingBoxExportError("no RULE-SET segments available for Sing-box export")
+    stage = Path(tempfile.mkdtemp(prefix="singbox-export-", dir=output_dist.parent))
+    try:
+        source_dir, binary_dir = stage / "source", stage / "singbox"
+        source_dir.mkdir(); binary_dir.mkdir()
+        group_sources: dict[str, list[dict[str, Any]]] = {}
+        for group in groups:
+            matchers: list[dict[str, Any]] = []
+            for provider in group["providers"]:
+                if provider not in final_payloads:
+                    raise SingBoxExportError(f"provider {provider}: final source payload unavailable")
+                behavior = config["rule-providers"][provider].get("behavior")
+                if behavior not in {"domain", "ipcidr", "classical"}: raise SingBoxExportError(f"provider {provider}: unsupported behavior {behavior!r}")
+                payload = final_payloads[provider]
+                asn_values = {parse_rule(raw).parts[1] for raw in payload if isinstance(raw, str) and parse_rule(raw).kind in {"IP-ASN", "SRC-IP-ASN"} and len(parse_rule(raw).parts) > 1}
+                if asn_values:
+                    expanded = asn_resolver(asn_values)
+                    expanded_payload: list[str] = []
+                    for raw in payload:
+                        parsed = parse_rule(raw)
+                        if parsed.kind in {"IP-ASN", "SRC-IP-ASN"}:
+                            for network in expanded.get(parsed.parts[1], []):
+                                expanded_payload.append(("SRC-IP-CIDR," if parsed.kind == "SRC-IP-ASN" else "IP-CIDR,") + network)
+                        else:
+                            expanded_payload.append(raw)
+                    payload = expanded_payload
+                matchers.extend(_provider_matchers(provider, behavior, payload, asn_resolver))
+            source_rules = _aggregate(matchers)
+            if not source_rules: raise SingBoxExportError(f"segment {group['tag']}: generated empty SRS")
+            group_sources[group["tag"]] = source_rules
+            source = source_dir / f"{group['tag']}.json"
+            source.write_text(json.dumps({"version": 2, "rules": source_rules}, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
+            binary = binary_dir / f"{group['tag']}.srs"
+            subprocess.run([sing_box, "rule-set", "compile", str(source), "-o", str(binary)], check=True, capture_output=True, text=True)
+            decompiled = stage / f"{group['tag']}.decompiled.json"
+            subprocess.run([sing_box, "rule-set", "decompile", str(binary), "-o", str(decompiled)], check=True, capture_output=True, text=True)
+            json.loads(decompiled.read_text(encoding="utf-8"))
+            probe = _representative(source_rules)
+            if probe is not None:
+                source_match = subprocess.run([sing_box, "rule-set", "match", "-f", "source", str(source), probe], capture_output=True, text=True)
+                binary_match = subprocess.run([sing_box, "rule-set", "match", "-f", "binary", str(binary), probe], capture_output=True, text=True)
+                if (source_match.returncode == 0) != (binary_match.returncode == 0): raise SingBoxExportError(f"segment {group['tag']}: source/binary semantic mismatch for {probe!r}")
+        route_rules, final = _route_rules(config, groups)
+        route = {"route": {"rule_set": [{"type": "remote", "tag": g["tag"], "format": "binary", "url": f"{base_url.rstrip('/')}/dist/singbox/{g['tag']}.srs", "update_interval": "2d"} for g in groups], "rules": route_rules}}
+        if final is not None: route["route"]["final"] = final
+        route_path = stage / "singbox-rules.json"
+        route_path.write_text(json.dumps(route, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        target_dir = output_dist / "singbox"
+        target_dir.mkdir(parents=True, exist_ok=True)
+        for binary in binary_dir.glob("*.srs"): shutil.copy2(binary, target_dir / binary.name)
+        (output_dist / "generated").mkdir(parents=True, exist_ok=True)
+        shutil.copy2(route_path, output_dist / "generated/singbox-rules.json")
+        return {"segments": len(groups), "srs": [g["tag"] + ".srs" for g in groups], "route": route}
+    finally:
+        shutil.rmtree(stage, ignore_errors=True)

@@ -2926,6 +2926,8 @@ def main() -> None:
     )
     parser.add_argument("--mihomo", default=os.environ.get("MIHOMO_BIN") or shutil.which("mihomo"))
     parser.add_argument("--allow-no-mihomo", action="store_true")
+    parser.add_argument("--sing-box", default=os.environ.get("SING_BOX_BIN") or shutil.which("sing-box"))
+    parser.add_argument("--allow-no-sing-box", action="store_true")
     parser.add_argument(
         "--complete-config",
         type=Path,
@@ -2951,6 +2953,8 @@ def main() -> None:
 
     if not args.mihomo and not args.allow_no_mihomo:
         raise SystemExit("mihomo binary not found; install it or pass --allow-no-mihomo for source-only output")
+    if not args.sing_box and not args.allow_no_sing_box:
+        raise SystemExit("sing-box binary not found; install it or pass --allow-no-sing-box for source-only output")
 
     data = load_yaml(args.input)
     providers = data.get("rule-providers") or {}
@@ -3045,6 +3049,15 @@ def main() -> None:
     validate_generated_config(publish_dist, final, require_no_orphans=require_no_orphans)
     export_egern(dedup, staging, publish_dist, args.base_url)
     export_loon(dedup, staging, publish_dist, args.base_url)
+    # The existing source-only development mode remains source-only unless a
+    # Sing-box binary is explicitly supplied.  Production builds install both
+    # binaries and therefore always publish the additional exporter.
+    if args.sing_box and (args.mihomo or not args.allow_no_mihomo):
+        try:
+            from scripts.singbox_export import export_singbox
+        except ImportError:
+            from singbox_export import export_singbox
+        export_singbox(dedup, options.final_payloads, publish_dist, args.base_url, args.sing_box, segment_names=segment_mapping)
     if args.mihomo:
         export_dns(dedup, staging, publish_dist, args.base_url, args.mihomo, options.final_payloads)
     write_yaml_atomic(publish_dist / "generated" / "mihomo-rules.yaml", final)

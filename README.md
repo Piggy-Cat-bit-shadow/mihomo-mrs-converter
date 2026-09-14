@@ -1,6 +1,6 @@
 # mihomo-mrs-converter
 
-专门用于 Mihomo / Clash `rule-provider` 的无损 MRS 化。
+专门用于 Mihomo / Clash `rule-provider` 的无损 MRS 化，并生成 Sing-box 规则集。
 
 这个项目只处理两个顶级字段：
 
@@ -130,12 +130,23 @@ python scripts/convert.py examples/my-rules.yaml \
 推送到 GitHub 后，工作流会：
 
 1. 安装 Python 依赖。
-2. 下载固定的 Mihomo `v1.19.30` 二进制并输出版本。
+2. 下载固定的 Mihomo `v1.19.30` 和 Sing-box 二进制并输出版本。
 3. 运行 `unittest`。
 4. 运行转换和生成结果验收。
 5. 把 `dist/` 提交回仓库。
 
 发布后的客户端 URL 会指向本仓库的 raw 文件。
+
+## Sing-box 输出
+
+构建从本次运行已经完成 fetch、parse、normalize、merge 和 dedup 的最终 payload 生成：
+
+```text
+dist/singbox/*.srs
+dist/generated/singbox-rules.json
+```
+
+`.srs` 由官方 `sing-box rule-set compile` 生成并执行 decompile 验收。`singbox-rules.json` 是只包含 `route.rule_set`、规则和可选 `final` 的配置片段，不是完整 Sing-box 客户端配置；支持 remote binary rule-set、原样 policy、SUB-RULE 展开、UDP 条件和 `MATCH` 到 `final` 的映射。`no-resolve` 没有直接对应的 SRS 字段，因此不会人为插入 resolve action。无法无损转换的规则会 fail closed，而不是静默跳过。
 
 ## DNS Output
 
