@@ -1,4 +1,5 @@
 import json
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -6,7 +7,7 @@ from pathlib import Path
 from scripts.singbox_export import SingBoxExportError, export_singbox
 
 
-SING_BOX = "/Users/jie/.local/bin/sing-box"
+SING_BOX = shutil.which("sing-box") or "sing-box"
 
 
 class SingBoxExportTest(unittest.TestCase):
