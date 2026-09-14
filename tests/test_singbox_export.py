@@ -4,13 +4,41 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.singbox_export import SingBoxExportError, export_singbox
+from scripts.singbox_export import SingBoxExportError, _groups, export_singbox
 
 
 SING_BOX = shutil.which("sing-box") or "sing-box"
 
 
 class SingBoxExportTest(unittest.TestCase):
+    def test_canonical_names_do_not_use_policy_occurrence(self):
+        config = {
+            "rule-providers": {
+                "Direct-domain": {"behavior": "domain"},
+                "China-domain": {"behavior": "domain"},
+            },
+            "rules": ["RULE-SET,Direct-domain,DIRECT", "NETWORK,TCP,DIRECT", "RULE-SET,China-domain,DIRECT", "MATCH,DIRECT"],
+        }
+        groups = _groups(config)
+        self.assertEqual([group["tag"] for group in groups], ["Direct", "China"])
+
+    def test_canonical_no_resolve_variant_uses_semantic_suffix(self):
+        config = {
+            "rule-providers": {
+                "China-domain": {"behavior": "domain"},
+                "China-ip": {"behavior": "ipcidr"},
+            },
+            "rules": ["RULE-SET,China-domain,DIRECT", "RULE-SET,China-ip,DIRECT,no-resolve", "MATCH,DIRECT"],
+        }
+        groups = _groups(config)
+        self.assertEqual([group["tag"] for group in groups], ["China", "China-no-resolve"])
+
+    def test_committed_example_artifacts_use_canonical_tags(self):
+        route = json.loads(Path("dist/generated/singbox-rules.json").read_text(encoding="utf-8"))["route"]
+        tags = [item["tag"] for item in route["rule_set"]]
+        self.assertEqual(tags, ["Direct", "AI", "Global", "China", "China-no-resolve"])
+        self.assertFalse(any(tag.startswith("segment-") or tag == "China-2" for tag in tags))
+
     def test_provider_serialization_and_policy_preservation(self):
         config = {
             "rule-providers": {"A": {"behavior": "classical"}},

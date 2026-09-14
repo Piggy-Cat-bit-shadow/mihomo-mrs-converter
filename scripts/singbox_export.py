@@ -199,6 +199,7 @@ def _groups(config: dict[str, Any], segment_names: dict[str, str] | None = None)
     groups: list[dict[str, Any]] = []
     current: dict[str, Any] | None = None
     occurrence: dict[tuple[str, tuple[str, ...], str], int] = {}
+    used_tags: set[str] = set()
     for index, raw in enumerate(config.get("rules", [])):
         wrapper = simple_ruleset_wrapper(raw)
         if wrapper is None:
@@ -211,11 +212,25 @@ def _groups(config: dict[str, Any], segment_names: dict[str, str] | None = None)
         if current is None or current["key"] != key:
             occurrence[key] = occurrence.get(key, 0) + 1
             ordinal = occurrence[key]
-            base = (segment_names or {}).get(f"merged-segment-{len(groups) + 1:02d}")
+            # Provider names are the canonical identity after convert.py has
+            # merged and applied segment-names.yaml (e.g. China-ip-part-02).
+            # Do not derive identity from policy occurrence: Direct and China
+            # may both route DIRECT while remaining distinct logical segments.
+            match = re.match(r"^(.*?)-(?:domain|ip|classical)(?:-part-\d+)?$", provider)
+            base = match.group(1) if match else None
+            if base in (segment_names or {}):
+                base = segment_names[base]
+            suffix = "-no-resolve" if "no-resolve" in reference.modifiers else ""
             if base and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", base):
-                tag = base if ordinal == 1 else f"{base}-{ordinal}"
+                tag = base + suffix
             else:
                 tag = f"segment-{len(groups) + 1:02d}-{ordinal:02d}"
+            if tag in used_tags:
+                collision = 2
+                while f"{tag}-{collision}" in used_tags:
+                    collision += 1
+                tag = f"{tag}-{collision}"
+            used_tags.add(tag)
             current = {"key": key, "tag": tag, "policy": reference.policy, "modifiers": list(reference.modifiers), "wrapper": reference.wrapper_kind, "providers": [], "indexes": []}
             groups.append(current)
         current["providers"].append(provider)

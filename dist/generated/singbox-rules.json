@@ -24,16 +24,16 @@
       },
       {
         "type": "remote",
-        "tag": "China-2",
+        "tag": "China",
         "format": "binary",
-        "url": "https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/singbox/China-2.srs",
+        "url": "https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/singbox/China.srs",
         "update_interval": "2d"
       },
       {
         "type": "remote",
-        "tag": "segment-05-01",
+        "tag": "China-no-resolve",
         "format": "binary",
-        "url": "https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/singbox/segment-05-01.srs",
+        "url": "https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/singbox/China-no-resolve.srs",
         "update_interval": "2d"
       }
     ],
@@ -94,14 +94,14 @@
       },
       {
         "rule_set": [
-          "China-2"
+          "China"
         ],
         "action": "route",
         "outbound": "direct"
       },
       {
         "rule_set": [
-          "segment-05-01"
+          "China-no-resolve"
         ],
         "action": "route",
         "outbound": "direct"
