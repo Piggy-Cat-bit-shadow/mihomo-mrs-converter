@@ -3079,7 +3079,7 @@ def main() -> None:
         export_singbox(dedup, options.final_payloads, publish_dist, args.base_url, args.sing_box, segment_names=segment_mapping)
         if args.mihomo and not args.allow_no_mihomo:
             export_singbox_dns(dedup, options.final_payloads, publish_dist, args.base_url, args.sing_box)
-    if args.mihomo:
+    if args.mihomo and not args.allow_no_mihomo:
         export_dns(dedup, staging, publish_dist, args.base_url, args.mihomo, options.final_payloads)
     write_yaml_atomic(publish_dist / "generated" / "mihomo-rules.yaml", final)
     old_dist = args.dist.with_name(f".{args.dist.name}.previous")
