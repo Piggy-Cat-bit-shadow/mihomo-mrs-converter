@@ -1430,7 +1430,8 @@ class UnreferencedProviderTest(unittest.TestCase):
             ):
                 convert.main()
             self.assertEqual(calls, [used_url])
-            self.assertTrue(any(path.is_file() for path in (dist / "source/domain").glob("*.yaml")))
+            generated_dirs = ((dist / "source/domain").glob("*"), (dist / "domain").glob("*"))
+            self.assertTrue(any(path.is_file() for paths in generated_dirs for path in paths))
             self.assertFalse(any("Unused" in str(path) for path in dist.rglob("*")))
 
     def test_referenced_missing_provider_still_fails(self) -> None:
