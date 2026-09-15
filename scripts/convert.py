@@ -1913,10 +1913,39 @@ def export_egern(
 
 
 DNS_CLASSICAL_KINDS = {"DOMAIN-KEYWORD", "DOMAIN-WILDCARD", "DOMAIN-REGEX"}
+DNS_DOMAIN_KINDS = {"DOMAIN", "DOMAIN-SUFFIX", "DOMAIN-KEYWORD", "DOMAIN-REGEX", "DOMAIN-WILDCARD"}
 DNS_SEGMENT_GROUPS = {
     "China": {"Direct", "China"},
     "Global": {"AI", "Global"},
 }
+
+
+def collect_dns_domain_payloads(
+    config: dict[str, Any], payloads: dict[str, list[str]] | None = None,
+    classical_kinds: set[str] | None = None,
+) -> dict[str, tuple[list[str], list[str]]]:
+    """Return the shared normalized domain/classical DNS view for each group."""
+    domain_rules: dict[str, list[str]] = {group: [] for group in DNS_SEGMENT_GROUPS}
+    classical_rules: dict[str, list[str]] = {group: [] for group in DNS_SEGMENT_GROUPS}
+    classical_kinds = classical_kinds or DNS_CLASSICAL_KINDS
+    for name, provider in config["rule-providers"].items():
+        segment = egern_segment_name(name)
+        group = next((group for group, members in DNS_SEGMENT_GROUPS.items() if segment in members), None)
+        if group is None:
+            continue
+        if payloads is None or name not in payloads:
+            continue
+        provider_payload = payloads[name]
+        if provider.get("behavior") == "domain":
+            domain_rules[group].extend(provider_payload)
+        elif provider.get("behavior") == "classical":
+            classical_rules[group].extend(
+                rule for rule in provider_payload if parse_rule(rule).kind in classical_kinds
+            )
+    return {
+        group: (dedup_domain_payload(domain_rules[group])[0], dedup_exact_rules(classical_rules[group])[0])
+        for group in DNS_SEGMENT_GROUPS
+    }
 
 
 def export_dns(
@@ -1927,29 +1956,13 @@ def export_dns(
     if not mihomo:
         raise SystemExit("DNS domain MRS output requires a mihomo binary")
 
-    domain_rules: dict[str, list[str]] = {group: [] for group in DNS_SEGMENT_GROUPS}
-    classical_rules: dict[str, list[str]] = {group: [] for group in DNS_SEGMENT_GROUPS}
-
-    for name, provider in config["rule-providers"].items():
-        segment = egern_segment_name(name)
-        group = next((group for group, members in DNS_SEGMENT_GROUPS.items() if segment in members), None)
-        if group is None:
-            continue
-        if payloads is not None and name in payloads:
-            payload = payloads[name]
-        else:
-            payload_path = source_path_for_provider(staging, provider)
-            if payload_path is None:
-                payload_path = generated_artifact_path(staging, provider)
-            if payload_path is None or not payload_path.exists():
-                continue
-            payload = read_yaml_payload(payload_path)
-        if provider.get("behavior") == "domain":
-            domain_rules[group].extend(payload)
-        elif provider.get("behavior") == "classical":
-            classical_rules[group].extend(
-                rule for rule in payload if parse_rule(rule).kind in DNS_CLASSICAL_KINDS
-            )
+    if payloads is None:
+        payloads = {}
+        for name, provider in config["rule-providers"].items():
+            payload_path = source_path_for_provider(staging, provider) or generated_artifact_path(staging, provider)
+            if payload_path is not None and payload_path.exists():
+                payloads[name] = read_yaml_payload(payload_path)
+    dns_payloads = collect_dns_domain_payloads(config, payloads)
 
     present_segments = {
         egern_segment_name(name)
@@ -1963,14 +1976,13 @@ def export_dns(
     dns_root = output_dist / "dns"
     counts: Counter[str] = Counter()
     for group in DNS_SEGMENT_GROUPS:
-        optimized_domains, _ = dedup_domain_payload(domain_rules[group])
+        optimized_domains, optimized_classical = dns_payloads[group]
         source_path = staging / "dns" / "source" / f"{group}-domain.yaml"
         write_yaml_payload(source_path, optimized_domains)
         convert_source_to_mrs(
             mihomo, "domain", source_path, dns_root / "mihomo" / f"{group}-domain.mrs"
         )
 
-        optimized_classical, _ = dedup_exact_rules(classical_rules[group])
         write_yaml_payload(dns_root / "mihomo" / f"{group}-classical.yaml", optimized_classical)
 
         egern_fields: dict[str, list[str]] = {}
@@ -3054,10 +3066,11 @@ def main() -> None:
     # binaries and therefore always publish the additional exporter.
     if args.sing_box and (args.mihomo or not args.allow_no_mihomo):
         try:
-            from scripts.singbox_export import export_singbox
+            from scripts.singbox_export import export_singbox, export_singbox_dns
         except ImportError:
-            from singbox_export import export_singbox
+            from singbox_export import export_singbox, export_singbox_dns
         export_singbox(dedup, options.final_payloads, publish_dist, args.base_url, args.sing_box, segment_names=segment_mapping)
+        export_singbox_dns(dedup, options.final_payloads, publish_dist, args.base_url, args.sing_box)
     if args.mihomo:
         export_dns(dedup, staging, publish_dist, args.base_url, args.mihomo, options.final_payloads)
     write_yaml_atomic(publish_dist / "generated" / "mihomo-rules.yaml", final)

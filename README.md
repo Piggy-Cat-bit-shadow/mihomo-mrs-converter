@@ -144,6 +144,8 @@ python scripts/convert.py examples/my-rules.yaml \
 ```text
 dist/singbox/*.srs
 dist/generated/singbox-rules.json
+dist/dns/singbox/China-domain.srs
+dist/dns/singbox/Global-domain.srs
 ```
 
 `.srs` 由官方 `sing-box rule-set compile` 生成并执行 decompile 验收。`singbox-rules.json` 是只包含 `route.rule_set`、规则和可选 `final` 的配置片段，不是完整 Sing-box 客户端配置；支持 remote binary rule-set、原样 policy、SUB-RULE 展开、UDP 条件和 `MATCH` 到 `final` 的映射。
@@ -158,6 +160,8 @@ DNS 输出直接使用本次构建已经完成 fetch、parse、classify、merge�
 China = Direct + China
 Global = AI + Global
 ```
+
+同时生成两个纯域名型 Sing-box DNS Rule Set：`dist/dns/singbox/China-domain.srs` 和 `dist/dns/singbox/Global-domain.srs`。它们使用同一份最终归一化 payload，包含 `DOMAIN`、`DOMAIN-SUFFIX`、`DOMAIN-KEYWORD`、`DOMAIN-REGEX`、`DOMAIN-WILDCARD`，也会纳入 classical provider 中的域名规则；不会包含 IP、ASN、进程、network 或端口匹配。`dist/singbox/` 下的 SRS 仍然是流量路由用途，二者互不复用。
 
 生成的 6 个文件：`dist/dns/mihomo/China-domain.mrs`、`dist/dns/mihomo/China-classical.yaml`、`dist/dns/mihomo/Global-domain.mrs`、`dist/dns/mihomo/Global-classical.yaml`、`dist/dns/egern/China.yaml`、`dist/dns/egern/Global.yaml`。
 

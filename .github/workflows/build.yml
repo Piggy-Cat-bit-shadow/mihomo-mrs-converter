@@ -64,6 +64,7 @@ jobs:
           set -euo pipefail
           test -s dist/generated/singbox-rules.json
           test -d dist/singbox
+          test -d dist/dns/singbox
           python - <<'PY'
           import json
           from pathlib import Path
@@ -79,10 +80,23 @@ jobs:
               raise SystemExit("Sing-box route/artifact mismatch")
           if not isinstance(route.get("rules"), list):
               raise SystemExit("invalid Sing-box route rules")
+          dns = root / "dns" / "singbox"
+          if {path.name for path in dns.glob("*.srs")} != {"China-domain.srs", "Global-domain.srs"}:
+              raise SystemExit("unexpected Sing-box DNS artifacts")
           PY
           for srs in dist/singbox/*.srs; do
             sing-box rule-set decompile "$srs" -o /tmp/"$(basename "$srs").json"
             python -m json.tool /tmp/"$(basename "$srs").json" >/dev/null
+          done
+          for srs in dist/dns/singbox/*.srs; do
+            sing-box rule-set decompile "$srs" -o /tmp/"$(basename "$srs").json"
+            python - <<'PY' "/tmp/$(basename "$srs").json"
+          import json, sys
+          allowed = {"domain", "domain_suffix", "domain_keyword", "domain_regex"}
+          rules = json.load(open(sys.argv[1], encoding="utf-8"))["rules"]
+          if any(set(rule) - allowed for rule in rules):
+              raise SystemExit("Sing-box DNS SRS contains a non-domain matcher")
+          PY
           done
 
       - name: Validate generated rules

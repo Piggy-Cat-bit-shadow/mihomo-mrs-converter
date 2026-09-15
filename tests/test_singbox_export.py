@@ -1,10 +1,11 @@
 import json
 import shutil
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.singbox_export import SingBoxExportError, _aggregate_buckets, _groups, _provider_matchers, export_singbox
+from scripts.singbox_export import SingBoxExportError, _aggregate_buckets, _groups, _provider_matchers, export_singbox, export_singbox_dns
 
 
 SING_BOX = shutil.which("sing-box") or "sing-box"
@@ -110,6 +111,33 @@ class SingBoxExportTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             export_singbox(config, payload, Path(tmp), "https://x", SING_BOX, lambda _: {"64512": ["192.0.2.0/24", "2001:db8::/32"]})
             self.assertEqual(payload["A"], ["IP-ASN,64512", "SRC-IP-ASN,64512"])
+
+    def test_dns_export_contains_only_domain_matchers_from_shared_payloads(self):
+        config = {
+            "rule-providers": {
+                "Direct-domain": {"behavior": "domain"},
+                "China-classical": {"behavior": "classical"},
+                "AI-domain": {"behavior": "domain"},
+                "Global-classical": {"behavior": "classical"},
+            }
+        }
+        payloads = {
+            "Direct-domain": ["direct.example"],
+            "China-classical": ["DOMAIN-SUFFIX,cn.example", "IP-CIDR,192.0.2.0/24", "PROCESS-NAME,foo"],
+            "AI-domain": ["+.ai.example"],
+            "Global-classical": ["DOMAIN-KEYWORD,global", "DOMAIN-WILDCARD,*.cloud.example", "DST-PORT,443"],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            result = export_singbox_dns(config, payloads, Path(tmp), "https://x", SING_BOX)
+            self.assertEqual(result["srs"], ["China-domain.srs", "Global-domain.srs"])
+            for group in ("China", "Global"):
+                srs = Path(tmp) / "dns/singbox" / f"{group}-domain.srs"
+                out = Path(tmp) / f"{group}.json"
+                subprocess.run([SING_BOX, "rule-set", "decompile", str(srs), "-o", str(out)], check=True)
+                rules = json.loads(out.read_text())["rules"]
+                fields = {field for rule in rules for field in rule}
+                self.assertTrue(fields <= {"domain", "domain_suffix", "domain_keyword", "domain_regex"})
+                self.assertNotIn("ip_cidr", fields)
 
 
 if __name__ == "__main__":

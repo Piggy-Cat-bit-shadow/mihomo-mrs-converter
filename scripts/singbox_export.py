@@ -25,9 +25,9 @@ from pathlib import Path
 from typing import Any, Callable
 
 try:
-    from .convert import parse_rule, parse_ruleset_reference, simple_ruleset_wrapper, split_top_level_commas
+    from .convert import DNS_DOMAIN_KINDS, collect_dns_domain_payloads, parse_rule, parse_ruleset_reference, simple_ruleset_wrapper, split_top_level_commas
 except ImportError:  # direct `python scripts/convert.py` execution
-    from convert import parse_rule, parse_ruleset_reference, simple_ruleset_wrapper, split_top_level_commas
+    from convert import DNS_DOMAIN_KINDS, collect_dns_domain_payloads, parse_rule, parse_ruleset_reference, simple_ruleset_wrapper, split_top_level_commas
 
 
 class SingBoxExportError(RuntimeError):
@@ -331,6 +331,83 @@ def _representative(source_rules: list[dict[str, Any]]) -> str | None:
         if "ip_cidr" in rule: return str(ipaddress.ip_network(rule["ip_cidr"][0]).network_address)
         if "domain_keyword" in rule: return "audit-" + rule["domain_keyword"][0] + ".invalid"
     return None
+
+
+def _representatives(source_rules: list[dict[str, Any]]) -> list[str]:
+    probes: list[str] = []
+    for rule in source_rules:
+        if "domain" in rule:
+            probes.append(rule["domain"][0])
+        elif "domain_suffix" in rule:
+            probes.append("audit." + rule["domain_suffix"][0])
+        elif "domain_keyword" in rule:
+            probes.append("audit-" + rule["domain_keyword"][0] + ".invalid")
+    return list(dict.fromkeys(probes))
+
+
+def _canonicalize_decompiled_rules(rules: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Match decompile's scalar shorthand to the source list representation."""
+    matcher_fields = {"domain", "domain_suffix", "domain_keyword", "domain_regex", "ip_cidr"}
+    return [
+        {field: value if isinstance(value, list) else [value] if field in matcher_fields else value for field, value in rule.items()}
+        for rule in rules
+    ]
+
+
+def export_singbox_dns(
+    config: dict[str, Any], final_payloads: dict[str, list[str]], output_dist: Path,
+    base_url: str, sing_box: str | None,
+) -> dict[str, Any]:
+    """Compile the shared normalized DNS domain view into two pure SRS files."""
+    if not sing_box:
+        raise SingBoxExportError("sing-box binary not found; DNS SRS output requires sing-box")
+    dns_payloads = collect_dns_domain_payloads(config, final_payloads, DNS_DOMAIN_KINDS)
+    stage = Path(tempfile.mkdtemp(prefix="singbox-dns-export-", dir=output_dist.parent))
+    try:
+        source_dir, binary_dir = stage / "source", stage / "dns"
+        source_dir.mkdir(); binary_dir.mkdir()
+        result: dict[str, Any] = {"groups": {}, "srs": []}
+        for group in ("China", "Global"):
+            domain_payload, classical_payload = dns_payloads[group]
+            matchers: list[dict[str, Any]] = []
+            for raw in domain_payload:
+                field, value = _domain_value(raw)
+                matchers.append({field: [value]})
+            for number, raw in enumerate(classical_payload):
+                parsed = parse_rule(raw)
+                if parsed.kind not in DNS_DOMAIN_KINDS:
+                    raise SingBoxExportError(f"DNS {group} classical[{number}]: unsupported matcher {parsed.kind!r}")
+                if len(parsed.parts) < 2:
+                    raise SingBoxExportError(f"DNS {group} classical[{number}]: missing matcher value")
+                field, value = _matcher(parsed.kind, parsed.parts[1], f"DNS {group} classical[{number}]")
+                matchers.append({field: [value]})
+            source_rules = _aggregate(matchers)
+            if not source_rules:
+                raise SingBoxExportError(f"DNS {group}: generated empty SRS")
+            source = source_dir / f"{group}-domain.json"
+            binary = binary_dir / f"{group}-domain.srs"
+            source.write_text(json.dumps({"version": 2, "rules": source_rules}, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
+            subprocess.run([sing_box, "rule-set", "compile", str(source), "-o", str(binary)], check=True, capture_output=True, text=True)
+            decompiled = stage / f"{group}-domain.decompiled.json"
+            subprocess.run([sing_box, "rule-set", "decompile", str(binary), "-o", str(decompiled)], check=True, capture_output=True, text=True)
+            decoded = json.loads(decompiled.read_text(encoding="utf-8"))
+            decompiled_rules = _canonicalize_decompiled_rules(decoded.get("rules", []))
+            allowed = {"domain", "domain_suffix", "domain_keyword", "domain_regex"}
+            if any(set(rule) - allowed for rule in decompiled_rules):
+                raise SingBoxExportError(f"DNS {group}: decompiled SRS contains a non-domain matcher")
+            for probe in _representatives(source_rules):
+                source_match = subprocess.run([sing_box, "rule-set", "match", "-f", "source", str(source), probe], capture_output=True, text=True)
+                binary_match = subprocess.run([sing_box, "rule-set", "match", "-f", "binary", str(binary), probe], capture_output=True, text=True)
+                if (source_match.returncode == 0) != (binary_match.returncode == 0):
+                    raise SingBoxExportError(f"DNS {group}: source/binary semantic mismatch for {probe!r}")
+            target = output_dist / "dns" / "singbox"
+            target.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(binary, target / binary.name)
+            result["groups"][group] = {"domain": len(domain_payload), "classical-domain": len(classical_payload)}
+            result["srs"].append(binary.name)
+        return result
+    finally:
+        shutil.rmtree(stage, ignore_errors=True)
 
 
 def export_singbox(config: dict[str, Any], final_payloads: dict[str, list[str]], output_dist: Path, base_url: str, sing_box: str | None, asn_resolver: Callable[[set[str]], dict[str, list[str]]] | None = None, segment_names: dict[str, str] | None = None) -> dict[str, Any]:
