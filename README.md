@@ -137,6 +137,8 @@ python scripts/convert.py examples/my-rules.yaml \
 
 发布后的客户端 URL 会指向本仓库的 raw 文件。
 
+输入配置允许定义未被 `rules` 引用的额外 `rule-providers`；转换器会依据现有规则解析器计算实际引用集合，只处理被引用的 provider，因此未引用项不会下载、解析或生成产物。被规则引用但未定义的 provider 仍会明确报错。
+
 ## Sing-box 输出
 
 构建从本次运行已经完成 fetch、parse、normalize、merge 和 dedup 的最终 payload 生成：

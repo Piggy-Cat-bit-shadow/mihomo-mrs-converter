@@ -1398,6 +1398,54 @@ class ManagedStatePathTest(unittest.TestCase):
             self.assertFalse((dist / "generated/managed-state.yaml").exists())
 
 
+class UnreferencedProviderTest(unittest.TestCase):
+    def test_unreferenced_provider_is_ignored_without_download_or_artifact(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            input_path = root / "input.yaml"
+            dist = root / "dist"
+            used_url = "https://example.com/used.yaml"
+            unused_url = "https://example.com/unused.yaml"
+            input_path.write_text(yaml.safe_dump({
+                "rule-providers": {
+                    "Used": {"type": "http", "behavior": "domain", "format": "yaml", "url": used_url},
+                    "Unused": {"type": "http", "behavior": "domain", "format": "yaml", "url": unused_url},
+                },
+                "rules": ["RULE-SET,Used,DIRECT", "MATCH,DIRECT"],
+            }, sort_keys=False), encoding="utf-8")
+            calls: list[str] = []
+
+            def fetch(url: str, headers: dict[str, object] | None, memory_cache: dict[str, str]) -> str:
+                calls.append(url)
+                return "payload:\n- used.example\n"
+
+            argv = [
+                "convert.py", str(input_path), "--dist", str(dist), "--base-url", BASE_URL,
+                "--allow-no-mihomo", "--allow-no-sing-box",
+            ]
+            with (
+                patch.object(sys, "argv", argv),
+                patch.object(convert, "fetch_text", side_effect=fetch),
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                convert.main()
+            self.assertEqual(calls, [used_url])
+            self.assertTrue(any(path.is_file() for path in (dist / "source/domain").glob("*.yaml")))
+            self.assertFalse(any("Unused" in str(path) for path in dist.rglob("*")))
+
+    def test_referenced_missing_provider_still_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            input_path = root / "input.yaml"
+            input_path.write_text(yaml.safe_dump({
+                "rule-providers": {"Used": {"type": "http", "behavior": "domain", "format": "yaml", "url": "https://example.com/used.yaml"}},
+                "rules": ["RULE-SET,Missing,DIRECT", "MATCH,DIRECT"],
+            }, sort_keys=False), encoding="utf-8")
+            with patch.object(sys, "argv", ["convert.py", str(input_path), "--dist", str(root / "dist"), "--base-url", BASE_URL, "--allow-no-mihomo", "--allow-no-sing-box"]):
+                with self.assertRaisesRegex(SystemExit, "missing provider 'Missing'"):
+                    convert.main()
+
+
 class CompleteConfigRefreshTest(unittest.TestCase):
     def provider(self, name: str, behavior: str = "domain") -> dict[str, object]:
         return {

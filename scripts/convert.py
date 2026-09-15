@@ -2959,7 +2959,7 @@ def main() -> None:
     parser.add_argument(
         "--allow-orphan-providers",
         action="store_true",
-        help="Allow generated providers that are not referenced by rules. Defaults to strict zero-orphan output.",
+        help="Retained for compatibility; unreferenced input providers are ignored.",
     )
     args = parser.parse_args()
 
@@ -2974,6 +2974,11 @@ def main() -> None:
     if not isinstance(providers, dict) or not isinstance(rules, list):
         raise SystemExit("input must contain rule-providers mapping and rules list")
     validate_top_level_rulesets(rules, set(providers))
+    referenced_provider_names = {
+        name
+        for rule in rules
+        for name in find_ruleset_refs(rule)
+    }
 
     previous_manifest = read_managed_manifest(args.dist, FINAL_SUITE)
     complete_config = load_yaml_mapping(args.complete_config) if args.complete_config else None
@@ -2988,12 +2993,14 @@ def main() -> None:
         dist=staging,
         base_url=args.base_url,
         mihomo=args.mihomo,
-        used_names=set(providers),
+        used_names=set(referenced_provider_names),
         used_paths=set(),
         memory_cache={},
     )
 
     for name, provider in providers.items():
+        if name not in referenced_provider_names:
+            continue
         if not isinstance(provider, dict):
             raise SystemExit(f"{name}: provider must be a mapping")
         result = process_provider(
