@@ -1409,6 +1409,7 @@ LOON_RULE_PRIORITY = {
     "SRC-PORT": 7,
     "DEST-PORT": 8,
     "PROTOCOL": 9,
+    "USER-AGENT": 10,
 }
 LOON_CLASSICAL_KINDS = {
     "DOMAIN",
@@ -1420,7 +1421,9 @@ LOON_CLASSICAL_KINDS = {
     "IP-ASN",
     "DST-PORT",
     "DEST-PORT",
+    "SRC-PORT",
     "PROTOCOL",
+    "USER-AGENT",
     "NETWORK",
 }
 
@@ -1483,6 +1486,8 @@ def export_loon(
     """Export final normalized providers directly as independent Loon rule lists."""
     rules_by_segment: dict[str, list[tuple[str, str]]] = {}
     unsupported: Counter[str] = Counter()
+    top_level_unsupported: Counter[str] = Counter()
+    unsupported_examples: dict[str, list[str]] = {}
     first_segment_index: dict[str, int] = {}
     provider_modifiers: dict[str, set[str]] = {}
 
@@ -1512,8 +1517,11 @@ def export_loon(
                     tuple(provider_modifiers.get(name, set())),
                 )
             except ValueError as exc:
-                unsupported[segment] += 1
-                print(f"[Loon] unsupported rule skipped: segment={segment} type={parse_rule(raw_rule).kind or '<empty>'} rule={raw_rule!r}; reason={exc}")
+                kind = parse_rule(raw_rule).kind or "<empty>"
+                unsupported[kind] += 1
+                unsupported_examples.setdefault(kind, [])
+                if len(unsupported_examples[kind]) < 5:
+                    unsupported_examples[kind].append(raw_rule)
                 continue
             if converted[1] not in seen:
                 entries.append(converted)
@@ -1534,9 +1542,16 @@ def export_loon(
         policies[segment] = policy
 
     loon_rules: list[str] = []
+
+    def record_top_level_unsupported(kind: str, raw_rule: Any) -> None:
+        top_level_unsupported[kind] += 1
+        unsupported_examples.setdefault(kind, [])
+        if isinstance(raw_rule, str) and len(unsupported_examples[kind]) < 5:
+            unsupported_examples[kind].append(raw_rule)
+
     for raw_rule in config.get("rules", []):
         if not isinstance(raw_rule, str):
-            print(f"[Loon] unsupported top-level rule skipped: segment=<unknown> rule={raw_rule!r}; reason=not a string")
+            record_top_level_unsupported("<non-string>", raw_rule)
             continue
         parsed = parse_rule(raw_rule)
         wrapper = simple_ruleset_wrapper(raw_rule)
@@ -1545,7 +1560,7 @@ def export_loon(
             assert reference is not None
             refs = find_ruleset_refs(raw_rule)
             if len(refs) != 1:
-                print(f"[Loon] unsupported rule skipped: segment=<unknown> type={parsed.kind} rule={raw_rule!r}; reason=ambiguous RULE-SET reference")
+                record_top_level_unsupported(parsed.kind or "<empty>", raw_rule)
                 continue
             record_policy(refs[0], reference.policy, raw_rule)
             continue
@@ -1554,7 +1569,35 @@ def export_loon(
         elif parsed.kind == "MATCH" and len(parsed.parts) == 2:
             loon_rules.append(f"FINAL,{parsed.parts[1]}")
         else:
-            print(f"[Loon] unsupported top-level rule skipped: segment=<unknown> type={parsed.kind or '<empty>'} rule={raw_rule!r}; reason=only RULE-SET, SUB-RULE, NETWORK(TCP/UDP), and MATCH are supported")
+            parts = split_top_level_commas(raw_rule)
+            modifiers: list[str] = []
+            while len(parts) > 2 and parts[-1].lower() in {"no-resolve", "src"}:
+                modifiers.insert(0, parts.pop())
+            policy = parts.pop() if len(parts) >= 3 else ""
+            matcher_parts = parts
+            if (
+                policy
+                and len(matcher_parts) >= 2
+                and parsed.kind in LOON_CLASSICAL_KINDS
+                and all(item.lower() in {"no-resolve", "src"} for item in modifiers)
+            ):
+                try:
+                    converted = loon_rule_from_provider(
+                        "classical", ",".join([*matcher_parts, *modifiers]), "<top-level>", tuple(modifiers)
+                    )
+                except ValueError:
+                    converted = None
+                if converted is not None:
+                    converted_parts = converted[1].split(",")
+                    if modifiers:
+                        converted_parts = [
+                            *converted_parts[: -len(modifiers)], policy, *converted_parts[-len(modifiers):]
+                        ]
+                        loon_rules.append(",".join(converted_parts))
+                    else:
+                        loon_rules.append(f"{converted[1]},{policy}")
+                    continue
+            record_top_level_unsupported(parsed.kind or "<empty>", raw_rule)
 
     loon_dir = output_dist / "loon"
     emitted_segments: list[str] = []
@@ -1582,8 +1625,20 @@ def export_loon(
         with (loon_dir / f"{segment}.lsr").open(encoding="utf-8") as handle:
             rule_count = sum(1 for _ in handle)
         print(f"  {segment}.lsr: {rule_count} rules, policy={policies[segment]}")
-    print(f"  unsupported rules skipped: {sum(unsupported.values())}")
-    return {"segments": len(emitted_segments), "unsupported": sum(unsupported.values())}
+    total_skipped = sum(unsupported.values()) + sum(top_level_unsupported.values())
+    print("========== Loon Unsupported Summary ==========")
+    type_counts = unsupported + top_level_unsupported
+    for kind, count in sorted(type_counts.items()):
+        print(f"{kind}: {count}")
+        examples = unsupported_examples.get(kind, [])
+        if examples:
+            print("  examples:")
+            for example in examples:
+                print(f"    {example}")
+    print(f"top-level unsupported: {sum(top_level_unsupported.values())}")
+    print(f"total skipped: {total_skipped}")
+    print("==============================================")
+    return {"segments": len(emitted_segments), "unsupported": total_skipped, "top_level_unsupported": sum(top_level_unsupported.values())}
 
 
 EGERN_FIELD_BY_KIND = {

@@ -180,6 +180,41 @@ class LoonExportTest(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 convert.export_loon(config, root, output, BASE_URL)
 
+    def test_top_level_native_rules_and_unsupported_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            output = root / "output"
+            config = {
+                "rule-providers": {},
+                "rules": [
+                    "IP-CIDR,0.0.0.0/32,REJECT-DROP",
+                    "IP-CIDR6,::/128,REJECT-DROP",
+                    "IP-CIDR,1.2.3.0/24,DIRECT,no-resolve",
+                    "DOMAIN-SUFFIX,example.com,DIRECT",
+                    "PROCESS-NAME,Chrome,DIRECT",
+                    "DOMAIN-REGEX,^foo.*$,DIRECT",
+                    "MATCH,DIRECT",
+                ],
+            }
+            with contextlib.redirect_stdout(io.StringIO()) as captured:
+                result = convert.export_loon(config, root, output, BASE_URL)
+            rules = (output / "generated/loon-rules.conf").read_text(encoding="utf-8").split("[Rule]\n", 1)[1].splitlines()
+            self.assertEqual(rules, [
+                "IP-CIDR,0.0.0.0/32,REJECT-DROP",
+                "IP-CIDR6,::/128,REJECT-DROP",
+                "IP-CIDR,1.2.3.0/24,DIRECT,no-resolve",
+                "DOMAIN-SUFFIX,example.com,DIRECT",
+                "FINAL,DIRECT",
+            ])
+            log = captured.getvalue()
+            self.assertEqual(result["unsupported"], 2)
+            self.assertEqual(result["top_level_unsupported"], 2)
+            self.assertIn("PROCESS-NAME: 1", log)
+            self.assertIn("DOMAIN-REGEX: 1", log)
+            self.assertIn("top-level unsupported: 2", log)
+            self.assertIn("total skipped: 2", log)
+            self.assertNotIn("unsupported top-level rule skipped", log)
+
     def test_output_is_deterministic(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
