@@ -3077,7 +3077,8 @@ def main() -> None:
         except ImportError:
             from singbox_export import export_singbox, export_singbox_dns
         export_singbox(dedup, options.final_payloads, publish_dist, args.base_url, args.sing_box, segment_names=segment_mapping)
-        export_singbox_dns(dedup, options.final_payloads, publish_dist, args.base_url, args.sing_box)
+        if args.mihomo or not args.allow_no_mihomo:
+            export_singbox_dns(dedup, options.final_payloads, publish_dist, args.base_url, args.sing_box)
     if args.mihomo:
         export_dns(dedup, staging, publish_dist, args.base_url, args.mihomo, options.final_payloads)
     write_yaml_atomic(publish_dist / "generated" / "mihomo-rules.yaml", final)
