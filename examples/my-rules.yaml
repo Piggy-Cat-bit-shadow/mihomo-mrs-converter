@@ -6,6 +6,20 @@ sub-rules:
   - NETWORK,UDP,🚀 极速线路
   - MATCH,🌍 国外流量
 rule-providers:
+  DNS-China-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/dns/mihomo/China-domain.mrs
+    path: ./ruleset/dns/China-domain.mrs
+    interval: 172800
+  DNS-China-classical:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/dns/mihomo/China-classical.yaml
+    path: ./ruleset/dns/China-classical.yaml
+    interval: 172800
   me-China:
     type: http    
     behavior: classical
