@@ -21,6 +21,7 @@ domain_suffix_set:
 - gspe1-ssl.ls.apple.com
 - smoot.apple.com
 - apple-relay.akamaized.net
+- api-siri-prod.apple.com
 - ai.com
 - algolia.net
 - api.statsig.com

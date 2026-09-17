@@ -2,9 +2,6 @@ sub-rules:
   AI-Routing:
   - NETWORK,UDP,REJECT
   - MATCH,🤖 AI
-  Global-Routing:
-  - NETWORK,UDP,🚀 极速线路
-  - MATCH,🌍 国外流量
 rule-providers:
   Direct-domain:
     type: http
@@ -55,6 +52,13 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/Global-classical.yaml
     path: ./ruleset/classical/Global-classical.yaml
     interval: 172800
+  Global-classical-part-02:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/Global-classical-part-02.yaml
+    path: ./ruleset/classical/Global-classical-part-02.yaml
+    interval: 172800
   Global-ip:
     type: http
     behavior: ipcidr
@@ -98,20 +102,20 @@ rule-providers:
     path: ./ruleset/ipcidr/China-ip-part-02.mrs
     interval: 172800
 rules:
-- IP-CIDR6,::/128,REJECT-DROP
-- IP-CIDR,0.0.0.0/32,REJECT-DROP
-- RULE-SET,Direct-domain,DIRECT
-- RULE-SET,Direct-classical,DIRECT
+- RULE-SET,Direct-domain,🏠 国内流量
+- RULE-SET,Direct-classical,🏠 国内流量
 - SUB-RULE,(RULE-SET,AI-domain),AI-Routing
 - SUB-RULE,(RULE-SET,AI-classical),AI-Routing
 - SUB-RULE,(RULE-SET,AI-ip),AI-Routing
-- SUB-RULE,(RULE-SET,Global-domain),Global-Routing
-- SUB-RULE,(RULE-SET,Global-classical),Global-Routing
-- SUB-RULE,(RULE-SET,Global-ip),Global-Routing
-- RULE-SET,China-domain,DIRECT
-- RULE-SET,China-classical,DIRECT
-- RULE-SET,China-classical-part-02,DIRECT
-- RULE-SET,China-ip,DIRECT
-- RULE-SET,China-ip-part-02,DIRECT,no-resolve
-- NETWORK,UDP,🚀 极速线路
+- RULE-SET,Global-domain,🌍 国外流量
+- RULE-SET,Global-classical,🌍 国外流量
+- RULE-SET,Global-classical-part-02,🌍 国外流量
+- RULE-SET,Global-ip,🌍 国外流量
+- RULE-SET,China-domain,🏠 国内流量
+- RULE-SET,China-classical,🏠 国内流量
+- RULE-SET,China-classical-part-02,🏠 国内流量
+- RULE-SET,China-ip,🏠 国内流量
+- RULE-SET,China-ip-part-02,🏠 国内流量,no-resolve
+- IP-CIDR6,::/128,REJECT-DROP
+- IP-CIDR,0.0.0.0/32,REJECT-DROP
 - MATCH,🌍 国外流量

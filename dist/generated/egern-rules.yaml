@@ -1,11 +1,11 @@
 rules:
 - rule_set:
     match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/Direct.yaml
-    policy: DIRECT
+    policy: 🏠 国内流量
     update_interval: 172800
 - rule_set:
     match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/Direct-no-resolve.yaml
-    policy: DIRECT
+    policy: 🏠 国内流量
     update_interval: 172800
 - and:
     match:
@@ -19,22 +19,6 @@ rules:
     match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/AI.yaml
     policy: 🤖 AI
     update_interval: 172800
-- and:
-    match:
-    - rule_set:
-        match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/Global.yaml
-        update_interval: 172800
-    - protocol:
-        match: udp
-    policy: 🚀 极速线路
-- and:
-    match:
-    - rule_set:
-        match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/Global-no-resolve.yaml
-        update_interval: 172800
-    - protocol:
-        match: udp
-    policy: 🚀 极速线路
 - rule_set:
     match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/Global.yaml
     policy: 🌍 国外流量
@@ -45,14 +29,11 @@ rules:
     update_interval: 172800
 - rule_set:
     match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/China.yaml
-    policy: DIRECT
+    policy: 🏠 国内流量
     update_interval: 172800
 - rule_set:
     match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/China-no-resolve.yaml
-    policy: DIRECT
+    policy: 🏠 国内流量
     update_interval: 172800
-- protocol:
-    match: udp
-    policy: 🚀 极速线路
 - default:
     policy: 🌍 国外流量

@@ -51,6 +51,13 @@ providers:
     behavior: classical
     format: yaml
     fingerprint: 11d655752fa66d42f53f62b1da746df76cf1b4c38dd690dc0b51bbd9a12a5459
+  Global-classical-part-02:
+    name: Global-classical-part-02
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/Global-classical-part-02.yaml
+    path: ./ruleset/classical/Global-classical-part-02.yaml
+    behavior: classical
+    format: yaml
+    fingerprint: a337a1791a2591bde86c3313d9c6f72d984bb16bbc3dd1403aa8fb7d5da1c2a2
   Global-ip:
     name: Global-ip
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/Global-ip.mrs

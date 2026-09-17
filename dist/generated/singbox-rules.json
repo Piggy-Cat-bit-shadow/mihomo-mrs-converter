@@ -74,6 +74,110 @@
     ],
     "rules": [
       {
+        "rule_set": [
+          "Direct"
+        ],
+        "action": "route",
+        "outbound": "🏠 国内流量"
+      },
+      {
+        "rule_set": [
+          "Direct-no-resolve"
+        ],
+        "action": "route",
+        "outbound": "🏠 国内流量"
+      },
+      {
+        "rule_set": [
+          "AI"
+        ],
+        "network": [
+          "udp"
+        ],
+        "action": "reject"
+      },
+      {
+        "rule_set": [
+          "AI"
+        ],
+        "action": "route",
+        "outbound": "🤖 AI"
+      },
+      {
+        "action": "resolve"
+      },
+      {
+        "rule_set": [
+          "AI-ip"
+        ],
+        "network": [
+          "udp"
+        ],
+        "action": "reject"
+      },
+      {
+        "rule_set": [
+          "AI-ip"
+        ],
+        "action": "route",
+        "outbound": "🤖 AI"
+      },
+      {
+        "rule_set": [
+          "Global"
+        ],
+        "action": "route",
+        "outbound": "🌍 国外流量"
+      },
+      {
+        "rule_set": [
+          "Global-no-resolve"
+        ],
+        "action": "route",
+        "outbound": "🌍 国外流量"
+      },
+      {
+        "action": "resolve"
+      },
+      {
+        "rule_set": [
+          "Global-ip"
+        ],
+        "action": "route",
+        "outbound": "🌍 国外流量"
+      },
+      {
+        "rule_set": [
+          "Global-no-resolve"
+        ],
+        "action": "route",
+        "outbound": "🌍 国外流量"
+      },
+      {
+        "rule_set": [
+          "China"
+        ],
+        "action": "route",
+        "outbound": "🏠 国内流量"
+      },
+      {
+        "action": "resolve"
+      },
+      {
+        "rule_set": [
+          "China-ip"
+        ],
+        "action": "route",
+        "outbound": "🏠 国内流量"
+      },
+      {
+        "rule_set": [
+          "China-no-resolve"
+        ],
+        "action": "route",
+        "outbound": "🏠 国内流量"
+      },
+      {
         "action": "resolve"
       },
       {
@@ -92,157 +196,6 @@
         ],
         "action": "reject",
         "method": "drop"
-      },
-      {
-        "rule_set": [
-          "Direct"
-        ],
-        "action": "route",
-        "outbound": "direct"
-      },
-      {
-        "rule_set": [
-          "Direct-no-resolve"
-        ],
-        "action": "route",
-        "outbound": "direct"
-      },
-      {
-        "rule_set": [
-          "AI"
-        ],
-        "network": [
-          "udp"
-        ],
-        "action": "reject"
-      },
-      {
-        "rule_set": [
-          "AI"
-        ],
-        "action": "route",
-        "outbound": "🤖 AI"
-      },
-      {
-        "action": "resolve"
-      },
-      {
-        "rule_set": [
-          "AI-ip"
-        ],
-        "network": [
-          "udp"
-        ],
-        "action": "reject"
-      },
-      {
-        "rule_set": [
-          "AI-ip"
-        ],
-        "action": "route",
-        "outbound": "🤖 AI"
-      },
-      {
-        "rule_set": [
-          "Global"
-        ],
-        "network": [
-          "udp"
-        ],
-        "action": "route",
-        "outbound": "🚀 极速线路"
-      },
-      {
-        "rule_set": [
-          "Global"
-        ],
-        "action": "route",
-        "outbound": "🌍 国外流量"
-      },
-      {
-        "rule_set": [
-          "Global-no-resolve"
-        ],
-        "network": [
-          "udp"
-        ],
-        "action": "route",
-        "outbound": "🚀 极速线路"
-      },
-      {
-        "rule_set": [
-          "Global-no-resolve"
-        ],
-        "action": "route",
-        "outbound": "🌍 国外流量"
-      },
-      {
-        "action": "resolve"
-      },
-      {
-        "rule_set": [
-          "Global-ip"
-        ],
-        "network": [
-          "udp"
-        ],
-        "action": "route",
-        "outbound": "🚀 极速线路"
-      },
-      {
-        "rule_set": [
-          "Global-ip"
-        ],
-        "action": "route",
-        "outbound": "🌍 国外流量"
-      },
-      {
-        "rule_set": [
-          "Global-no-resolve"
-        ],
-        "network": [
-          "udp"
-        ],
-        "action": "route",
-        "outbound": "🚀 极速线路"
-      },
-      {
-        "rule_set": [
-          "Global-no-resolve"
-        ],
-        "action": "route",
-        "outbound": "🌍 国外流量"
-      },
-      {
-        "rule_set": [
-          "China"
-        ],
-        "action": "route",
-        "outbound": "direct"
-      },
-      {
-        "action": "resolve"
-      },
-      {
-        "rule_set": [
-          "China-ip"
-        ],
-        "action": "route",
-        "outbound": "direct"
-      },
-      {
-        "rule_set": [
-          "China-no-resolve"
-        ],
-        "action": "route",
-        "outbound": "direct"
-      },
-      {
-        "network": [
-          "udp"
-        ],
-        "action": "route",
-        "outbound": "🚀 极速线路"
       }
     ],
     "final": "🌍 国外流量"
