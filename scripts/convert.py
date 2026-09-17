@@ -11,6 +11,7 @@ import sys
 import time
 import tempfile
 import re
+import urllib.error
 import urllib.request
 from collections import Counter
 from dataclasses import dataclass, field
@@ -185,20 +186,44 @@ def fetch_text(url: str, headers: dict[str, Any] | None, memory_cache: dict[str,
         else ssl.create_default_context()
     )
     last_error: Exception | None = None
-    for attempt in range(5):
+    max_attempts = 4
+    retryable_statuses = {408, 429, 500, 502, 503, 504}
+    for attempt in range(max_attempts):
         try:
             with urllib.request.urlopen(request, timeout=60, context=context) as response:
                 body = response.read().decode("utf-8-sig")
             break
-        except Exception as exc:  # pragma: no cover - network timing dependent
+        except urllib.error.HTTPError as exc:
             last_error = exc
-            if attempt == 4:
-                raise
-            time.sleep(2 * (attempt + 1))
+            if exc.code not in retryable_statuses or attempt == max_attempts - 1:
+                raise RuntimeError(
+                    f"provider fetch failed for {url}: HTTP {exc.code} "
+                    f"on attempt {attempt + 1}/{max_attempts}"
+                ) from exc
+            retry_after = exc.headers.get("Retry-After") if exc.headers else None
+            delay = min(_retry_after_seconds(retry_after), 8.0) if retry_after else 2 ** attempt
+            time.sleep(delay)
+        except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:  # pragma: no cover - network timing dependent
+            last_error = exc
+            if attempt == max_attempts - 1:
+                raise RuntimeError(
+                    f"provider fetch failed for {url}: {type(exc).__name__} "
+                    f"on attempt {attempt + 1}/{max_attempts}"
+                ) from exc
+            time.sleep(2 ** attempt)
     else:  # pragma: no cover
         raise last_error
     memory_cache[url] = body
     return body
+
+
+def _retry_after_seconds(value: str | None) -> float:
+    if not value:
+        return 0.0
+    try:
+        return max(0.0, float(value))
+    except ValueError:
+        return 0.0
 
 
 def strict_yaml_rule_list(name: str, value: Any, allow_integer_items: bool = False) -> list[str]:

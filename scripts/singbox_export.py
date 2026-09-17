@@ -14,6 +14,9 @@ import shutil
 import ssl
 import subprocess
 import tempfile
+import os
+import time
+import urllib.error
 import urllib.request
 from http.client import IncompleteRead
 
@@ -23,6 +26,7 @@ except ImportError:  # pragma: no cover
     certifi = None
 from pathlib import Path
 from typing import Any, Callable
+from urllib.parse import urlparse
 
 try:
     from .convert import DNS_DOMAIN_KINDS, collect_dns_domain_payloads, parse_rule, parse_ruleset_reference, simple_ruleset_wrapper, split_top_level_commas
@@ -32,6 +36,57 @@ except ImportError:  # direct `python scripts/convert.py` execution
 
 class SingBoxExportError(RuntimeError):
     pass
+
+
+def _retry_after_seconds(value: str | None) -> float:
+    if not value:
+        return 0.0
+    try:
+        return max(0.0, float(value))
+    except ValueError:
+        return 0.0
+
+
+def _github_api_json(url: str) -> Any:
+    """Fetch GitHub REST metadata, authenticating only api.github.com."""
+    parsed = urlparse(url)
+    headers = {
+        "User-Agent": "mihomo-mrs-converter",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    token = os.environ.get("GITHUB_TOKEN")
+    if token and parsed.hostname == "api.github.com":
+        headers["Authorization"] = f"Bearer {token}"
+    request = urllib.request.Request(url, headers=headers)
+    context = ssl.create_default_context(cafile=certifi.where()) if certifi else ssl.create_default_context()
+    max_attempts = 4
+    retryable_statuses = {408, 429, 500, 502, 503, 504}
+    for attempt in range(max_attempts):
+        try:
+            with urllib.request.urlopen(request, context=context, timeout=60) as response:
+                return json.loads(response.read())
+        except urllib.error.HTTPError as exc:
+            remaining = exc.headers.get("X-RateLimit-Remaining") if exc.headers else None
+            reset = exc.headers.get("X-RateLimit-Reset") if exc.headers else None
+            rate_limited = exc.code == 429 or (exc.code == 403 and remaining == "0")
+            if rate_limited:
+                detail = f"status={exc.code}, remaining={remaining or 'unknown'}, reset={reset or 'unknown'}"
+                raise SingBoxExportError(f"GitHub API rate limit exceeded ({detail})") from exc
+            if exc.code not in retryable_statuses or attempt == max_attempts - 1:
+                raise SingBoxExportError(
+                    f"GitHub API request failed: HTTP {exc.code} on attempt {attempt + 1}/{max_attempts}"
+                ) from exc
+            retry_after = exc.headers.get("Retry-After") if exc.headers else None
+            delay = min(_retry_after_seconds(retry_after), 8.0) if retry_after else 2 ** attempt
+            time.sleep(delay)
+        except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
+            if attempt == max_attempts - 1:
+                raise SingBoxExportError(
+                    f"GitHub API request failed: {type(exc).__name__} on attempt {attempt + 1}/{max_attempts}"
+                ) from exc
+            time.sleep(2 ** attempt)
+    raise SingBoxExportError("GitHub API request failed")
 
 
 def _policy_action(policy: str) -> dict[str, Any]:
@@ -116,23 +171,33 @@ def _matcher(kind: str, value: str, context: str) -> tuple[str, Any]:
 def _default_asn_resolver(asns: set[str]) -> dict[str, list[str]]:
     """Resolve ASN to CIDRs only for this exporter; never mutates main IR."""
     context = ssl.create_default_context(cafile=certifi.where()) if certifi else ssl.create_default_context()
-    metadata = json.loads(urllib.request.urlopen("https://api.github.com/repos/FyraLabs/geolite2/releases/latest", context=context, timeout=60).read())
+    metadata = _github_api_json("https://api.github.com/repos/FyraLabs/geolite2/releases/latest")
     result = {asn: [] for asn in asns}
     def download(url: str) -> bytes:
         data = bytearray()
-        for attempt in range(20):
+        for attempt in range(4):
             headers = {"User-Agent": "mihomo-mrs-converter"}
             if data: headers["Range"] = f"bytes={len(data)}-"
             try:
-                response = urllib.request.urlopen(urllib.request.Request(url, headers=headers), context=context, timeout=60)
-                if data and response.status != 206: raise SingBoxExportError("ASN server ignored HTTP Range resume")
-                expected = response.headers.get("Content-Length")
-                expected_total = len(data) + int(expected) if expected else None
-                data.extend(response.read())
+                with urllib.request.urlopen(urllib.request.Request(url, headers=headers), context=context, timeout=60) as response:
+                    if data and response.status != 206: raise SingBoxExportError("ASN server ignored HTTP Range resume")
+                    expected = response.headers.get("Content-Length")
+                    expected_total = len(data) + int(expected) if expected else None
+                    data.extend(response.read())
                 if expected_total is None or len(data) >= expected_total: return bytes(data)
             except IncompleteRead as exc:
                 data.extend(exc.partial)
-            if attempt == 19: raise SingBoxExportError("ASN database download remained incomplete")
+            except urllib.error.HTTPError as exc:
+                if exc.code not in {408, 429, 500, 502, 503, 504} or attempt == 3:
+                    raise SingBoxExportError(f"ASN database download failed: HTTP {exc.code}") from exc
+                retry_after = exc.headers.get("Retry-After") if exc.headers else None
+                delay = min(_retry_after_seconds(retry_after), 8.0) if retry_after else 2 ** attempt
+                time.sleep(delay)
+            except (urllib.error.URLError, TimeoutError, ConnectionError):
+                if attempt == 3:
+                    raise SingBoxExportError("ASN database download failed after 4 attempts")
+                time.sleep(2 ** attempt)
+            if attempt == 3: raise SingBoxExportError("ASN database download remained incomplete")
         raise SingBoxExportError("ASN database download failed")
 
     for asset in metadata.get("assets", []):

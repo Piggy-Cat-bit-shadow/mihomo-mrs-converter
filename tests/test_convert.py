@@ -3,6 +3,8 @@ import sys
 import unittest
 import contextlib
 import io
+import urllib.error
+from email.message import Message
 from collections import Counter
 from pathlib import Path
 from unittest.mock import patch
@@ -2008,6 +2010,50 @@ class CompleteConfigRefreshTest(unittest.TestCase):
                 BASE_URL,
                 "merged-dedup",
             )
+
+class FetchTextTestCase(unittest.TestCase):
+    class Response:
+        def __init__(self, body: bytes):
+            self.body = body
+
+        def read(self):
+            return self.body
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+    def test_memory_cache_avoids_duplicate_request(self):
+        with patch("scripts.convert.urllib.request.urlopen", return_value=self.Response(b"payload")) as mocked:
+            cache = {}
+            self.assertEqual(convert.fetch_text("https://example.com/rules", None, cache), "payload")
+            self.assertEqual(convert.fetch_text("https://example.com/rules", None, cache), "payload")
+        self.assertEqual(mocked.call_count, 1)
+
+    def test_404_fails_fast(self):
+        error = urllib.error.HTTPError("https://example.com/rules", 404, "not found", None, io.BytesIO())
+        with patch("scripts.convert.urllib.request.urlopen", side_effect=error) as mocked, patch("scripts.convert.time.sleep") as sleep:
+            with self.assertRaisesRegex(RuntimeError, "HTTP 404.*attempt 1/4"):
+                convert.fetch_text("https://example.com/rules", None, {})
+        self.assertEqual(mocked.call_count, 1)
+        sleep.assert_not_called()
+
+    def test_503_retries_then_succeeds(self):
+        error = urllib.error.HTTPError("https://example.com/rules", 503, "unavailable", None, io.BytesIO())
+        with patch("scripts.convert.urllib.request.urlopen", side_effect=[error, self.Response(b"payload")]) as mocked, patch("scripts.convert.time.sleep") as sleep:
+            self.assertEqual(convert.fetch_text("https://example.com/rules", None, {}), "payload")
+        self.assertEqual(mocked.call_count, 2)
+        sleep.assert_called_once_with(1)
+
+    def test_429_honors_bounded_retry_after(self):
+        headers = Message()
+        headers["Retry-After"] = "120"
+        error = urllib.error.HTTPError("https://example.com/rules", 429, "too many requests", headers, io.BytesIO())
+        with patch("scripts.convert.urllib.request.urlopen", side_effect=[error, self.Response(b"payload")]), patch("scripts.convert.time.sleep") as sleep:
+            self.assertEqual(convert.fetch_text("https://example.com/rules", None, {}), "payload")
+        sleep.assert_called_once_with(8.0)
 
 
 if __name__ == "__main__":
