@@ -2,24 +2,7 @@ sub-rules:
   AI-Routing:
   - NETWORK,UDP,REJECT
   - MATCH,🤖 AI
-  Global-Routing:
-  - NETWORK,UDP,🚀 极速线路
-  - MATCH,🌍 国外流量
 rule-providers:
-  DNS-China-domain:
-    type: http
-    behavior: domain
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/dns/mihomo/China-domain.mrs
-    path: ./ruleset/dns/China-domain.mrs
-    interval: 172800
-  DNS-China-classical:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/dns/mihomo/China-classical.yaml
-    path: ./ruleset/dns/China-classical.yaml
-    interval: 172800
   me-China:
     type: http    
     behavior: classical
@@ -350,12 +333,10 @@ rule-providers:
     path: ./ruleset/ipcidr/ChinaMax-ip.yaml
     interval: 172800
 rules:
-- IP-CIDR6,::/128,REJECT-DROP
-- IP-CIDR,0.0.0.0/32,REJECT-DROP
-- RULE-SET,Lan,DIRECT
-- RULE-SET,private,DIRECT
-- RULE-SET,me-China,DIRECT
-- RULE-SET,wechat,DIRECT
+- RULE-SET,Lan,🏠 国内流量
+- RULE-SET,private,🏠 国内流量
+- RULE-SET,me-China,🏠 国内流量
+- RULE-SET,wechat,🏠 国内流量
 - SUB-RULE,(RULE-SET,me-pure),AI-Routing
 - SUB-RULE,(RULE-SET,AppleProxy),AI-Routing
 - SUB-RULE,(RULE-SET,AppleIntelligence),AI-Routing
@@ -369,39 +350,40 @@ rules:
 - SUB-RULE,(RULE-SET,Crypto),AI-Routing
 - SUB-RULE,(RULE-SET,IPCheck),AI-Routing
 - SUB-RULE,(RULE-SET,paypal),AI-Routing
-- SUB-RULE,(RULE-SET,Scholar-Foreign),Global-Routing
-- SUB-RULE,(RULE-SET,Scholar),Global-Routing
-- SUB-RULE,(RULE-SET,Telegram),Global-Routing
-- SUB-RULE,(RULE-SET,github),Global-Routing
-- SUB-RULE,(RULE-SET,GoogleEarth),Global-Routing
-- SUB-RULE,(RULE-SET,WhatsApp),Global-Routing
-- SUB-RULE,(RULE-SET,Discord),Global-Routing
-- SUB-RULE,(RULE-SET,netflix),Global-Routing
-- SUB-RULE,(RULE-SET,disney),Global-Routing
-- SUB-RULE,(RULE-SET,primevideo),Global-Routing
-- SUB-RULE,(RULE-SET,GoogleDrive),Global-Routing
-- SUB-RULE,(RULE-SET,OneDrive),Global-Routing
-- SUB-RULE,(RULE-SET,Dropbox),Global-Routing
-- SUB-RULE,(RULE-SET,MEGA),Global-Routing
-- SUB-RULE,(RULE-SET,youtube),Global-Routing
-- SUB-RULE,(RULE-SET,Instagram),Global-Routing
-- SUB-RULE,(RULE-SET,Facebook),Global-Routing
-- SUB-RULE,(RULE-SET,Twitter),Global-Routing
-- SUB-RULE,(RULE-SET,Reddit),Global-Routing
-- SUB-RULE,(RULE-SET,Spotify),Global-Routing
-- SUB-RULE,(RULE-SET,tiktok),Global-Routing
-- SUB-RULE,(RULE-SET,google),Global-Routing
-- SUB-RULE,(RULE-SET,global),Global-Routing
-- RULE-SET,apple,DIRECT
-- RULE-SET,icloud,DIRECT
-- RULE-SET,qcloud,DIRECT
-- RULE-SET,DouYin,DIRECT
-- RULE-SET,BiliBili,DIRECT
-- RULE-SET,BaiDuTieBa,DIRECT
-- RULE-SET,alibaba-domain,DIRECT
-- RULE-SET,alibaba,DIRECT
-- RULE-SET,ChinaMax-domain,DIRECT
-- RULE-SET,ChinaMax-classical,DIRECT
-- RULE-SET,ChinaMax-ip,DIRECT,no-resolve
-- NETWORK,UDP,🚀 极速线路
+- RULE-SET,Scholar-Foreign,🌍 国外流量
+- RULE-SET,Scholar,🌍 国外流量
+- RULE-SET,Telegram,🌍 国外流量
+- RULE-SET,github,🌍 国外流量
+- RULE-SET,GoogleEarth,🌍 国外流量
+- RULE-SET,WhatsApp,🌍 国外流量
+- RULE-SET,Discord,🌍 国外流量
+- RULE-SET,netflix,🌍 国外流量
+- RULE-SET,disney,🌍 国外流量
+- RULE-SET,primevideo,🌍 国外流量
+- RULE-SET,GoogleDrive,🌍 国外流量
+- RULE-SET,OneDrive,🌍 国外流量
+- RULE-SET,Dropbox,🌍 国外流量
+- RULE-SET,MEGA,🌍 国外流量
+- RULE-SET,youtube,🌍 国外流量
+- RULE-SET,Instagram,🌍 国外流量
+- RULE-SET,Facebook,🌍 国外流量
+- RULE-SET,Twitter,🌍 国外流量
+- RULE-SET,Reddit,🌍 国外流量
+- RULE-SET,Spotify,🌍 国外流量
+- RULE-SET,tiktok,🌍 国外流量
+- RULE-SET,google,🌍 国外流量
+- RULE-SET,global,🌍 国外流量
+- RULE-SET,apple,🏠 国内流量
+- RULE-SET,icloud,🏠 国内流量
+- RULE-SET,qcloud,🏠 国内流量
+- RULE-SET,DouYin,🏠 国内流量
+- RULE-SET,BiliBili,🏠 国内流量
+- RULE-SET,BaiDuTieBa,🏠 国内流量
+- RULE-SET,alibaba-domain,🏠 国内流量
+- RULE-SET,alibaba,🏠 国内流量
+- RULE-SET,ChinaMax-domain,🏠 国内流量
+- RULE-SET,ChinaMax-classical,🏠 国内流量
+- RULE-SET,ChinaMax-ip,🏠 国内流量,no-resolve
+- IP-CIDR6,::/128,REJECT-DROP
+- IP-CIDR,0.0.0.0/32,REJECT-DROP
 - MATCH,🌍 国外流量
