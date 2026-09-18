@@ -1,8 +1,110 @@
-"""Build orchestration boundary. Lower-level implementations live in converter.core and owners.
+"""Single semantic build pipeline: normalize, optimize, materialize, publish."""
 
-This module is intentionally tiny; CLI code calls the owner modules directly.
-"""
+import os
+import re
+import shutil
+import tempfile
+from collections import Counter
+from pathlib import Path
+from typing import Any
 
-from .cli import main
+import yaml
 
-__all__ = ["main"]
+from .artifacts import write_yaml_atomic
+from .exporters.dns import export_dns
+from .exporters.egern import export_egern
+from .exporters.loon import export_loon
+from .exporters.mihomo import materialize_final_config, normalize_no_active_resolve
+from .exporters.singbox import export_singbox, export_singbox_dns
+from .model import BuildConfig, BuildContext, BuildResult
+from .optimize import optimize_config
+from .providers import process_provider
+from .rules import find_ruleset_refs
+from .state import read_managed_manifest, refresh_complete_config, write_managed_manifest
+from .validate import validate_final_config
+
+
+def _load_yaml(path: Path) -> dict[str, Any]:
+    value = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        raise SystemExit(f"{path} must be a YAML mapping")
+    if not isinstance(value.get("rule-providers", {}), dict) or not isinstance(value.get("rules", []), list):
+        raise SystemExit(f"{path}: rule-providers mapping and rules list are required")
+    return value
+
+
+def _segment_mapping(root: Path) -> dict[str, str]:
+    path = root / "segment-names.yaml"
+    if not path.exists():
+        return {}
+    value = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict) or not isinstance(value.get("segments", {}), dict):
+        raise SystemExit(f"{path}: expected a segments mapping")
+    mapping = value["segments"]
+    if not all(isinstance(old, str) and isinstance(new, str) for old, new in mapping.items()):
+        raise SystemExit(f"{path}: segment names must be strings")
+    return mapping
+
+
+def build(config: BuildConfig) -> BuildResult:
+    data = _load_yaml(config.input)
+    providers = data.get("rule-providers") or {}
+    rules = data.get("rules") or []
+    referenced = {name for rule in rules for name in find_ruleset_refs(rule)}
+    missing = referenced - set(providers)
+    if missing:
+        raise SystemExit(f"input references missing provider(s): {sorted(missing)}")
+
+    context = BuildContext(memory_cache={}, used_names=set(referenced))
+    generated: dict[str, dict[str, Any]] = {}
+    payloads: dict[str, list[str]] = {}
+    replacements: dict[str, list[str]] = {}
+    behaviors: dict[str, str] = {}
+    for name, provider in providers.items():
+        if name not in referenced:
+            continue
+        result = process_provider(name, provider, context)
+        replacements[name] = result.generated_names
+        for normalized in result.providers:
+            generated[normalized.name] = normalized.as_config()
+            payloads[normalized.name] = list(normalized.payload)
+            behaviors[normalized.name] = normalized.behavior.value
+        print(f"{name}: ok ({sum(result.original_rules.values())} rules -> {', '.join(result.generated_names)})")
+
+    from .optimize import rewrite_rules
+    rewritten = rewrite_rules(rules, replacements, behaviors)
+    semantic = {**{key: value for key, value in data.items() if key not in {"rule-providers", "rules"}}, "rule-providers": generated, "rules": rewritten}
+    mapping = _segment_mapping(Path.cwd())
+    optimized, final_payloads, dedup_stats = optimize_config(semantic, payloads, mapping)
+    optimized = normalize_no_active_resolve(optimized, final_payloads)
+
+    previous = read_managed_manifest(config.dist)
+    publish_dist = Path(tempfile.mkdtemp(prefix="mihomo-mrs-publish-", dir=config.dist.parent))
+    try:
+        final = materialize_final_config(optimized, final_payloads, publish_dist, config.base_url, config.mihomo_bin)
+        validate_final_config(publish_dist, final)
+        exporter_stats: dict[str, Any] = {}
+        exporter_stats["egern"] = export_egern(final, final_payloads, publish_dist, config.base_url)
+        exporter_stats["loon"] = export_loon(final, final_payloads, publish_dist, config.base_url)
+        exporter_stats["singbox"] = export_singbox(final, final_payloads, publish_dist, config.base_url, config.sing_box_bin, segment_names=mapping)
+        exporter_stats["singbox-dns"] = export_singbox_dns(final, final_payloads, publish_dist, config.base_url, config.sing_box_bin)
+        exporter_stats["dns"] = export_dns(final, final_payloads, publish_dist, config.base_url, config.mihomo_bin)
+        write_yaml_atomic(publish_dist / "generated" / "mihomo-rules.yaml", final)
+
+        old_dist = config.dist.with_name(f".{config.dist.name}.previous")
+        if old_dist.exists():
+            shutil.rmtree(old_dist)
+        if config.dist.exists():
+            os.replace(config.dist, old_dist)
+        os.replace(publish_dist, config.dist)
+        write_managed_manifest(config.dist, config.base_url, final["rule-providers"])
+        shutil.rmtree(old_dist, ignore_errors=True)
+    except Exception:
+        shutil.rmtree(publish_dist, ignore_errors=True)
+        raise
+
+    if config.complete_config:
+        complete = _load_yaml(config.complete_config)
+        refreshed = refresh_complete_config(complete, final, previous, config.base_url)
+        write_yaml_atomic(config.complete_output or config.complete_config, refreshed)
+    return BuildResult(final, final_payloads, dedup_stats, exporter_stats)

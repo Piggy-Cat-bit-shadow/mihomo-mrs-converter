@@ -46,16 +46,13 @@ class RefactorRegressionTest(unittest.TestCase):
     def test_unsupported_loon_subrule_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            source = root / "source/domain/AI-domain.yaml"
-            source.parent.mkdir(parents=True)
-            source.write_text("payload:\n  - ai.example\n")
             config = {
                 "sub-rules": {"AI-Routing": ["DOMAIN,other.example,DIRECT", "MATCH,🤖 AI"]},
-                "rule-providers": {"AI-domain": {"behavior": "domain", "url": "https://example.invalid/dist/source/domain/AI-domain.yaml"}},
+                "rule-providers": {"AI-domain": {"behavior": "domain"}},
                 "rules": ["SUB-RULE,(RULE-SET,AI-domain),AI-Routing"],
             }
             with self.assertRaises(SystemExit):
-                export_loon(config, root, root / "out", "https://example.invalid")
+                export_loon(config, {}, root / "out", "https://example.invalid")
 
 
 if __name__ == "__main__":

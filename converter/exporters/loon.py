@@ -1,28 +1,14 @@
 """Independent loon exporter implementation."""
 
-from ..core import (
-    Any,
-    Counter,
-    Path,
-    find_ruleset_refs,
-    generated_artifact_path,
-    ipaddress,
-    is_target_ip_kind,
-    loon_segment_name,
-    parse_egern_sub_rule_members,
-    parse_ip_network,
-    parse_legacy_provider_name,
-    parse_rule,
-    parse_ruleset_reference,
-    public_url,
-    read_yaml_payload,
-    simple_ruleset_wrapper,
-    source_path_for_provider,
-    split_top_level_commas,
-    write_text_atomic
-)  # shared parser, artifacts and semantic primitives
+from collections import Counter
+from pathlib import Path
+from typing import Any
+import ipaddress
 
-from ..artifacts import generated_artifact_path, read_yaml_payload, write_text_atomic, write_yaml_atomic
+from ..artifacts import public_url, write_text_atomic, write_yaml_atomic
+from ..model import parse_legacy_provider_name
+from ..rules import find_ruleset_refs, parse_egern_sub_rule_members, parse_rule, parse_ruleset_reference, simple_ruleset_wrapper, split_top_level_commas
+from ..semantics import is_target_ip_kind, parse_ip_network
 
 LOON_RULE_PRIORITY = {
     "DOMAIN": 0,
@@ -109,7 +95,7 @@ def loon_rule_from_provider(
 
 
 def export_loon(
-    config: dict[str, Any], staging: Path, output_dist: Path, base_url: str
+    config: dict[str, Any], final_payloads: dict[str, list[str]], output_dist: Path, base_url: str
 ) -> dict[str, int]:
     """Export final normalized providers directly as independent Loon rule lists."""
     rules_by_segment: dict[str, list[tuple[str, str]]] = {}
@@ -131,12 +117,7 @@ def export_loon(
 
     for name, provider in config["rule-providers"].items():
         segment = loon_segment_name(name)
-        payload_path = source_path_for_provider(staging, provider)
-        if payload_path is None:
-            payload_path = generated_artifact_path(staging, provider)
-        if payload_path is None or not payload_path.exists():
-            continue
-        payload = read_yaml_payload(payload_path)
+        payload = final_payloads.get(name, [])
         entries = rules_by_segment.setdefault(segment, [])
         seen = {line for _, line in entries}
         for raw_rule in payload:

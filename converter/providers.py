@@ -1,256 +1,153 @@
-"""Provider fetch, parse and normalization boundary."""
+"""Fetch and normalize providers into in-memory semantic state."""
 
-from .core import (
-    ALLOWED_PROVIDER_FIELDS,
-    Any,
-    Behavior,
-    BuildOptions,
-    Counter,
-    ProviderIdentity,
-    ProviderResult,
-    convert_source_to_mrs,
-    egern_segment_name,
-    format_provider_name,
-    make_generated_provider,
-    make_provider,
-    parse_ip_network,
-    parse_rule,
-    payload_from_remote,
-    public_url,
-    re,
-    reserve_path,
-    reserve_provider_name,
-    source_domain_value,
-    source_ip_value,
-    validate_http_url,
-    validate_provider_name,
-    validate_rule_counts,
-    validate_source_domain_value,
-    write_yaml_payload
-)  # shared artifacts and rule semantics
+import re
+from collections import Counter
+from typing import Any
+from urllib.parse import urlparse
+
+import yaml
+
 from . import net
-from .artifacts import convert_source_to_mrs, public_url, read_yaml_payload, write_yaml_payload, generated_artifact_path, source_path_for_provider, validate_http_url
+from .model import Behavior, BuildContext, NormalizedProvider, ProviderMetadata, ProviderResult
+from .rules import parse_rule, source_domain_value, source_ip_value, validate_source_domain_value
+from .semantics import parse_ip_network
 
-def process_provider(
-    name: str,
-    provider: dict[str, Any],
-    options: BuildOptions,
-) -> ProviderResult:
+ALLOWED_PROVIDER_FIELDS = {"type", "behavior", "format", "url", "path", "interval", "proxy", "size-limit", "header"}
+
+
+def validate_provider_name(name: str) -> None:
+    if not isinstance(name, str) or not name:
+        raise SystemExit("provider name must be a non-empty string")
+    if "\x00" in name or "/" in name or "\\" in name or ".." in name:
+        raise SystemExit(f"{name}: provider name contains unsupported path content")
+
+
+def validate_http_url(name: str, url: str) -> None:
+    if urlparse(url).scheme.lower() not in {"http", "https"}:
+        raise SystemExit(f"{name}: unsupported provider URL scheme")
+
+
+def strict_yaml_rule_list(name: str, value: Any, allow_integer_items: bool = False) -> list[str]:
+    if not isinstance(value, list):
+        raise SystemExit(f"{name}: YAML provider payload must be a list")
+    output: list[str] = []
+    for item in value:
+        if allow_integer_items and isinstance(item, int) and not isinstance(item, bool):
+            item = str(item)
+        if not isinstance(item, str):
+            raise SystemExit(f"{name}: YAML provider payload items must be strings")
+        item = item.strip()
+        if item:
+            output.append(item)
+    return output
+
+
+def payload_from_remote(name: str, text: str, fmt: str, allow_integer_items: bool = False) -> list[str]:
+    if fmt == "text":
+        return [line.strip() for line in text.splitlines() if line.strip() and not line.strip().startswith("#")]
+    if fmt != "yaml":
+        raise SystemExit(f"{name}: external MRS input is unsupported; use YAML/text source")
+    value = yaml.safe_load(text)
+    if isinstance(value, dict):
+        value = value.get("payload", value.get("rules"))
+    return strict_yaml_rule_list(name, value, allow_integer_items)
+
+
+def _reserve(base: str, suffix: str, context: BuildContext) -> str:
+    candidate = f"{base}-{suffix}"
+    if candidate not in context.used_names:
+        context.used_names.add(candidate)
+        return candidate
+    index = 1
+    while True:
+        candidate = f"{base}-mrs{index if index > 1 else ''}-{suffix}"
+        if candidate not in context.used_names:
+            context.used_names.add(candidate)
+            return candidate
+        index += 1
+
+
+def process_provider(name: str, provider: dict[str, Any], context: BuildContext) -> ProviderResult:
     validate_provider_name(name)
-    extra_fields = sorted(set(provider) - ALLOWED_PROVIDER_FIELDS)
-    if "path-in-bundle" in provider:
-        raise SystemExit(f"{name}: path-in-bundle is unsupported")
-    if extra_fields:
-        raise SystemExit(f"{name}: unsupported provider fields: {', '.join(extra_fields)}")
-
+    unknown = sorted(set(provider) - ALLOWED_PROVIDER_FIELDS)
+    if "path-in-bundle" in provider or unknown:
+        detail = "path-in-bundle is unsupported" if "path-in-bundle" in provider else f"unsupported provider fields: {', '.join(unknown)}"
+        raise SystemExit(f"{name}: {detail}")
     url = provider.get("url")
     behavior = provider.get("behavior")
+    fmt = provider.get("format", "yaml")
     if provider.get("type") != "http" or not isinstance(url, str):
         raise SystemExit(f"{name}: only http providers with url are supported")
     validate_http_url(name, url)
     if behavior not in {"classical", "domain", "ipcidr"}:
         raise SystemExit(f"{name}: unsupported behavior {behavior!r}")
-    fmt = provider.get("format", "yaml")
-    if fmt not in {"yaml", "text", "mrs"}:
-        raise SystemExit(f"{name}: unsupported format {fmt!r}")
-
-    generated: dict[str, dict[str, Any]] = {}
-    generated_names: list[str] = []
-    source_payloads: dict[str, list[str]] = {}
-
     if fmt == "mrs":
         raise SystemExit(f"{name}: external MRS input is unsupported; use YAML/text source")
-
+    if fmt not in {"yaml", "text"}:
+        raise SystemExit(f"{name}: unsupported format {fmt!r}")
     headers = provider.get("header")
     if headers is not None and not isinstance(headers, dict):
         raise SystemExit(f"{name}: provider header must be a mapping")
-    remote_text = net.fetch_text(url, headers, options.memory_cache)
-    remote_rules = payload_from_remote(name, remote_text, fmt, allow_integer_items=behavior == "ipcidr")
-    if not remote_rules:
-        raise SystemExit(f"{name}: provider contains no rules")
-    parsed = [parse_rule(rule) for rule in remote_rules]
-    original_counter = Counter(remote_rules)
 
+    remote = net.fetch_text(url, headers, context.memory_cache)
+    raw = payload_from_remote(name, remote, fmt, allow_integer_items=behavior == "ipcidr")
+    if not raw:
+        raise SystemExit(f"{name}: provider contains no rules")
+    parsed = [parse_rule(rule) for rule in raw]
+    original = Counter(raw)
     rebuilt: Counter[str] = Counter()
+    metadata = ProviderMetadata.from_mapping(provider)
+    providers: list[NormalizedProvider] = []
 
     if behavior == "domain":
-        source_values = [rule.raw for rule in parsed]
-        source_path = options.dist / "source" / "domain" / f"{name}.yaml"
-        mrs_path = options.dist / "domain" / f"{name}.mrs"
-        write_yaml_payload(source_path, source_values)
-        if options.mihomo:
-            convert_source_to_mrs(options.mihomo, "domain", source_path, mrs_path)
-            fmt_out = "mrs"
-            url_out = public_url(options.base_url, "dist/domain", f"{name}.mrs")
-            path_out = f"./ruleset/{name}.mrs"
-        else:
-            fmt_out = "yaml"
-            url_out = public_url(options.base_url, "dist/source/domain", f"{name}.yaml")
-            path_out = f"./ruleset/{name}.yaml"
-        generated[name] = make_provider(
-            "domain",
-            fmt_out,
-            url_out,
-            path_out,
-            provider,
-        )
-        reserve_path(path_out, options.used_paths)
-        generated_names.append(name)
-        options.used_names.add(name)
-        rebuilt.update(rule.raw for rule in parsed)
-        source_payloads[name] = source_values
-
+        providers.append(NormalizedProvider(name, Behavior.DOMAIN, tuple(item.raw for item in parsed), metadata))
+        rebuilt.update(item.raw for item in parsed)
     elif behavior == "ipcidr":
-        valid_rules: list[str] = []
-        invalid_rules: list[str] = []
-        for rule in parsed:
-            if parse_ip_network(rule.raw) is None:
-                invalid_rules.append(rule.raw)
-            else:
-                valid_rules.append(rule.raw)
-        asn_values: list[str] = []
-        if invalid_rules:
-            metadata_counts = re.findall(r"(?im)^\s*#\s*IP-ASN\s*:\s*(\d+)\s*$", remote_text)
-            candidates = [value for value in invalid_rules if re.fullmatch(r"\d+", value)]
-            if (
-                len(metadata_counts) != 1
-                or len(candidates) != len(invalid_rules)
-                or len(candidates) != int(metadata_counts[0])
-            ):
-                raise SystemExit(f"{name}: invalid ipcidr payload entries cannot be safely classified: {invalid_rules}")
-            asn_values = candidates
-
-        source_values = valid_rules
-        if not source_values and not asn_values:
-            raise SystemExit(f"{name}: provider produced no valid ipcidr or metadata-backed ASN rules")
-        if source_values:
-            source_path = options.dist / "source" / "ipcidr" / f"{name}.yaml"
-            mrs_path = options.dist / "ipcidr" / f"{name}.mrs"
-            write_yaml_payload(source_path, source_values)
-            if options.mihomo:
-                convert_source_to_mrs(options.mihomo, "ipcidr", source_path, mrs_path)
-                fmt_out = "mrs"
-                url_out = public_url(options.base_url, "dist/ipcidr", f"{name}.mrs")
-                path_out = f"./ruleset/{name}.mrs"
-            else:
-                fmt_out = "yaml"
-                url_out = public_url(options.base_url, "dist/source/ipcidr", f"{name}.yaml")
-                path_out = f"./ruleset/{name}.yaml"
-            generated[name] = make_provider("ipcidr", fmt_out, url_out, path_out, provider)
-            reserve_path(path_out, options.used_paths)
-            generated_names.append(name)
-            options.used_names.add(name)
-            source_payloads[name] = source_values
-        if asn_values:
-            segment = egern_segment_name(name)
-            part = 1
-            asn_name = format_provider_name(ProviderIdentity(segment, Behavior.CLASSICAL, part))
-            while asn_name in options.used_names:
-                part += 1
-                asn_name = format_provider_name(ProviderIdentity(segment, Behavior.CLASSICAL, part))
-            options.used_names.add(asn_name)
-            classical_path = options.dist / "classical" / f"{asn_name}.yaml"
-            write_yaml_payload(classical_path, [f"IP-ASN,{value}" for value in asn_values])
-            path_out = f"./ruleset/{asn_name}.yaml"
-            generated[asn_name] = make_generated_provider(
-                "classical", "yaml", public_url(options.base_url, "dist/classical", f"{asn_name}.yaml"), path_out, provider, options.used_paths
-            )
-            generated_names.append(asn_name)
-        if not generated_names:
-            raise SystemExit(f"{name}: provider produced no generated providers")
-        rebuilt.update(rule.raw for rule in parsed)
-
+        valid = [item.raw for item in parsed if parse_ip_network(item.raw) is not None]
+        invalid = [item.raw for item in parsed if parse_ip_network(item.raw) is None]
+        asns: list[str] = []
+        if invalid:
+            counts = re.findall(r"(?im)^\s*#\s*IP-ASN\s*:\s*(\d+)\s*$", remote)
+            if len(counts) != 1 or any(not item.isdigit() for item in invalid) or len(invalid) != int(counts[0]):
+                raise SystemExit(f"{name}: invalid ipcidr payload entries cannot be safely classified: {invalid}")
+            asns = invalid
+        if valid:
+            providers.append(NormalizedProvider(name, Behavior.IPCIDR, tuple(valid), metadata))
+            rebuilt.update(valid)
+        if asns:
+            asn_name = _reserve(name, "classical", context)
+            asn_payload = [f"IP-ASN,{asn}" for asn in asns]
+            providers.append(NormalizedProvider(asn_name, Behavior.CLASSICAL, tuple(asn_payload), metadata))
+            rebuilt.update(asns)
     else:
-        domain_values: list[str] = []
-        domain_originals: list[str] = []
-        ip_values: list[str] = []
-        ip_originals: list[str] = []
-        fallback: list[str] = []
-
-        for rule in parsed:
-            domain_value = source_domain_value(rule)
-            ip_value = source_ip_value(rule)
-            if domain_value is not None:
-                validate_source_domain_value(rule, domain_value)
-                domain_values.append(domain_value)
-                domain_originals.append(rule.raw)
-            elif ip_value is not None:
-                ip_values.append(ip_value)
-                ip_originals.append(rule.raw)
+        domains: list[str] = []
+        ips: list[str] = []
+        classical: list[str] = []
+        for item in parsed:
+            domain = source_domain_value(item)
+            ip = source_ip_value(item)
+            if domain is not None:
+                validate_source_domain_value(item, domain)
+                domains.append(domain)
+            elif ip is not None:
+                ips.append(ip)
             else:
-                fallback.append(rule.raw)
+                classical.append(item.raw)
+        if domains:
+            generated = _reserve(name, "domain", context)
+            providers.append(NormalizedProvider(generated, Behavior.DOMAIN, tuple(domains), metadata))
+            rebuilt.update(item.raw for item in parsed if source_domain_value(item) is not None)
+        if ips:
+            generated = _reserve(name, "ip", context)
+            providers.append(NormalizedProvider(generated, Behavior.IPCIDR, tuple(ips), metadata))
+            rebuilt.update(item.raw for item in parsed if source_ip_value(item) is not None)
+        if classical:
+            generated = _reserve(name, "classical", context)
+            providers.append(NormalizedProvider(generated, Behavior.CLASSICAL, tuple(classical), metadata))
+            rebuilt.update(classical)
 
-        if domain_values:
-            generated_name = reserve_provider_name(name, "domain", options.used_names)
-            source_path = options.dist / "source" / "domain" / f"{name}.yaml"
-            mrs_path = options.dist / "domain" / f"{name}.mrs"
-            write_yaml_payload(source_path, domain_values)
-            if options.mihomo:
-                convert_source_to_mrs(options.mihomo, "domain", source_path, mrs_path)
-                fmt_out = "mrs"
-                url_out = public_url(options.base_url, "dist/domain", f"{name}.mrs")
-                path_out = f"./ruleset/{generated_name}.mrs"
-            else:
-                fmt_out = "yaml"
-                url_out = public_url(options.base_url, "dist/source/domain", f"{name}.yaml")
-                path_out = f"./ruleset/{generated_name}.yaml"
-            generated[generated_name] = make_generated_provider(
-                "domain",
-                fmt_out,
-                url_out,
-                path_out,
-                provider,
-                options.used_paths,
-            )
-            generated_names.append(generated_name)
-            rebuilt.update(domain_originals)
-            source_payloads[generated_name] = domain_values
-
-        if ip_values:
-            generated_name = reserve_provider_name(name, "ip", options.used_names)
-            source_path = options.dist / "source" / "ipcidr" / f"{name}.yaml"
-            mrs_path = options.dist / "ipcidr" / f"{name}.mrs"
-            write_yaml_payload(source_path, ip_values)
-            if options.mihomo:
-                convert_source_to_mrs(options.mihomo, "ipcidr", source_path, mrs_path)
-                fmt_out = "mrs"
-                url_out = public_url(options.base_url, "dist/ipcidr", f"{name}.mrs")
-                path_out = f"./ruleset/{generated_name}.mrs"
-            else:
-                fmt_out = "yaml"
-                url_out = public_url(options.base_url, "dist/source/ipcidr", f"{name}.yaml")
-                path_out = f"./ruleset/{generated_name}.yaml"
-            generated[generated_name] = make_generated_provider(
-                "ipcidr",
-                fmt_out,
-                url_out,
-                path_out,
-                provider,
-                options.used_paths,
-            )
-            generated_names.append(generated_name)
-            rebuilt.update(ip_originals)
-            source_payloads[generated_name] = ip_values
-
-        if fallback:
-            generated_name = reserve_provider_name(name, "classical", options.used_names)
-            classical_path = options.dist / "classical" / f"{name}.yaml"
-            write_yaml_payload(classical_path, fallback)
-            path_out = f"./ruleset/{generated_name}.yaml"
-            generated[generated_name] = make_generated_provider(
-                "classical",
-                "yaml",
-                public_url(options.base_url, "dist/classical", f"{name}.yaml"),
-                path_out,
-                provider,
-                options.used_paths,
-            )
-            generated_names.append(generated_name)
-            rebuilt.update(fallback)
-
-    if not generated_names:
+    if not providers:
         raise SystemExit(f"{name}: provider produced no generated providers")
-
-    validate_rule_counts(name, original_counter, rebuilt)
-
-    return ProviderResult(name, generated_names, generated, original_counter, rebuilt, source_payloads)
+    if original != rebuilt:
+        raise SystemExit(f"{name}: rule-count conservation failed")
+    return ProviderResult(name, providers, [item.name for item in providers], original, rebuilt)

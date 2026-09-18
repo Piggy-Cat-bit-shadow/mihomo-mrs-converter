@@ -7,7 +7,7 @@ from .artifacts import generated_artifact_path
 from .rules import find_ruleset_refs
 
 
-def validate_config(dist: Path, config: dict[str, Any], require_no_orphans: bool = True) -> None:
+def _validate(dist: Path, config: dict[str, Any], require_no_orphans: bool) -> None:
     providers = config.get("rule-providers") or {}
     paths: dict[str, str] = {}
     used: set[str] = set()
@@ -26,3 +26,12 @@ def validate_config(dist: Path, config: dict[str, Any], require_no_orphans: bool
         used.update(refs)
     if require_no_orphans and set(providers) - used:
         raise ValueError(f"orphan provider(s): {sorted(set(providers) - used)}")
+
+
+def validate_final_config(dist: Path, config: dict[str, Any]) -> None:
+    _validate(dist, config, True)
+
+
+def validate_config(dist: Path, config: dict[str, Any], require_no_orphans: bool = True) -> None:
+    """Compatibility entry point for low-level tests; production uses fixed final validation."""
+    _validate(dist, config, require_no_orphans)

@@ -39,6 +39,26 @@ rules:
 其他 classical 规则类型一律进入 classical fallback。
 `type: file`、inline provider、`path-in-bundle` 和外部 `format: mrs` provider 当前不支持。
 
+## 内部架构
+
+生产转换链路保持语义与 artifact 解耦：
+
+```text
+YAML/text
+  ↓
+in-memory normalization
+  ↓
+block-aware consolidation / safe dedup
+  ↓
+final naming and no-active-resolve
+  ↓
+one-time Mihomo materialization + multi-client export
+  ↓
+audit and atomic publish
+```
+
+provider normalization 返回 `NormalizedProvider`，只包含名称、behavior、payload 和影响语义的 metadata；URL、path、YAML/MRS 文件只在最终 Mihomo materialization 时创建。Egern、Loon、Sing-box 和 DNS exporter 都消费同一份 `final_payloads`，不会从中间文件反推规则。
+
 ## 目录
 
 ```text
@@ -55,13 +75,13 @@ dist/
 └── managed-state.yaml
 ```
 
-转换器内部仍会依次执行分类转换、合并和安全去重，但仓库只发布最终优化结果：
+转换器先在内存中完成归一化、合并、安全去重和最终命名，最后一次性生成客户端 artifacts：
 
 ```text
 dist/generated/mihomo-rules.yaml
 ```
 
-可以在仓库根目录的 `segment-names.yaml` 中自定义 merged segment 的最终基础名称：
+可以在仓库根目录的 `segment-names.yaml` 中自定义 logical segment 的最终基础名称：
 
 ```text
 segments:
@@ -72,9 +92,9 @@ segments:
 
 例如 `merged-segment-02-domain`、`-ip`、`-classical` 会分别变为 `AI-domain`、`AI-ip`、`AI-classical`；未配置的 segment 保持默认名字。命名会同步应用到 provider、artifact、URL、path 和所有 RULE-SET 引用。
 
-同一个 logical segment 内，行为类型相同且 policy、wrapper 和 provider metadata 兼容的 `RULE-SET` 会继续合并；`domain` / `ipcidr` 使用既有安全去重，classical 使用稳定顺序拼接。合并不会跨非 `RULE-SET` barrier、不同 policy、不同 wrapper 或不兼容 metadata；只有这些真实边界存在时才保留 `-part-XX` fallback provider。
+同一个 logical segment 内，行为类型相同且 policy、wrapper 和 provider metadata 兼容的 `RULE-SET` 会合并；`domain` / `ipcidr` 使用安全去重，classical 使用稳定顺序拼接。合并不会跨非 `RULE-SET` barrier、不同 policy、不同 wrapper 或不兼容 metadata。
 
-合并+去重版以合并版为基础，只对最终 MRS payload 做安全精简：删除完全重复规则、删除已被已有 `+.` 后缀覆盖的精确 domain、删除已被已有父 `+.` 后缀覆盖的子 suffix、删除重复 CIDR、删除已被已有父网段覆盖的子网段。它不会对 classical 做语义去重，也不会主动生成更大的 domain suffix 或 CIDR。
+最终 payload 只做安全精简：删除完全重复规则、删除已被已有 `+.` 后缀覆盖的精确 domain、删除已被已有父 `+.` 后缀覆盖的子 suffix、删除重复 CIDR、删除已被已有父网段覆盖的子网段。它不会对 classical 做语义去重，也不会主动生成更大的 domain suffix 或 CIDR。
 
 ## 从完整配置抽取输入
 
@@ -96,15 +116,6 @@ pip install -r requirements.txt
 python scripts/convert.py examples/my-rules.yaml \
   --base-url "https://raw.githubusercontent.com/<owner>/<repo>/main"
 ```
-
-如果只是想先生成 source/classical/generated 结构、不生成 `.mrs` 二进制：
-
-```bash
-python scripts/convert.py examples/my-rules.yaml \
-  --base-url "https://raw.githubusercontent.com/<owner>/<repo>/main" \
-```
-
-此模式下 `domain` / `ipcidr` provider 会引用 `dist/source/domain/*.yaml` 和 `dist/source/ipcidr/*.yaml`，不会生成指向不存在 `.mrs` 的配置。
 
 如果要把本轮生成结果刷新进完整 Mihomo / Clash 配置，可以指定完整配置路径：
 

@@ -116,12 +116,19 @@ def _rewrite_expression(
     _, was_wrapped = strip_balanced_outer_parentheses(expression)
     direct = _ruleset_parts_in_expression(expression)
     if direct is not None:
-        name, suffix = direct[1], tuple(direct[2:])
+        name = direct[1]
+        try:
+            reference = parse_ruleset_reference(expression)
+            policy = reference.policy
+            suffix = reference.modifiers
+        except SystemExit:
+            policy = None
+            suffix = tuple(direct[2:])
         names = replacements.get(name)
         if not names:
             return expression.strip()
         variants = [
-            ",".join(["RULE-SET", generated, *ruleset_suffix_for_behavior(suffix, provider_behaviors[generated])])
+            ",".join(["RULE-SET", generated, *( [policy] if policy else [] ), *ruleset_suffix_for_behavior(suffix, provider_behaviors[generated])])
             for generated in names
         ]
         if len(variants) == 1:

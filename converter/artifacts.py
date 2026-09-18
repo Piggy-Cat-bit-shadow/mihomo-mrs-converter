@@ -70,16 +70,6 @@ def generated_artifact_path(dist: Path, provider: dict[str, Any]) -> Path | None
     return dist / relative if relative is not None else None
 
 
-def source_path_for_provider(dist: Path, provider: dict[str, Any]) -> Path | None:
-    behavior = provider.get("behavior")
-    relative = dist_relative_from_url(str(provider.get("url", "")))
-    if behavior not in {"domain", "ipcidr"} or relative is None:
-        return None
-    folder = "ipcidr" if behavior == "ipcidr" else "domain"
-    candidate = dist / "source" / folder / relative.with_suffix(".yaml").name
-    return candidate if candidate.exists() else None
-
-
 def validate_http_url(name: str, url: str) -> None:
     if urlparse(url).scheme.lower() not in {"http", "https"}:
         raise SystemExit(f"{name}: unsupported provider URL scheme")

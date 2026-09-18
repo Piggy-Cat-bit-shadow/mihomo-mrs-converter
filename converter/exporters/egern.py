@@ -1,36 +1,23 @@
 """Independent egern exporter implementation."""
 
-from ..core import (
-    Any,
-    Counter,
-    Path,
-    classify_egern_classical,
-    domain_covered_by_suffix,
-    egern_segment_name,
-    egern_udp_and_ruleset,
-    field,
-    find_ruleset_refs,
-    generated_artifact_path,
-    ipaddress,
-    is_target_ip_kind,
-    network_covered_by_parent,
-    optimize_egern_rule_set,
-    parse_egern_network_rule,
-    parse_egern_sub_rule_members,
-    parse_ip_network,
-    parse_legacy_provider_name,
-    parse_rule,
-    parse_ruleset_reference,
-    public_url,
-    read_yaml_payload,
-    simple_ruleset_wrapper,
-    source_path_for_provider,
-    suffix_covered_by_parent_suffix,
-    validate_provider_name,
-    write_yaml_atomic
-)  # shared parser, artifacts and semantic primitives
+from collections import Counter
+from pathlib import Path
+from typing import Any
+import ipaddress
 
-from ..artifacts import generated_artifact_path, read_yaml_payload, write_yaml_atomic
+from ..artifacts import public_url, write_yaml_atomic
+from ..model import parse_legacy_provider_name
+from ..rules import (
+    egern_udp_and_ruleset, find_ruleset_refs, parse_egern_network_rule,
+    parse_egern_sub_rule_members, parse_rule, parse_ruleset_reference,
+    simple_ruleset_wrapper,
+)
+from ..semantics import is_target_ip_kind, parse_ip_network
+from ..optimize import _domain_covered as domain_covered_by_suffix, _suffix_covered as suffix_covered_by_parent_suffix
+
+
+def network_covered_by_parent(network: ipaddress._BaseNetwork, networks: set[ipaddress._BaseNetwork]) -> bool:
+    return any(network.supernet(new_prefix=prefix) in networks for prefix in range(network.prefixlen - 1, -1, -1))
 
 EGERN_FIELD_BY_KIND = {
     "DOMAIN": "domain_set",
@@ -45,6 +32,11 @@ EGERN_FIELD_BY_KIND = {
     "DST-PORT": "dest_port_set",
     "IP-ASN": "asn_set",
 }
+
+
+def validate_provider_name(name: str) -> None:
+    if not name or any(token in name for token in ("/", "\\", "..", "\x00")):
+        raise ValueError(f"invalid provider name: {name!r}")
 
 
 def egern_segment_name(provider_name: str) -> str:
@@ -128,7 +120,7 @@ def optimize_egern_rule_set(fields: dict[str, Any]) -> tuple[dict[str, Any], Cou
 
 
 def export_egern(
-    config: dict[str, Any], staging: Path, output_dist: Path, base_url: str
+    config: dict[str, Any], final_payloads: dict[str, list[str]], output_dist: Path, base_url: str
 ) -> dict[str, int]:
     """Serialize the already-final Mihomo config into compact Egern rule sets."""
     sets: dict[str, dict[str, Any]] = {}
@@ -145,12 +137,7 @@ def export_egern(
     for name, provider in config["rule-providers"].items():
         segment = egern_segment_name(name)
         behavior = provider.get("behavior")
-        payload_path = source_path_for_provider(staging, provider)
-        if payload_path is None:
-            payload_path = generated_artifact_path(staging, provider)
-        if payload_path is None or not payload_path.exists():
-            continue
-        payload = read_yaml_payload(payload_path)
+        payload = final_payloads.get(name, [])
         for rule in payload:
             if behavior == "domain":
                 value = rule[2:] if rule.startswith("+.") else rule

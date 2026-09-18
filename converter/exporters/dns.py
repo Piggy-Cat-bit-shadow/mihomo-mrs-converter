@@ -1,27 +1,15 @@
 """Independent dns exporter implementation."""
 
-from ..core import (
-    Any,
-    Counter,
-    Path,
-    classify_egern_classical,
-    collect_dns_domain_payloads,
-    convert_source_to_mrs,
-    dedup_domain_payload,
-    dedup_exact_rules,
-    egern_segment_name,
-    field,
-    generated_artifact_path,
-    optimize_egern_rule_set,
-    parse_rule,
-    read_yaml_payload,
-    source_path_for_provider,
-    write_yaml_atomic,
-    write_yaml_payload
-)  # shared parser, artifacts and semantic primitives
+from collections import Counter
+from pathlib import Path
+import tempfile
+from typing import Any
 
-from ..artifacts import convert_source_to_mrs, generated_artifact_path, read_yaml_payload, write_yaml_atomic, write_yaml_payload
-from .egern import optimize_egern_rule_set
+from ..artifacts import convert_source_to_mrs, write_yaml_atomic, write_yaml_payload
+from ..rules import parse_rule
+from ..model import parse_legacy_provider_name
+from ..optimize import dedup_domain_payload, dedup_exact_rules
+from .egern import classify_egern_classical, optimize_egern_rule_set
 
 DNS_CLASSICAL_KINDS = {"DOMAIN-KEYWORD", "DOMAIN-WILDCARD", "DOMAIN-REGEX"}
 DNS_DOMAIN_KINDS = {"DOMAIN", "DOMAIN-SUFFIX", "DOMAIN-KEYWORD", "DOMAIN-REGEX", "DOMAIN-WILDCARD"}
@@ -40,7 +28,8 @@ def collect_dns_domain_payloads(
     classical_rules: dict[str, list[str]] = {group: [] for group in DNS_SEGMENT_GROUPS}
     classical_kinds = classical_kinds or DNS_CLASSICAL_KINDS
     for name, provider in config["rule-providers"].items():
-        segment = egern_segment_name(name)
+        identity = parse_legacy_provider_name(name)
+        segment = identity.segment if identity else name
         group = next((group for group, members in DNS_SEGMENT_GROUPS.items() if segment in members), None)
         if group is None:
             continue
@@ -60,25 +49,18 @@ def collect_dns_domain_payloads(
 
 
 def export_dns(
-    config: dict[str, Any], staging: Path, output_dist: Path, base_url: str, mihomo: str | None,
-    payloads: dict[str, list[str]] | None = None,
+    config: dict[str, Any], final_payloads: dict[str, list[str]], output_dist: Path, base_url: str, mihomo: str | None,
 ) -> dict[str, int]:
     """Export DNS-only views from the already-final, deduplicated providers."""
     if not mihomo:
         raise SystemExit("DNS domain MRS output requires a mihomo binary")
 
-    if payloads is None:
-        payloads = {}
-        for name, provider in config["rule-providers"].items():
-            payload_path = source_path_for_provider(staging, provider) or generated_artifact_path(staging, provider)
-            if payload_path is not None and payload_path.exists():
-                payloads[name] = read_yaml_payload(payload_path)
-    dns_payloads = collect_dns_domain_payloads(config, payloads)
+    dns_payloads = collect_dns_domain_payloads(config, final_payloads)
 
     present_segments = {
-        egern_segment_name(name)
+        (parse_legacy_provider_name(name).segment if parse_legacy_provider_name(name) else name)
         for name in config["rule-providers"]
-        if egern_segment_name(name) in {"Direct", "China", "AI", "Global"}
+        if (parse_legacy_provider_name(name).segment if parse_legacy_provider_name(name) else name) in {"Direct", "China", "AI", "Global"}
     }
     missing = sorted({"Direct", "China", "AI", "Global"} - present_segments)
     if missing:
@@ -86,33 +68,35 @@ def export_dns(
 
     dns_root = output_dist / "dns"
     counts: Counter[str] = Counter()
-    for group in DNS_SEGMENT_GROUPS:
-        optimized_domains, optimized_classical = dns_payloads[group]
-        source_path = staging / "dns" / "source" / f"{group}-domain.yaml"
-        write_yaml_payload(source_path, optimized_domains)
-        convert_source_to_mrs(
-            mihomo, "domain", source_path, dns_root / "mihomo" / f"{group}-domain.mrs"
-        )
+    with tempfile.TemporaryDirectory(prefix="mihomo-mrs-dns-") as scratch:
+        scratch_root = Path(scratch)
+        for group in DNS_SEGMENT_GROUPS:
+            optimized_domains, optimized_classical = dns_payloads[group]
+            source_path = scratch_root / f"{group}-domain.yaml"
+            write_yaml_payload(source_path, optimized_domains)
+            convert_source_to_mrs(
+                mihomo, "domain", source_path, dns_root / "mihomo" / f"{group}-domain.mrs"
+            )
 
-        write_yaml_payload(dns_root / "mihomo" / f"{group}-classical.yaml", optimized_classical)
+            write_yaml_payload(dns_root / "mihomo" / f"{group}-classical.yaml", optimized_classical)
 
-        egern_fields: dict[str, list[str]] = {}
-        for rule in optimized_domains:
-            field = "domain_suffix_set" if rule.startswith("+.") else "domain_set"
-            egern_fields.setdefault(field, []).append(rule[2:] if rule.startswith("+.") else rule)
-        for rule in optimized_classical:
-            classified = classify_egern_classical(rule)
-            if classified is not None:
-                field, value, no_resolve = classified
-                if not no_resolve:
-                    egern_fields.setdefault(field, []).append(value)
-        egern_fields, _ = optimize_egern_rule_set(egern_fields)
-        write_yaml_atomic(dns_root / "egern" / f"{group}.yaml", egern_fields)
-        counts[f"{group}-domain"] = len(optimized_domains)
-        counts[f"{group}-classical"] = len(optimized_classical)
-        counts[f"{group}-egern"] = sum(
-            len(values) for field, values in egern_fields.items() if field != "no_resolve"
-        )
+            egern_fields: dict[str, list[str]] = {}
+            for rule in optimized_domains:
+                field = "domain_suffix_set" if rule.startswith("+.") else "domain_set"
+                egern_fields.setdefault(field, []).append(rule[2:] if rule.startswith("+.") else rule)
+            for rule in optimized_classical:
+                classified = classify_egern_classical(rule)
+                if classified is not None:
+                    field, value, no_resolve = classified
+                    if not no_resolve:
+                        egern_fields.setdefault(field, []).append(value)
+            egern_fields, _ = optimize_egern_rule_set(egern_fields)
+            write_yaml_atomic(dns_root / "egern" / f"{group}.yaml", egern_fields)
+            counts[f"{group}-domain"] = len(optimized_domains)
+            counts[f"{group}-classical"] = len(optimized_classical)
+            counts[f"{group}-egern"] = sum(
+                len(values) for field, values in egern_fields.items() if field != "no_resolve"
+            )
 
     print("DNS outputs:")
     for group in DNS_SEGMENT_GROUPS:
