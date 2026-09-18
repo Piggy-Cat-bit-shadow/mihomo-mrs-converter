@@ -7,6 +7,7 @@ import io
 import os
 import urllib.error
 import inspect
+import hashlib
 from email.message import Message
 from pathlib import Path
 from unittest.mock import patch
@@ -35,24 +36,28 @@ class Response:
 
 class SingBoxExportTest(unittest.TestCase):
     def test_github_api_uses_token_but_asset_does_not(self):
-        metadata = {"assets": [{"name": "GeoLite2-ASN-Blocks-IPv4.csv", "browser_download_url": "https://github.com/example/asset"}]}
+        payload = b"network,autonomous_system_number\n192.0.2.0/24,64512\n"
+        assets = ({"name": "GeoLite2-ASN-Blocks-IPv4.csv", "url": "https://github.com/example/asset", "sha256": hashlib.sha256(payload).hexdigest()},)
         requests = []
 
         def urlopen(request, **kwargs):
             requests.append(request)
-            if request.full_url.startswith("https://api.github.com"):
-                return Response(json.dumps(metadata).encode())
-            return Response(b"network,autonomous_system_number\n192.0.2.0/24,64512\n")
+            return Response(payload)
 
-        with patch.dict(os.environ, {"GITHUB_TOKEN": "secret-token"}), patch("converter.exporters.singbox.urllib.request.urlopen", side_effect=urlopen):
+        with patch.dict(os.environ, {"GITHUB_TOKEN": "secret-token"}), patch("converter.exporters.singbox.GEOLITE2_ASSETS", assets), patch("converter.exporters.singbox.urllib.request.urlopen", side_effect=urlopen):
             result = _default_asn_resolver({"64512"})
         self.assertEqual(result, {"64512": ["192.0.2.0/24"]})
-        api_headers = {key.lower(): value for key, value in requests[0].header_items()}
-        asset_headers = {key.lower(): value for key, value in requests[1].header_items()}
-        self.assertEqual(api_headers["authorization"], "Bearer secret-token")
-        self.assertEqual(api_headers["accept"], "application/vnd.github+json")
-        self.assertEqual(api_headers["x-github-api-version"], "2022-11-28")
+        asset_headers = {key.lower(): value for key, value in requests[0].header_items()}
         self.assertNotIn("authorization", asset_headers)
+
+    def test_pinned_asset_checksum_failure_is_closed(self):
+        assets = ({"name": "GeoLite2-ASN-Blocks-IPv4.csv", "url": "https://github.com/example/asset", "sha256": "0" * 64},)
+        with patch("converter.exporters.singbox.GEOLITE2_ASSETS", assets), patch(
+            "converter.exporters.singbox.urllib.request.urlopen",
+            return_value=Response(b"network,autonomous_system_number\n192.0.2.0/24,64512\n"),
+        ):
+            with self.assertRaisesRegex(SingBoxExportError, "checksum mismatch"):
+                _default_asn_resolver({"64512"})
 
     def test_github_api_without_token_is_anonymous(self):
         captured = []

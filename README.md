@@ -191,6 +191,14 @@ Mihomo `size-limit` 的单位是 bytes，0 表示不限；最终生成 artifact 
 - Mihomo：包含 destination IP/ASN/GeoIP matcher 的 Rule Set 引用统一带 `no-resolve`，顶层 destination-IP 规则也带 `no-resolve`。
 - Egern：包含 `ip_cidr_set`、`ip_cidr6_set`、`asn_set` 或 `geoip_set` 的 Rule Set 使用 `no_resolve: true`，不再生成 `*-no-resolve.yaml` 拆分文件。
 - Loon：destination IP/ASN/GeoIP 单条规则统一带 `,no-resolve`。
+
+Sing-box 的 IP-ASN expansion 使用仓库内固定的 GeoLite2 数据源 pin：release/tag
+`1789596753`，IPv4 asset `GeoLite2-ASN-Blocks-IPv4.csv`（SHA256
+`c00d327f3f8b54c64bf66265e3461501a915edb87cc082497e85c096995a4454`），IPv6 asset
+`GeoLite2-ASN-Blocks-IPv6.csv`（SHA256
+`09076ae7734fd1e5eb6864950af49a690e4d7edaa72023d8c3df3f82f21a0fb9`）。生产构建不会请求
+`releases/latest`，也不会把 `GITHUB_TOKEN` 发送到 release asset 下载地址。升级 ASN 数据时，
+应显式更新 `converter/data_sources.py` 中的 release、下载 URL 和 SHA256，然后运行完整测试并提交。
 - Sing-box：SRS 合并为 logical segment，route 不生成 `action: resolve`。
 
 Mihomo、Egern、Loon 的其他 matcher 语义保持不变；无法无损转换的规则仍按现有 fail-closed 原则处理。

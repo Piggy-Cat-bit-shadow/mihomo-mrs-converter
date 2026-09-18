@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from .artifacts import generated_artifact_path
-from .rules import find_ruleset_refs
+from .rules import find_ruleset_refs, iter_all_rules
 
 
 def _validate(dist: Path, config: dict[str, Any], require_no_orphans: bool) -> None:
@@ -19,7 +19,7 @@ def _validate(dist: Path, config: dict[str, Any], require_no_orphans: bool) -> N
         artifact = generated_artifact_path(dist, provider)
         if artifact is not None and not artifact.exists():
             raise ValueError(f"missing artifact for {name}: {artifact}")
-    for rule in config.get("rules", []):
+    for rule in iter_all_rules(config):
         refs = find_ruleset_refs(rule)
         missing = set(refs) - set(providers)
         if missing: raise ValueError(f"missing referenced provider(s): {sorted(missing)}")

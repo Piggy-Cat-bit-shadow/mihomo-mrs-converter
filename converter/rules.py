@@ -1,5 +1,6 @@
 """Mihomo rule and RULE-SET parser shared by all exporters."""
 
+from collections.abc import Iterator
 from typing import Any
 
 from .model import RuleLine, RulesetReference
@@ -8,6 +9,17 @@ from .semantics import is_target_ip_kind
 DOMAIN_RULES = {"DOMAIN", "DOMAIN-SUFFIX"}
 IPCIDR_RULES = {"IP-CIDR", "IP-CIDR6"}
 DNS_DOMAIN_KINDS = {"DOMAIN", "DOMAIN-SUFFIX", "DOMAIN-KEYWORD", "DOMAIN-REGEX", "DOMAIN-WILDCARD"}
+
+
+def iter_all_rules(config: dict[str, Any]) -> Iterator[Any]:
+    """Yield top-level rules and every rule in named sub-rules in one pass."""
+    yield from config.get("rules", []) or []
+    sub_rules = config.get("sub-rules") or {}
+    if not isinstance(sub_rules, dict):
+        return
+    for members in sub_rules.values():
+        if isinstance(members, list):
+            yield from members
 
 
 def ruleset_suffix_for_behavior(suffix: tuple[str, ...], behavior: str) -> list[str]:
@@ -266,6 +278,34 @@ def parse_rule(raw: str) -> RuleLine:
     parts = tuple(split_top_level_commas(raw))
     kind = parts[0].upper() if parts else ""
     return RuleLine(raw=raw, kind=kind, parts=parts)
+
+
+def rule_policy(raw: Any) -> str | None:
+    """Return a rule's routing policy using the shared Mihomo parser."""
+    if not isinstance(raw, str):
+        return None
+    try:
+        reference = parse_ruleset_reference(raw)
+    except SystemExit:
+        reference = None
+    if reference is not None:
+        return reference.policy
+    parsed = parse_rule(raw)
+    parts = parsed.parts
+    if parsed.kind == "MATCH" and len(parts) == 2:
+        return parts[1]
+    if parsed.kind in {
+        "DOMAIN", "DOMAIN-SUFFIX", "DOMAIN-KEYWORD", "DOMAIN-REGEX", "DOMAIN-WILDCARD",
+        "IP-CIDR", "IP-CIDR6", "IP-ASN", "GEOIP", "NETWORK", "PROCESS-NAME", "PROCESS-PATH",
+        "PROCESS-PATH-REGEX", "DST-PORT", "SRC-PORT", "SRC-IP-CIDR", "SRC-IP-ASN",
+    } and len(parts) >= 3:
+        return parts[2] if parts[2].lower() != "no-resolve" else None
+    if parsed.kind in {"AND", "OR", "NOT"}:
+        candidates = [part.strip("()") for part in parts[1:] if part.strip("()")]
+        for candidate in reversed(candidates):
+            if candidate.lower() != "no-resolve" and not candidate.upper().startswith(("RULE-SET,", "NETWORK,", "DOMAIN,")):
+                return candidate
+    return None
 
 
 def normalize(rule: str) -> str:

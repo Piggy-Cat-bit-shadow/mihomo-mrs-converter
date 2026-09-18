@@ -8,7 +8,7 @@ from pathlib import Path
 
 import yaml
 
-from .rules import parse_rule
+from .rules import iter_all_rules, parse_rule, rule_policy
 from .semantics import is_target_ip_kind
 from .validate import validate_config
 from .exporters.singbox import LEGACY_ROUTE_ALIASES
@@ -16,11 +16,10 @@ from .exporters.singbox import LEGACY_ROUTE_ALIASES
 
 def validate_mihomo(binary: str, config: dict) -> None:
     policies = set(config.get("sub-rules", {}))
-    for value in [*config.get("rules", []), *sum(config.get("sub-rules", {}).values(), [])]:
-        if isinstance(value, str):
-            parts = value.split(",")
-            if len(parts) >= 2:
-                policies.add(parts[-1].strip("()"))
+    for value in iter_all_rules(config):
+        policy = rule_policy(value)
+        if policy and policy.lower() != "no-resolve":
+            policies.add(policy.strip("()"))
     reserved = {"DIRECT", "REJECT", "REJECT-DROP", "PASS", "COMPATIBLE"}
     base = "__audit_base__"
     candidate = dict(config)

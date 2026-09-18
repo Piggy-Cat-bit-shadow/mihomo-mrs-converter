@@ -64,6 +64,26 @@ class OptimizeTest(unittest.TestCase):
         rewritten = rewrite_rules(["AND,((RULE-SET,A,Proxy),(NETWORK,tcp)),DIRECT"], {"A": ["A-domain"]}, {"A-domain": "domain"})
         self.assertEqual(rewritten, ["AND,((RULE-SET,A-domain,Proxy),(NETWORK,tcp)),DIRECT"])
 
+    def test_sub_rule_reference_is_rewritten_with_the_same_parser(self):
+        config = {
+            "rule-providers": {"A": {"behavior": "domain"}},
+            "rules": ["MATCH,DIRECT"],
+            "sub-rules": {"Example": ["RULE-SET,A,Proxy,no-resolve"]},
+        }
+        final, payloads, _ = optimize_config(config, {"A": ["a.example"]})
+        self.assertEqual(final["sub-rules"]["Example"], ["RULE-SET,A,Proxy,no-resolve"])
+        self.assertIn("A", final["rule-providers"])
+        self.assertEqual(payloads["A"], ["a.example"])
+
+    def test_sub_rule_reference_tracks_merged_provider_identity(self):
+        config = {
+            "rule-providers": {"A": {"behavior": "domain"}, "B": {"behavior": "domain"}},
+            "rules": ["RULE-SET,A,Proxy", "RULE-SET,B,Proxy"],
+            "sub-rules": {"Example": ["RULE-SET,A,Proxy"]},
+        }
+        final, _, _ = optimize_config(config, {"A": ["a.example"], "B": ["b.example"]})
+        self.assertEqual(final["sub-rules"]["Example"], ["RULE-SET,merged-segment-01-domain,Proxy"])
+
     def test_segment_anchor_rejects_ordinal_shift(self):
         config = {"rule-providers": {"Inserted": {"behavior": "domain"}, "AI": {"behavior": "domain"}}, "rules": [
             "RULE-SET,Inserted,Proxy", "DOMAIN,barrier.example,DIRECT", "RULE-SET,AI,Proxy"

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import ipaddress
 import csv
+import hashlib
 import io
 import json
 import re
@@ -31,6 +32,7 @@ from urllib.parse import urlparse
 from .dns import collect_dns_domain_payloads
 from ..rules import DNS_DOMAIN_KINDS, parse_rule, parse_ruleset_reference, simple_ruleset_wrapper, split_top_level_commas
 from ..model import parse_legacy_provider_name
+from ..data_sources import GEOLITE2_ASSETS
 
 
 class SingBoxExportError(RuntimeError):
@@ -199,7 +201,6 @@ def _matcher(kind: str, value: str, context: str) -> tuple[str, Any]:
 def _default_asn_resolver(asns: set[str]) -> dict[str, list[str]]:
     """Resolve ASN to CIDRs only for this exporter; never mutates main IR."""
     context = ssl.create_default_context(cafile=certifi.where()) if certifi else ssl.create_default_context()
-    metadata = _github_api_json("https://api.github.com/repos/FyraLabs/geolite2/releases/latest")
     result = {asn: [] for asn in asns}
     def download(url: str) -> bytes:
         data = bytearray()
@@ -229,11 +230,14 @@ def _default_asn_resolver(asns: set[str]) -> dict[str, list[str]]:
             if attempt == 3: raise SingBoxExportError("ASN database download remained incomplete")
         raise SingBoxExportError("ASN database download failed")
 
-    for asset in metadata.get("assets", []):
-        url = asset.get("browser_download_url", "")
-        if not asset.get("name", "").endswith(".csv") or "GeoLite2-ASN-Blocks-" not in asset.get("name", ""):
-            continue
-        raw = download(url)
+    for asset in GEOLITE2_ASSETS:
+        raw = download(asset["url"])
+        actual_sha256 = hashlib.sha256(raw).hexdigest()
+        if actual_sha256 != asset["sha256"]:
+            raise SingBoxExportError(
+                f"GeoLite2 asset checksum mismatch for {asset['name']}: "
+                f"expected {asset['sha256']}, got {actual_sha256}"
+            )
         for row in csv.DictReader(io.TextIOWrapper(io.BytesIO(raw), encoding="utf-8")):
             asn = row.get("autonomous_system_number")
             if asn in result and row.get("network"):

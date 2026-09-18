@@ -28,6 +28,10 @@ class ArchitectureTest(unittest.TestCase):
         for line in workflow.splitlines():
             if "uses:" in line:
                 self.assertRegex(line, r"uses:\s+[^@\s]+@[0-9a-f]{40}\s+#")
+        verify = workflow.split("\n  publish:\n", 1)[0]
+        publish = workflow.split("\n  publish:\n", 1)[1]
+        self.assertIn("persist-credentials: false", verify)
+        self.assertNotIn("persist-credentials: false", publish)
 
     def test_ci_locks_dependencies_and_binary_digests(self):
         root = Path(__file__).parents[1]
@@ -37,6 +41,14 @@ class ArchitectureTest(unittest.TestCase):
         self.assertIn("certifi==", requirements)
         self.assertRegex(workflow, r"MIHOMO_SHA256: \"[0-9a-f]{64}\"")
         self.assertRegex(workflow, r"SING_BOX_SHA256: \"[0-9a-f]{64}\"")
+
+    def test_geolite_source_is_pinned(self):
+        root = Path(__file__).parents[1]
+        source = (root / "converter/exporters/singbox.py").read_text(encoding="utf-8")
+        data_sources = (root / "converter/data_sources.py").read_text(encoding="utf-8")
+        self.assertNotIn("releases/latest", source)
+        self.assertIn('GEOLITE2_RELEASE = "1789596753"', data_sources)
+        self.assertEqual(data_sources.count('"sha256":'), 2)
 
 
 if __name__ == "__main__":

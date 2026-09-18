@@ -8,6 +8,7 @@ from .model import DedupStats, NormalizedProvider, ProviderMetadata, parse_legac
 from .rules import (
     _rewrite_expression,
     find_ruleset_refs,
+    iter_all_rules,
     parse_ruleset_reference,
     ruleset_routing_signature,
     ruleset_suffix_for_behavior,
@@ -159,6 +160,7 @@ def optimize_config(
     stats: dict[str, DedupStats] = {}
     rewritten_rules: list[Any] = []
     handled: set[str] = set()
+    rename_map: dict[str, list[str]] = {}
     segment_index = 0
 
     block_by_start = {start: (end, routing, wrapper, names) for start, end, routing, wrapper, names in iter_ruleset_blocks(rules, providers)}
@@ -196,7 +198,7 @@ def optimize_config(
             key = (behavior, reference.policy)
             groups.setdefault(key, []).append(name)
             group_modifiers.setdefault(key, set()).update(modifiers)
-        output_names: list[tuple[str, str, tuple[str, ...]]] = []
+        output_names: list[tuple[str, str, tuple[str, ...], list[str]]] = []
         for (behavior, policy), group in sorted(groups.items(), key=lambda item: BEHAVIOR_ORDER[item[0][0]]):
             modifiers = tuple(sorted(group_modifiers[(behavior, policy)]))
             compatible = merge_metadata([providers[name] for name in group])
@@ -213,7 +215,7 @@ def optimize_config(
                 for name in output_group:
                     final_providers[name] = providers[name]
                     final_payloads[name] = list(payloads[name])
-                    output_names.append((name, policy, modifiers))
+                    output_names.append((name, policy, modifiers, [name]))
             else:
                 label = "ip" if behavior == "ipcidr" else behavior
                 base = f"merged-segment-{segment_index:02d}-{label}"
@@ -225,9 +227,9 @@ def optimize_config(
                     name = f"{base}-part-{part:02d}"
                 final_providers[name] = compatible
                 final_payloads[name] = payload
-                output_names.append((name, policy, modifiers))
+                output_names.append((name, policy, modifiers, list(group)))
             handled.update(group)
-        for name, policy, modifiers in output_names:
+        for name, policy, modifiers, source_names in output_names:
             mapped = name
             for old, new in (segment_mapping or {}).items():
                 if isinstance(new, dict):
@@ -246,6 +248,8 @@ def optimize_config(
                 mapped = f"{base}-part-{part:02d}"
             final_providers[mapped] = provider
             final_payloads[mapped] = payload
+            for source_name in source_names:
+                rename_map.setdefault(source_name, []).append(mapped)
             rule_parts = ["RULE-SET", mapped]
             if wrapper_signature[0].upper() != "SUB-RULE":
                 rule_parts.append(policy)
@@ -258,10 +262,25 @@ def optimize_config(
         if name not in handled:
             final_providers[name] = provider
             final_payloads[name] = list(payloads[name])
+            rename_map.setdefault(name, []).append(name)
 
-    referenced = {name for rule in rewritten_rules for name in find_ruleset_refs(rule)}
+    final_behaviors = {
+        name: provider.get("behavior", "") for name, provider in final_providers.items()
+    }
+    rewritten_sub_rules = {
+        name: rewrite_rules(members, rename_map, final_behaviors)
+        for name, members in (config.get("sub-rules") or {}).items()
+    }
+
+    rewritten_config = {
+        **{key: value for key, value in config.items() if key not in {"rule-providers", "rules", "sub-rules"}},
+        "rule-providers": final_providers,
+        "rules": rewritten_rules,
+        "sub-rules": rewritten_sub_rules,
+    }
+    referenced = {name for rule in iter_all_rules(rewritten_config) for name in find_ruleset_refs(rule)}
     ordered = {name: final_providers[name] for name in final_providers if name in referenced or name in final_payloads}
-    return {**{key: value for key, value in config.items() if key not in {"rule-providers", "rules"}}, "rule-providers": ordered, "rules": rewritten_rules}, {name: final_payloads[name] for name in ordered}, stats
+    return {**rewritten_config, "rule-providers": ordered}, {name: final_payloads[name] for name in ordered}, stats
 
 
 def rewrite_rules(rules: list[Any], replacements: dict[str, list[str]], provider_behaviors: dict[str, str]) -> list[Any]:

@@ -42,10 +42,9 @@ def normalize_no_active_resolve(config: dict[str, Any], payloads: dict[str, list
         result = ",".join(rewritten)
         return f"({result})" if wrapped else result
 
-    for raw in config.get("rules", []):
+    def normalize_rule(raw: Any) -> Any:
         if not isinstance(raw, str):
-            rules.append(raw)
-            continue
+            return raw
         try:
             reference = parse_ruleset_reference(raw)
         except SystemExit:
@@ -63,8 +62,14 @@ def normalize_no_active_resolve(config: dict[str, Any], payloads: dict[str, list
         parts = raw.split(",")
         if is_target_ip_kind(parts[0]) and "no-resolve" not in {item.lower() for item in parts[2:]}:
             raw = ",".join([*parts, "no-resolve"])
-        rules.append(raw)
-    return {**config, "rules": rules}
+        return raw
+
+    rules = [normalize_rule(raw) for raw in config.get("rules", [])]
+    sub_rules = {
+        name: [normalize_rule(raw) for raw in members]
+        for name, members in (config.get("sub-rules") or {}).items()
+    }
+    return {**config, "rules": rules, "sub-rules": sub_rules}
 
 
 def materialize_final_config(

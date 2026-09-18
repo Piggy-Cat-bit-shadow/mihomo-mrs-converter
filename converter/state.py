@@ -8,7 +8,7 @@ from typing import Any
 import yaml
 
 from .artifacts import public_url, write_yaml_atomic
-from .rules import find_ruleset_refs
+from .rules import find_ruleset_refs, iter_all_rules
 
 MANAGED_STATE_FILENAME = "managed-state.yaml"
 
@@ -143,7 +143,7 @@ def refresh_complete_config(
         *retained_rules[:insert_at], *new_rulesets, *retained_rules[insert_at:]
     ]
 
-    referenced = {name for rule in refreshed["rules"] for name in find_ruleset_refs(rule)}
+    referenced = {name for rule in iter_all_rules(refreshed) for name in find_ruleset_refs(rule)}
     missing = referenced - set(refreshed_providers)
     if missing:
         raise SystemExit(f"complete config contains missing RULE-SET provider(s): {sorted(missing)}")

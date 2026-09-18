@@ -19,7 +19,7 @@ from .exporters.singbox import export_singbox, export_singbox_dns
 from .model import BuildConfig, BuildContext, BuildResult
 from .optimize import optimize_config
 from .providers import process_provider
-from .rules import find_ruleset_refs
+from .rules import find_ruleset_refs, iter_all_rules
 from .state import read_managed_manifest, refresh_complete_config, write_managed_manifest
 from .validate import validate_final_config
 
@@ -53,7 +53,7 @@ def build(config: BuildConfig) -> BuildResult:
     data = _load_yaml(config.input)
     providers = data.get("rule-providers") or {}
     rules = data.get("rules") or []
-    referenced = {name for rule in rules for name in find_ruleset_refs(rule)}
+    referenced = {name for rule in iter_all_rules(data) for name in find_ruleset_refs(rule)}
     missing = referenced - set(providers)
     if missing:
         raise SystemExit(f"input references missing provider(s): {sorted(missing)}")
@@ -76,7 +76,16 @@ def build(config: BuildConfig) -> BuildResult:
 
     from .optimize import rewrite_rules
     rewritten = rewrite_rules(rules, replacements, behaviors)
-    semantic = {**{key: value for key, value in data.items() if key not in {"rule-providers", "rules"}}, "rule-providers": generated, "rules": rewritten}
+    rewritten_sub_rules = {
+        name: rewrite_rules(members, replacements, behaviors)
+        for name, members in (data.get("sub-rules") or {}).items()
+    }
+    semantic = {
+        **{key: value for key, value in data.items() if key not in {"rule-providers", "rules", "sub-rules"}},
+        "rule-providers": generated,
+        "rules": rewritten,
+        "sub-rules": rewritten_sub_rules,
+    }
     mapping = _segment_mapping(Path.cwd())
     optimized, final_payloads, dedup_stats = optimize_config(semantic, payloads, mapping)
     optimized = normalize_no_active_resolve(optimized, final_payloads)

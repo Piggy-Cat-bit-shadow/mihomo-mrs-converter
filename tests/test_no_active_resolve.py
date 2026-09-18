@@ -2,9 +2,11 @@ import json
 import shutil
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
+import yaml
 
-from converter.audit import audit_dist
+from converter.audit import audit_dist, validate_mihomo
 from converter.rules import parse_rule
 from converter.semantics import ensure_single_no_resolve, is_target_ip_kind
 
@@ -48,6 +50,20 @@ class NoActiveResolveTest(unittest.TestCase):
             path.write_text(json.dumps(data), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, r"Sing-box: route contains action: resolve"):
                 audit_dist(root)
+
+    def test_mihomo_audit_policy_parser_ignores_no_resolve(self) -> None:
+        config = {
+            "rule-providers": {"Test": {"behavior": "domain"}},
+            "rules": ["RULE-SET,Test,OnlyPolicy,no-resolve"],
+        }
+        captured = {}
+        def capture_run(args, **kwargs):
+            captured.update(yaml.safe_load(Path(args[-1]).read_text(encoding="utf-8")))
+        with patch("converter.audit.subprocess.run", side_effect=capture_run):
+            validate_mihomo("mihomo", config)
+        policies = {group["name"] for group in captured["proxy-groups"]}
+        self.assertIn("OnlyPolicy", policies)
+        self.assertNotIn("no-resolve", policies)
 
 
 if __name__ == "__main__":
