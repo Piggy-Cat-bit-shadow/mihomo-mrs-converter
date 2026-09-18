@@ -4,7 +4,8 @@ from pathlib import Path
 
 import yaml
 
-from scripts.convert import is_target_ip_kind, parse_rule, provider_has_target_ip
+from converter.pipeline import parse_rule, provider_has_target_ip
+from converter.semantics import is_target_ip_kind
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -15,8 +16,6 @@ class NoActiveResolveAuditTest(unittest.TestCase):
     def test_committed_artifacts_follow_no_active_resolve_policy(self) -> None:
         mihomo = yaml.safe_load((DIST / "generated/mihomo-rules.yaml").read_text(encoding="utf-8"))
         providers = mihomo["rule-providers"]
-        self.assertEqual(len(providers), 11)
-        self.assertFalse(any("-part-" in name for name in providers))
         target_providers = set()
         for name, provider in providers.items():
             relative = str(provider["url"]).split("/dist/", 1)[-1]

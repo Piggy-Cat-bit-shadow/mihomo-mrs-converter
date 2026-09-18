@@ -22,16 +22,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: requirements.txt
-
       - name: Install Python dependencies
         run: pip install -r requirements.txt
-
       - name: Install mihomo
         run: |
           set -euo pipefail
@@ -39,217 +36,31 @@ jobs:
           gzip -d mihomo.gz
           chmod +x mihomo
           sudo mv mihomo /usr/local/bin/mihomo
-
-      - name: Check mihomo version
-        run: mihomo -v
-
+          mihomo -v
       - name: Install sing-box
         run: |
           set -euo pipefail
           curl -fsSL "https://github.com/SagerNet/sing-box/releases/download/v${SING_BOX_VERSION}/sing-box-${SING_BOX_VERSION}-linux-amd64.tar.gz" -o sing-box.tar.gz
           tar -xzf sing-box.tar.gz
           install "sing-box-${SING_BOX_VERSION}-linux-amd64/sing-box" /usr/local/bin/sing-box
-
-      - name: Check sing-box version
-        run: sing-box version
-
+          sing-box version
       - name: Run tests
         run: python -m unittest discover -s tests
-
       - name: Build generated rules
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          python scripts/convert.py examples/my-rules.yaml \
-            --base-url "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}"
-
-      - name: Run no-active-resolve audit
-        run: python -m unittest tests.test_no_active_resolve
-
-      - name: Validate Sing-box output
+        run: python scripts/convert.py examples/my-rules.yaml --base-url "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}"
+      - name: Audit generated artifacts
+        run: python -m converter.audit dist --mihomo mihomo
+      - name: Validate Sing-box rule sets
         run: |
           set -euo pipefail
-          test -s dist/generated/singbox-rules.json
-          test -d dist/singbox
-          test -d dist/dns/singbox
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          root = Path("dist")
-          route = json.loads((root / "generated/singbox-rules.json").read_text(encoding="utf-8"))["route"]
-          tags = [item["tag"] for item in route["rule_set"]]
-          urls = [item["url"] for item in route["rule_set"]]
-          if len(tags) != len(set(tags)) or len(urls) != len(set(urls)):
-              raise SystemExit("duplicate Sing-box tag or URL")
-          expected = {url.split("/dist/", 1)[1] for url in urls}
-          actual = {str(path.relative_to(root)) for path in (root / "singbox").glob("*.srs")}
-          if expected != actual or any("/dist/singbox/" not in url for url in urls):
-              raise SystemExit("Sing-box route/artifact mismatch")
-          if not isinstance(route.get("rules"), list):
-              raise SystemExit("invalid Sing-box route rules")
-          dns = root / "dns" / "singbox"
-          if {path.name for path in dns.glob("*.srs")} != {"China-domain.srs", "Global-domain.srs"}:
-              raise SystemExit("unexpected Sing-box DNS artifacts")
-          PY
-          for srs in dist/singbox/*.srs; do
-            sing-box rule-set decompile "$srs" -o /tmp/"$(basename "$srs").json"
-            python -m json.tool /tmp/"$(basename "$srs").json" >/dev/null
+          for srs in dist/singbox/*.srs dist/dns/singbox/*.srs; do
+            sing-box rule-set decompile "$srs" -o /tmp/$(basename "$srs").json
+            python -m json.tool /tmp/$(basename "$srs").json >/dev/null
           done
-          for srs in dist/dns/singbox/*.srs; do
-            sing-box rule-set decompile "$srs" -o /tmp/"$(basename "$srs").json"
-            python - <<'PY' "/tmp/$(basename "$srs").json"
-          import json, sys
-          allowed = {"domain", "domain_suffix", "domain_keyword", "domain_regex"}
-          rules = json.load(open(sys.argv[1], encoding="utf-8"))["rules"]
-          if any(set(rule) - allowed for rule in rules):
-              raise SystemExit("Sing-box DNS SRS contains a non-domain matcher")
-          PY
-          done
-
-      - name: Validate generated rules
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          import yaml
-          from scripts.convert import find_ruleset_refs
-
-          root = Path("dist")
-
-          def validate(path, require_no_orphans=False):
-              data = yaml.safe_load(path.read_text(encoding="utf-8"))
-              providers = data["rule-providers"]
-              paths = {}
-              used = set()
-              for name, provider in providers.items():
-                  provider_path = provider["path"]
-                  if provider_path in paths:
-                      raise SystemExit(f"{path}: duplicate provider path {provider_path}")
-                  paths[provider_path] = name
-              for rule in data["rules"]:
-                  for provider_name in find_ruleset_refs(rule):
-                      if provider_name not in providers:
-                          raise SystemExit(f"{path}: missing provider {provider_name}")
-                      used.add(provider_name)
-              for name, provider in providers.items():
-                  url = provider["url"]
-                  if "/dist/" in url:
-                      artifact = root / url.split("/dist/", 1)[1]
-                      if not artifact.exists():
-                          raise SystemExit(f"{path}: missing artifact {artifact}")
-              if require_no_orphans:
-                  orphaned = set(providers) - used
-                  if orphaned:
-                      raise SystemExit(f"{path}: orphan providers {sorted(orphaned)}")
-
-          validate(Path("dist/generated/mihomo-rules.yaml"), require_no_orphans=True)
-          if any((Path("dist") / suite).exists() for suite in ("unmerged", "merged", "merged-dedup")):
-              raise SystemExit("obsolete intermediate dist directory exists")
-          for obsolete in ("mihomo-rules-merged.yaml", "mihomo-rules-merged-dedup.yaml"):
-              if (Path("dist/generated") / obsolete).exists():
-                  raise SystemExit(f"obsolete generated file exists: {obsolete}")
-          if not Path(".state/managed-state.yaml").exists():
-              raise SystemExit("missing final managed state")
-          egern = yaml.safe_load(Path("dist/generated/egern-rules.yaml").read_text(encoding="utf-8"))
-          if not isinstance(egern, dict) or not isinstance(egern.get("rules"), list):
-              raise SystemExit("invalid Egern rules output")
-          referenced = set()
-          allowed = {"domain_set", "domain_suffix_set", "domain_keyword_set", "domain_regex_set", "domain_wildcard_set", "ip_cidr_set", "ip_cidr6_set", "asn_set", "geoip_set", "protocol_set", "dest_port_set", "no_resolve"}
-          def validate_egern_rule(item, context, nested=False):
-              if not isinstance(item, dict) or len(item) != 1:
-                  raise SystemExit(f"invalid Egern rule: {context}")
-              kind, body = next(iter(item.items()))
-              if not isinstance(body, dict):
-                  raise SystemExit(f"invalid Egern {kind} body: {context}")
-              if kind == "rule_set":
-                  match = body.get("match")
-                  if not isinstance(match, str) or not match.startswith("http") or "/dist/egern/" not in match:
-                      raise SystemExit(f"invalid Egern rule_set URL: {match}")
-                  if not nested and (not isinstance(body.get("policy"), str) or not body["policy"]):
-                      raise SystemExit(f"invalid Egern rule_set policy: {context}")
-                  if body.get("update_interval") != 172800:
-                      raise SystemExit(f"invalid Egern rule_set update_interval: {context}")
-                  artifact = root / match.split("/dist/", 1)[1]
-                  if not artifact.exists():
-                      raise SystemExit(f"missing Egern artifact: {artifact}")
-                  referenced.add(artifact.name)
-              elif kind == "and":
-                  matches = body.get("match")
-                  if not isinstance(matches, list) or not matches:
-                      raise SystemExit(f"invalid Egern and match: {context}")
-                  if not isinstance(body.get("policy"), str) or not body["policy"]:
-                      raise SystemExit(f"invalid Egern and policy: {context}")
-                  for nested in matches:
-                      validate_egern_rule(nested, f"{context}.and", nested=True)
-              elif kind == "protocol":
-                  if body.get("match") not in {"udp", "tcp"}:
-                      raise SystemExit(f"invalid Egern protocol: {context}")
-                  if not nested and (not isinstance(body.get("policy"), str) or not body["policy"]):
-                      raise SystemExit(f"invalid Egern protocol policy: {context}")
-              elif kind == "default":
-                  if not isinstance(body.get("policy"), str) or not body["policy"]:
-                      raise SystemExit(f"invalid Egern default policy: {context}")
-              else:
-                  raise SystemExit(f"invalid Egern rule kind: {kind}")
-
-          for index, item in enumerate(egern["rules"]):
-              validate_egern_rule(item, f"rules[{index}]")
-          for index, item in enumerate(egern["rules"]):
-              if "default" in item and index != len(egern["rules"]) - 1:
-                  raise SystemExit("Egern default rule must be last")
-          for artifact in Path("dist/egern").glob("*.yaml"):
-              data = yaml.safe_load(artifact.read_text(encoding="utf-8"))
-              if not isinstance(data, dict) or not set(data) <= allowed:
-                  raise SystemExit(f"invalid Egern Rule Set fields: {artifact}")
-              if "no_resolve" in data and data["no_resolve"] is not True:
-                  raise SystemExit(f"invalid no_resolve value: {artifact}")
-              for field, values in data.items():
-                  if field == "no_resolve":
-                      continue
-                  if not isinstance(values, list):
-                      raise SystemExit(f"Egern Rule Set field is not a list: {artifact}")
-                  if any(isinstance(value, str) and value.startswith("+.") for value in values):
-                      raise SystemExit(f"Egern suffix still contains '+.': {artifact}")
-                  if field == "ip_cidr_set":
-                      import ipaddress
-                      for value in values:
-                          try:
-                              if ipaddress.ip_network(value, strict=False).version != 4:
-                                  raise SystemExit(f"invalid IPv4 Egern CIDR: {artifact}: {value}")
-                          except ValueError:
-                              raise SystemExit(f"invalid IPv4 Egern CIDR: {artifact}: {value}")
-                  if field == "ip_cidr6_set":
-                      import ipaddress
-                      for value in values:
-                          try:
-                              if ipaddress.ip_network(value, strict=False).version != 6:
-                                  raise SystemExit(f"invalid IPv6 Egern CIDR: {artifact}: {value}")
-                          except ValueError:
-                              raise SystemExit(f"invalid IPv6 Egern CIDR: {artifact}: {value}")
-          if len(referenced) != len([*Path("dist/egern").glob("*.yaml")]):
-              raise SystemExit("stale or unreferenced Egern Rule Set artifact")
-          loon_dir = Path("dist/loon")
-          loon_conf = Path("dist/generated/loon-rules.conf")
-          if not loon_conf.exists() or not loon_dir.exists():
-              raise SystemExit("missing Loon output")
-          loon_text = loon_conf.read_text(encoding="utf-8")
-          if "[Remote Rule]" not in loon_text or "[Rule]" not in loon_text:
-              raise SystemExit("invalid Loon config fragment")
-          if any(path.name.endswith("-no-resolve.lsr") for path in loon_dir.glob("*.lsr")):
-              raise SystemExit("Loon must keep no-resolve on individual rules")
-          remote_lines = [line for line in loon_text.splitlines() if "/dist/loon/" in line]
-          remote_names = [line.split("/dist/loon/", 1)[1].split(",", 1)[0] for line in remote_lines]
-          if len(remote_names) != len(set(remote_names)):
-              raise SystemExit("duplicate Loon remote rules")
-          for path in loon_dir.glob("*.lsr"):
-              lines = [line for line in path.read_text(encoding="utf-8").splitlines() if line]
-              if len(lines) != len(set(lines)):
-                  raise SystemExit(f"duplicate Loon rules: {path}")
-          PY
-          if [ -f dist/source/domain/openai.yaml ]; then
-            grep -q -- '- +.chatgpt.com' dist/source/domain/openai.yaml
-            ! grep -q -- '- .chatgpt.com' dist/source/domain/openai.yaml
-          fi
-
+      - name: Check diff
+        run: git diff --check
       - name: Commit generated dist
         uses: stefanzweifel/git-auto-commit-action@v7
         with:

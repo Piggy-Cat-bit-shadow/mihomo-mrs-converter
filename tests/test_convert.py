@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 import yaml
 
-import scripts.convert as convert
+import converter.pipeline as convert
 
 
 BASE_URL = "https://raw.githubusercontent.com/owner/repo/main"
@@ -158,7 +158,7 @@ class LoonExportTest(unittest.TestCase):
             "path": f"./ruleset/{name}.yaml",
         }
 
-    def test_segments_are_merged_and_sub_rule_policy_is_not_expanded(self) -> None:
+    def test_segments_are_merged_and_sub_rule_udp_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             providers = {
@@ -179,15 +179,15 @@ class LoonExportTest(unittest.TestCase):
             }
             output = root / "output"
             convert.export_loon(config, root, output, BASE_URL)
-            self.assertEqual(sorted(path.name for path in (output / "loon").glob("*.lsr")), ["AI.lsr"])
+            self.assertEqual(sorted(path.name for path in (output / "loon").glob("*.lsr")), ["AI-udp.lsr", "AI.lsr"])
             self.assertEqual(
                 (output / "loon/AI.lsr").read_text(encoding="utf-8").splitlines(),
                 ["DOMAIN,ai.example", "DOMAIN-KEYWORD,ai", "IP-CIDR,1.1.1.0/24,no-resolve"],
             )
             remote = (output / "generated/loon-rules.conf").read_text(encoding="utf-8")
-            self.assertIn("policy=AI-Routing,tag=AI,enabled=true", remote)
-            self.assertNotIn("policy=REJECT", remote)
-            self.assertNotIn("AI-udp.lsr", remote)
+            self.assertIn("policy=REJECT,tag=AI-udp,enabled=true", remote)
+            self.assertIn("policy=🤖 AI,tag=AI,enabled=true", remote)
+            self.assertIn("AND,((DOMAIN,ai.example),(PROTOCOL,UDP))", (output / "loon/AI-udp.lsr").read_text(encoding="utf-8"))
             self.assertIn("PROTOCOL,UDP,🚀 极速线路", remote)
             self.assertIn("FINAL,🌍 国外流量", remote)
             self.assertFalse((output / "loon/AI-no-resolve.lsr").exists())
@@ -1624,8 +1624,6 @@ class CompleteConfigRefreshTest(unittest.TestCase):
                     str(complete_config),
                     "--complete-output",
                     str(complete_config),
-                    "--complete-suite",
-                    "merged-dedup",
                 ]
             )
 
@@ -1731,7 +1729,6 @@ class CompleteConfigRefreshTest(unittest.TestCase):
             generated,
             manifest,
             BASE_URL,
-            "merged-dedup",
         )
 
         self.assertEqual(refreshed["proxies"], complete["proxies"])
@@ -1796,7 +1793,6 @@ class CompleteConfigRefreshTest(unittest.TestCase):
             generated,
             manifest,
             BASE_URL,
-            "merged-dedup",
         )
 
         self.assertEqual(refreshed["rules"].count("IP-CIDR,1.1.1.1/32,DIRECT,no-resolve"), 1)
@@ -1857,7 +1853,6 @@ class CompleteConfigRefreshTest(unittest.TestCase):
             generated,
             manifest,
             BASE_URL,
-            "merged-dedup",
         )
 
         self.assertIn("custom-url", refreshed["rule-providers"])
@@ -1903,7 +1898,6 @@ class CompleteConfigRefreshTest(unittest.TestCase):
             generated,
             None,
             BASE_URL,
-            "merged-dedup",
         )
 
         self.assertNotIn("old-managed", refreshed["rule-providers"])
@@ -1954,7 +1948,6 @@ class CompleteConfigRefreshTest(unittest.TestCase):
                 generated,
                 manifest,
                 BASE_URL,
-                "merged-dedup",
             )
 
     def test_two_cli_runs_remove_stale_state_and_are_idempotent(self) -> None:
@@ -2115,7 +2108,6 @@ class CompleteConfigRefreshTest(unittest.TestCase):
                 generated,
                 manifest,
                 BASE_URL,
-                "merged-dedup",
             )
 
 class FetchTextTestCase(unittest.TestCase):
@@ -2133,7 +2125,7 @@ class FetchTextTestCase(unittest.TestCase):
             return False
 
     def test_memory_cache_avoids_duplicate_request(self):
-        with patch("scripts.convert.urllib.request.urlopen", return_value=self.Response(b"payload")) as mocked:
+        with patch("converter.pipeline.urllib.request.urlopen", return_value=self.Response(b"payload")) as mocked:
             cache = {}
             self.assertEqual(convert.fetch_text("https://example.com/rules", None, cache), "payload")
             self.assertEqual(convert.fetch_text("https://example.com/rules", None, cache), "payload")
@@ -2141,7 +2133,7 @@ class FetchTextTestCase(unittest.TestCase):
 
     def test_404_fails_fast(self):
         error = urllib.error.HTTPError("https://example.com/rules", 404, "not found", None, io.BytesIO())
-        with patch("scripts.convert.urllib.request.urlopen", side_effect=error) as mocked, patch("scripts.convert.time.sleep") as sleep:
+        with patch("converter.pipeline.urllib.request.urlopen", side_effect=error) as mocked, patch("converter.pipeline.time.sleep") as sleep:
             with self.assertRaisesRegex(RuntimeError, "HTTP 404.*attempt 1/4"):
                 convert.fetch_text("https://example.com/rules", None, {})
         self.assertEqual(mocked.call_count, 1)
@@ -2149,7 +2141,7 @@ class FetchTextTestCase(unittest.TestCase):
 
     def test_503_retries_then_succeeds(self):
         error = urllib.error.HTTPError("https://example.com/rules", 503, "unavailable", None, io.BytesIO())
-        with patch("scripts.convert.urllib.request.urlopen", side_effect=[error, self.Response(b"payload")]) as mocked, patch("scripts.convert.time.sleep") as sleep:
+        with patch("converter.pipeline.urllib.request.urlopen", side_effect=[error, self.Response(b"payload")]) as mocked, patch("converter.pipeline.time.sleep") as sleep:
             self.assertEqual(convert.fetch_text("https://example.com/rules", None, {}), "payload")
         self.assertEqual(mocked.call_count, 2)
         sleep.assert_called_once_with(1)
@@ -2158,7 +2150,7 @@ class FetchTextTestCase(unittest.TestCase):
         headers = Message()
         headers["Retry-After"] = "120"
         error = urllib.error.HTTPError("https://example.com/rules", 429, "too many requests", headers, io.BytesIO())
-        with patch("scripts.convert.urllib.request.urlopen", side_effect=[error, self.Response(b"payload")]), patch("scripts.convert.time.sleep") as sleep:
+        with patch("converter.pipeline.urllib.request.urlopen", side_effect=[error, self.Response(b"payload")]), patch("converter.pipeline.time.sleep") as sleep:
             self.assertEqual(convert.fetch_text("https://example.com/rules", None, {}), "payload")
         sleep.assert_called_once_with(8.0)
 

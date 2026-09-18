@@ -34,7 +34,7 @@ rules:
 对于 `behavior: ipcidr` 的 YAML/text 输入，只有在原始内容明确以 `# IP-ASN: N` 声明且所有非 CIDR 项恰好对应 N 个纯十进制 ASN 时，才会将这些项转入 classical `IP-ASN` companion provider；其他非法项会直接失败，不会静默丢弃或无条件猜测。
 
 带额外修饰符的 IP 规则，例如 `IP-CIDR,1.2.3.0/24,no-resolve`，会完整保留到 classical fallback。
-`format: text` 和 `format: yaml` 会严格按 provider 的 `format` 解析；已有 `format: mrs` 的 `domain` / `ipcidr` provider 会直接 passthrough，不重新下载或重新生成。
+`format: text` 和 `format: yaml` 会严格按 provider 的 `format` 解析。外部输入的 `format: mrs` 没有可验证的无损 normalized payload，因此多客户端构建会 fail closed，并提示改用 YAML/text 上游；转换器本轮自己生成的 MRS 不受影响。
 
 其他 classical 规则类型一律进入 classical fallback。
 `type: file`、inline provider、`path-in-bundle` 和 `format: mrs` 的 classical provider 当前不支持。
@@ -113,8 +113,7 @@ python scripts/convert.py examples/my-rules.yaml \
 python scripts/convert.py examples/my-rules.yaml \
   --base-url "https://raw.githubusercontent.com/<owner>/<repo>/main" \
   --complete-config "/path/to/full-config.yaml" \
-  --complete-output "/path/to/full-config.generated.yaml" \
-  --complete-suite merged-dedup
+  --complete-output "/path/to/full-config.generated.yaml"
 ```
 
 刷新完整配置时，本轮转换器生成的 `rule-providers` 和 `RULE-SET` 会作为转换器管理区域的唯一真源；上一轮存在但本轮不存在的旧 provider 和旧 `RULE-SET` 会被删除。其它非转换器管理的配置字段、普通规则和自定义 provider 会保留。
@@ -222,7 +221,7 @@ dist/egern/<segment-name>.yaml
 dist/generated/egern-rules.yaml
 ```
 
-每个逻辑 segment 只生成一个 Egern Rule Set，聚合该 segment 的 domain、IP 和可机械转换的 classical 规则。`egern-rules.yaml` 只包含 Egern 的 `rules` 字段；顶层 `MATCH` 会生成最终的 `default`。如果 `SUB-RULE` 引用的名称在顶层 `sub-rules` 中有定义，则会按定义展开；没有定义时为保持兼容性，仍按普通 `rule_set` policy fallback 处理。无法无歧义转换的 classical 规则会提示 warning 并跳过，不影响 Mihomo 输出。
+每个逻辑 segment 只生成一个 Egern Rule Set，聚合该 segment 的 domain、IP 和可机械转换的 classical 规则。`egern-rules.yaml` 只包含 Egern 的 `rules` 字段；顶层 `MATCH` 会生成最终的 `default`。无法无歧义转换的 classical 规则会提示 warning 并跳过，不影响 Mihomo 输出。
 
 Mihomo 的明确形式 `AND,((RULE-SET,X),(NETWORK,UDP)),Policy` 会无损导出为 Egern 原生条件规则：
 
@@ -260,4 +259,4 @@ dist/loon/<segment>.lsr
 dist/generated/loon-rules.conf
 ```
 
-`.lsr` 是普通 UTF-8 文本，不使用 MRS，也不依赖 Egern 产物。domain、classical 和 IP provider 会按逻辑 segment 合并；destination IP/ASN/GeoIP 保留在对应的单条规则上的 `,no-resolve`。`SUB-RULE` 不展开，只机械继承其第三个参数的 policy 名称。`loon-rules.conf` 是包含 `[Remote Rule]` 和顶层 `[Rule]` 的 Loon 配置片段，可复制或整合到用户自己的配置中。
+`.lsr` 是普通 UTF-8 文本，不使用 MRS，也不依赖 Egern 产物。domain、classical 和 IP provider 会按逻辑 segment 合并；destination IP/ASN/GeoIP 保留在对应的单条规则上的 `,no-resolve`。支持的 `SUB-RULE` 会展开为条件 resource（例如 `AI-udp.lsr → REJECT`）和 fallback resource（`AI.lsr → 🤖 AI`），条件 resource 排在 fallback 前；无法无歧义展开的 SUB-RULE 会 fail closed，不会把 sub-rule 名误当 policy。Loon 因此不保证每个逻辑 segment 只有一个文件。
