@@ -40,9 +40,19 @@ def validate_fetch_url(url: str) -> None:
         raise ValueError(f"provider URL IP literal is not allowed: {url}")
 
 
-def fetch_text(url: str, headers: dict[str, str] | None, memory_cache: dict[str, str]) -> str:
-    if url in memory_cache:
-        return memory_cache[url]
+def request_cache_key(url: str, headers: dict[str, str] | None) -> tuple[str, tuple[tuple[str, str], ...]]:
+    effective = {"user-agent": "mihomo-mrs-converter"}
+    if headers:
+        if not all(isinstance(key, str) and isinstance(value, str) for key, value in headers.items()):
+            raise SystemExit("provider header keys and values must be strings")
+        effective.update({key.lower(): value for key, value in headers.items()})
+    return url, tuple(sorted(effective.items()))
+
+
+def fetch_text(url: str, headers: dict[str, str] | None, memory_cache: dict[object, str]) -> str:
+    cache_key = request_cache_key(url, headers)
+    if cache_key in memory_cache:
+        return memory_cache[cache_key]
     validate_fetch_url(url)
     request_headers = {"User-Agent": "mihomo-mrs-converter"}
     if headers:
@@ -70,7 +80,7 @@ def fetch_text(url: str, headers: dict[str, str] | None, memory_cache: dict[str,
                     if total > MAX_PROVIDER_BYTES:
                         raise RuntimeError(f"provider response exceeds {MAX_PROVIDER_BYTES} bytes: {url}")
                 body = b"".join(chunks).decode("utf-8-sig")
-            memory_cache[url] = body
+            memory_cache[cache_key] = body
             return body
         except urllib.error.HTTPError as exc:
             last_error = exc

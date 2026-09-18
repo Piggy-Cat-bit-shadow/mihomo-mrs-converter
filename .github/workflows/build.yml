@@ -6,6 +6,13 @@ on:
     - cron: "25 3 1,6,11,16,21,26 * *"
   push:
     branches: ["main"]
+    paths-ignore:
+      - "README.md"
+      - "LICENSE"
+      - "LICENSE.*"
+      - "docs/**"
+      - "dist/**"
+      - ".state/**"
 
 concurrency:
   group: build-${{ github.ref }}
@@ -22,6 +29,8 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.generated_changes.outputs.changed }}
     permissions:
       contents: read
     steps:
@@ -50,6 +59,11 @@ jobs:
           tar -xzf sing-box.tar.gz
           install "sing-box-${SING_BOX_VERSION}-linux-amd64/sing-box" ./sing-box
           echo "$GITHUB_WORKSPACE" >> "$GITHUB_PATH"
+      - name: Restore GeoLite2 cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/geolite2
+          key: geolite2-${{ runner.os }}-${{ hashFiles('converter/data_sources.py') }}
       - name: Run tests
         run: python -m unittest discover -s tests
       - name: Build generated rules
@@ -57,17 +71,20 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: python scripts/convert.py examples/my-rules.yaml --base-url "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}" --mihomo ./mihomo --sing-box ./sing-box
       - name: Audit generated artifacts
-        run: python -m converter.audit dist --mihomo ./mihomo
-      - name: Validate Sing-box rule sets
-        run: |
-          set -euo pipefail
-          for srs in dist/singbox/*.srs dist/dns/singbox/*.srs; do
-            ./sing-box rule-set decompile "$srs" -o "/tmp/$(basename "$srs").json"
-            python -m json.tool "/tmp/$(basename "$srs").json" >/dev/null
-          done
+        run: python -m converter.audit dist --mihomo ./mihomo --sing-box ./sing-box
       - name: Check diff
         run: git diff --check
+      - name: Detect generated changes
+        id: generated_changes
+        shell: bash
+        run: |
+          if git diff --quiet -- dist .state/managed-state.yaml; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
       - name: Upload verified generated artifacts
+        if: steps.generated_changes.outputs.changed == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: verified-generated-${{ github.sha }}
@@ -78,7 +95,7 @@ jobs:
 
   publish:
     needs: verify
-    if: ${{ needs.verify.result == 'success' }}
+    if: ${{ needs.verify.result == 'success' && needs.verify.outputs.changed == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write

@@ -32,7 +32,7 @@ from urllib.parse import urlparse
 from .dns import collect_dns_domain_payloads
 from ..rules import DNS_DOMAIN_KINDS, parse_rule, parse_ruleset_reference, simple_ruleset_wrapper, split_top_level_commas
 from ..model import parse_legacy_provider_name
-from ..data_sources import GEOLITE2_ASSETS
+from ..data_sources import GEOLITE2_ASSETS, GEOLITE2_RELEASE
 
 
 class SingBoxExportError(RuntimeError):
@@ -230,14 +230,27 @@ def _default_asn_resolver(asns: set[str]) -> dict[str, list[str]]:
             if attempt == 3: raise SingBoxExportError("ASN database download remained incomplete")
         raise SingBoxExportError("ASN database download failed")
 
+    cache_root = Path(os.environ.get("GEOLITE2_CACHE_DIR", ".cache/geolite2")) / GEOLITE2_RELEASE
     for asset in GEOLITE2_ASSETS:
-        raw = download(asset["url"])
+        cache_path = cache_root / asset["name"]
+        raw = None
+        if cache_path.exists():
+            candidate = cache_path.read_bytes()
+            if hashlib.sha256(candidate).hexdigest() == asset["sha256"]:
+                raw = candidate
+            else:
+                cache_path.unlink()
+        if raw is None:
+            raw = download(asset["url"])
         actual_sha256 = hashlib.sha256(raw).hexdigest()
         if actual_sha256 != asset["sha256"]:
             raise SingBoxExportError(
                 f"GeoLite2 asset checksum mismatch for {asset['name']}: "
                 f"expected {asset['sha256']}, got {actual_sha256}"
             )
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        if not cache_path.exists():
+            cache_path.write_bytes(raw)
         for row in csv.DictReader(io.TextIOWrapper(io.BytesIO(raw), encoding="utf-8")):
             asn = row.get("autonomous_system_number")
             if asn in result and row.get("network"):

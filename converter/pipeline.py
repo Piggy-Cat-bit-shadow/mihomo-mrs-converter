@@ -4,6 +4,7 @@ import os
 import re
 import shutil
 import tempfile
+import time
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -18,7 +19,7 @@ from .exporters.mihomo import materialize_final_config, normalize_no_active_reso
 from .exporters.singbox import export_singbox, export_singbox_dns
 from .model import BuildConfig, BuildContext, BuildResult
 from .optimize import optimize_config
-from .providers import process_provider
+from .providers import prefetch_provider_texts, process_provider
 from .rules import find_ruleset_refs, iter_all_rules
 from .state import read_managed_manifest, refresh_complete_config, write_managed_manifest
 from .validate import validate_final_config
@@ -50,6 +51,7 @@ def _segment_mapping(root: Path) -> dict[str, Any]:
 
 
 def build(config: BuildConfig) -> BuildResult:
+    build_started = time.perf_counter()
     data = _load_yaml(config.input)
     providers = data.get("rule-providers") or {}
     rules = data.get("rules") or []
@@ -59,20 +61,28 @@ def build(config: BuildConfig) -> BuildResult:
         raise SystemExit(f"input references missing provider(s): {sorted(missing)}")
 
     context = BuildContext(memory_cache={}, used_names=set(referenced))
+    prefetch_started = time.perf_counter()
+    prefetch = prefetch_provider_texts(providers, referenced, context.memory_cache)
+    print(
+        f"provider prefetch: {len(referenced)} providers in {time.perf_counter() - prefetch_started:.2f}s "
+        f"(unique requests: {prefetch.unique_requests}, cache hits: {prefetch.cache_hits}, downloads: {prefetch.downloads})"
+    )
     generated: dict[str, dict[str, Any]] = {}
     payloads: dict[str, list[str]] = {}
     replacements: dict[str, list[str]] = {}
     behaviors: dict[str, str] = {}
+    processing_started = time.perf_counter()
     for name, provider in providers.items():
         if name not in referenced:
             continue
-        result = process_provider(name, provider, context)
+        result = process_provider(name, provider, context, prefetch.texts.get(name))
         replacements[name] = result.generated_names
         for normalized in result.providers:
             generated[normalized.name] = normalized.as_config()
             payloads[normalized.name] = list(normalized.payload)
             behaviors[normalized.name] = normalized.behavior.value
         print(f"{name}: ok ({sum(result.original_rules.values())} rules -> {', '.join(result.generated_names)})")
+    print(f"provider processing: {time.perf_counter() - processing_started:.2f}s")
 
     from .optimize import rewrite_rules
     rewritten = rewrite_rules(rules, replacements, behaviors)
@@ -98,6 +108,7 @@ def build(config: BuildConfig) -> BuildResult:
     state_before = state_path.read_bytes() if state_path.exists() else None
     publish_dist = Path(tempfile.mkdtemp(prefix="mihomo-mrs-publish-", dir=config.dist.parent))
     old_dist = config.dist.with_name(f".{config.dist.name}.previous")
+    export_started = time.perf_counter()
     try:
         final = materialize_final_config(optimized, final_payloads, publish_dist, config.base_url, config.mihomo_bin)
         validate_final_config(publish_dist, final)
@@ -140,4 +151,6 @@ def build(config: BuildConfig) -> BuildResult:
                 complete_output.write_bytes(complete_before)
         raise
 
+    print(f"export and publish: {time.perf_counter() - export_started:.2f}s")
+    print(f"total build: {time.perf_counter() - build_started:.2f}s")
     return BuildResult(final, final_payloads, dedup_stats, exporter_stats)

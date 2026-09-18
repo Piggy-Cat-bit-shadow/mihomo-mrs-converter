@@ -199,6 +199,10 @@ Sing-box 的 IP-ASN expansion 使用仓库内固定的 GeoLite2 数据源 pin：
 `09076ae7734fd1e5eb6864950af49a690e4d7edaa72023d8c3df3f82f21a0fb9`）。生产构建不会请求
 `releases/latest`，也不会把 `GITHUB_TOKEN` 发送到 release asset 下载地址。升级 ASN 数据时，
 应显式更新 `converter/data_sources.py` 中的 release、下载 URL 和 SHA256，然后运行完整测试并提交。
+本地 GeoLite2 cache 位于 `.cache/geolite2/<release>/`；GitHub Actions 使用
+`geolite2-${{ runner.os }}-${{ hashFiles('converter/data_sources.py') }}` 作为 cache key。
+命中 cache 也会重新校验 SHA256，错误 cache 会被删除并重新下载。普通 provider 不使用持久 cache，
+每次 scheduled build 仍会访问 upstream。
 - Sing-box：SRS 合并为 logical segment，route 不生成 `action: resolve`。
 
 Mihomo、Egern、Loon 的其他 matcher 语义保持不变；无法无损转换的规则仍按现有 fail-closed 原则处理。

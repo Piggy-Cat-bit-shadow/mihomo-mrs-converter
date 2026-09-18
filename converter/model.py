@@ -104,7 +104,7 @@ class BuildResult:
 class BuildContext:
     """Mutable per-build input context; it never stores artifact paths or payload output."""
 
-    memory_cache: dict[str, str]
+    memory_cache: dict[object, str]
     used_names: set[str]
 
 

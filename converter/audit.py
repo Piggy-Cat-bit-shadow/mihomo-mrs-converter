@@ -31,7 +31,13 @@ def validate_mihomo(binary: str, config: dict) -> None:
         subprocess.run([binary, "-t", "-f", str(path)], check=True)
 
 
-def audit_dist(root: Path, mihomo: str | None = None) -> None:
+def _validate_srs(binary: str, path: Path, temporary: Path) -> None:
+    output = temporary / f"{path.name}.json"
+    subprocess.run([binary, "rule-set", "decompile", str(path), "-o", str(output)], check=True)
+    json.loads(output.read_text(encoding="utf-8"))
+
+
+def audit_dist(root: Path, mihomo: str | None = None, sing_box: str | None = None) -> None:
     mihomo_path = root / "generated/mihomo-rules.yaml"
     config = yaml.safe_load(mihomo_path.read_text(encoding="utf-8"))
     validate_config(root, config, require_no_orphans=True)
@@ -115,6 +121,21 @@ def audit_dist(root: Path, mihomo: str | None = None) -> None:
     dns_files = sorted(dns_dir.glob("*.srs"))
     if {path.name for path in dns_files} != {"China-domain.srs", "Global-domain.srs"}:
         raise ValueError(f"DNS: expected China-domain.srs and Global-domain.srs, found {[path.name for path in dns_files]}")
+    for canonical, aliases in LEGACY_ROUTE_ALIASES.items():
+        if canonical not in canonical_tags:
+            continue
+        canonical_bytes = (srs_dir / f"{canonical}.srs").read_bytes()
+        for alias in aliases:
+            alias_path = srs_dir / f"{alias}.srs"
+            if not alias_path.exists() or alias_path.read_bytes() != canonical_bytes:
+                raise ValueError(f"Sing-box: legacy alias {alias}.srs is not identical to {canonical}.srs")
+    if sing_box:
+        with tempfile.TemporaryDirectory(prefix="converter-srs-audit-") as tmp:
+            temporary = Path(tmp)
+            for tag in sorted(canonical_tags):
+                _validate_srs(sing_box, srs_dir / f"{tag}.srs", temporary)
+            for path in dns_files:
+                _validate_srs(sing_box, path, temporary)
     if mihomo:
         validate_mihomo(mihomo, config)
     print("converter audit: ok")
@@ -124,7 +145,8 @@ def main(argv: list[str] | None = None) -> None:
     args = argv if argv is not None else sys.argv[1:]
     root = Path(args[0] if args and not args[0].startswith("--") else "dist")
     mihomo = args[args.index("--mihomo") + 1] if "--mihomo" in args else None
-    audit_dist(root, mihomo)
+    sing_box = args[args.index("--sing-box") + 1] if "--sing-box" in args else None
+    audit_dist(root, mihomo, sing_box)
 
 
 if __name__ == "__main__":

@@ -1,7 +1,10 @@
 """Fetch and normalize providers into in-memory semantic state."""
 
 import re
+import os
+from concurrent.futures import ThreadPoolExecutor
 from collections import Counter
+from dataclasses import dataclass
 from typing import Any
 
 import yaml
@@ -68,7 +71,85 @@ def _reserve(base: str, suffix: str, context: BuildContext) -> str:
         index += 1
 
 
-def process_provider(name: str, provider: dict[str, Any], context: BuildContext) -> ProviderResult:
+@dataclass(frozen=True)
+class ProviderPrefetch:
+    texts: dict[str, str]
+    unique_requests: int
+    cache_hits: int
+    downloads: int
+
+
+def _prefetch_workers(request_count: int) -> int:
+    try:
+        configured = int(os.environ.get("PROVIDER_PREFETCH_WORKERS", "8"))
+    except ValueError:
+        configured = 8
+    return max(1, min(16, configured, request_count))
+
+
+def prefetch_provider_texts(
+    providers: dict[str, dict[str, Any]], referenced: set[str], memory_cache: dict[object, str]
+) -> ProviderPrefetch:
+    requests: dict[tuple[object, ...], tuple[str, dict[str, str] | None, list[str]]] = {}
+    for name, provider in providers.items():
+        if name not in referenced:
+            continue
+        if set(provider) - ALLOWED_PROVIDER_FIELDS:
+            continue
+        if provider.get("type") != "http" or not isinstance(provider.get("url"), str):
+            continue
+        if provider.get("behavior") not in {"classical", "domain", "ipcidr"}:
+            continue
+        if provider.get("format", "yaml") == "mrs":
+            # Preserve process_provider's fail-closed validation without
+            # contacting an unsupported external MRS source first.
+            continue
+        if provider.get("format", "yaml") not in {"yaml", "text"} or (
+            provider.get("header") is not None and not isinstance(provider.get("header"), dict)
+        ):
+            continue
+        url = provider.get("url")
+        headers = provider.get("header")
+        if not isinstance(url, str):
+            continue
+        key = net.request_cache_key(url, headers if isinstance(headers, dict) else None)
+        if key not in requests:
+            requests[key] = (url, headers if isinstance(headers, dict) else None, [])
+        requests[key][2].append(name)
+
+    cache_hits = sum(key in memory_cache for key in requests)
+    pending = [(key, request) for key, request in requests.items() if key not in memory_cache]
+
+    def download(item: tuple[tuple[object, ...], tuple[str, dict[str, str] | None, list[str]]]) -> tuple[tuple[object, ...], str]:
+        key, (url, headers, _names) = item
+        return key, net.fetch_text(url, headers, memory_cache)
+
+    with ThreadPoolExecutor(max_workers=_prefetch_workers(len(pending))) if pending else _NullExecutor() as executor:
+        for key, text in executor.map(download, pending):
+            memory_cache[key] = text
+
+    texts = {
+        name: memory_cache[key]
+        for key, (_url, _headers, names) in requests.items()
+        for name in names
+    }
+    return ProviderPrefetch(texts, len(requests), cache_hits, len(pending))
+
+
+class _NullExecutor:
+    def __enter__(self) -> "_NullExecutor":
+        return self
+
+    def __exit__(self, *_: Any) -> bool:
+        return False
+
+    def map(self, _function: Any, _items: list[Any]) -> list[Any]:
+        return []
+
+
+def process_provider(
+    name: str, provider: dict[str, Any], context: BuildContext, remote_text: str | None = None
+) -> ProviderResult:
     validate_provider_name(name)
     unknown = sorted(set(provider) - ALLOWED_PROVIDER_FIELDS)
     if "path-in-bundle" in provider or unknown:
@@ -90,7 +171,7 @@ def process_provider(name: str, provider: dict[str, Any], context: BuildContext)
     if headers is not None and not isinstance(headers, dict):
         raise SystemExit(f"{name}: provider header must be a mapping")
 
-    remote = net.fetch_text(url, headers, context.memory_cache)
+    remote = remote_text if remote_text is not None else net.fetch_text(url, headers, context.memory_cache)
     raw = payload_from_remote(name, remote, fmt, allow_integer_items=behavior == "ipcidr")
     if not raw:
         raise SystemExit(f"{name}: provider contains no rules")

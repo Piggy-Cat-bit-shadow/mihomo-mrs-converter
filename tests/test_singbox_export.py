@@ -59,6 +59,28 @@ class SingBoxExportTest(unittest.TestCase):
             with self.assertRaisesRegex(SingBoxExportError, "checksum mismatch"):
                 _default_asn_resolver({"64512"})
 
+    def test_geolite_cache_hit_verifies_and_avoids_network(self):
+        payload = b"network,autonomous_system_number\n192.0.2.0/24,64512\n"
+        asset = {"name": "GeoLite2-ASN-Blocks-IPv4.csv", "url": "https://github.com/example/asset", "sha256": hashlib.sha256(payload).hexdigest()}
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = Path(tmp) / "geolite2" / "release"
+            cache.mkdir(parents=True)
+            (cache / asset["name"]).write_bytes(payload)
+            with patch.dict(os.environ, {"GEOLITE2_CACHE_DIR": str(Path(tmp) / "geolite2")}), patch("converter.exporters.singbox.GEOLITE2_RELEASE", "release"), patch("converter.exporters.singbox.GEOLITE2_ASSETS", (asset,)), patch("converter.exporters.singbox.urllib.request.urlopen", side_effect=AssertionError("cache miss")):
+                self.assertEqual(_default_asn_resolver({"64512"}), {"64512": ["192.0.2.0/24"]})
+
+    def test_geolite_corrupt_cache_is_replaced(self):
+        payload = b"network,autonomous_system_number\n192.0.2.0/24,64512\n"
+        asset = {"name": "GeoLite2-ASN-Blocks-IPv4.csv", "url": "https://github.com/example/asset", "sha256": hashlib.sha256(payload).hexdigest()}
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = Path(tmp) / "geolite2" / "release"
+            cache.mkdir(parents=True)
+            (cache / asset["name"]).write_bytes(b"corrupt")
+            with patch.dict(os.environ, {"GEOLITE2_CACHE_DIR": str(Path(tmp) / "geolite2")}), patch("converter.exporters.singbox.GEOLITE2_RELEASE", "release"), patch("converter.exporters.singbox.GEOLITE2_ASSETS", (asset,)), patch("converter.exporters.singbox.urllib.request.urlopen", return_value=Response(payload)) as urlopen:
+                self.assertEqual(_default_asn_resolver({"64512"}), {"64512": ["192.0.2.0/24"]})
+            self.assertEqual(urlopen.call_count, 1)
+            self.assertEqual((cache / asset["name"]).read_bytes(), payload)
+
     def test_github_api_without_token_is_anonymous(self):
         captured = []
         with patch.dict(os.environ, {}, clear=True), patch("converter.exporters.singbox.urllib.request.urlopen", side_effect=lambda request, **_: captured.append(request) or Response(b"{}")):

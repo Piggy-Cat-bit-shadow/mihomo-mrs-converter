@@ -1,11 +1,12 @@
 import tempfile
 import unittest
+import threading
 from email.message import Message
 from pathlib import Path
 from unittest.mock import patch
 
 from converter.model import Behavior, BuildContext
-from converter.providers import process_provider
+from converter.providers import prefetch_provider_texts, process_provider
 from converter import net
 
 
@@ -24,6 +25,64 @@ class Response:
 
 
 class ProvidersTest(unittest.TestCase):
+    def test_prefetch_downloads_referenced_requests_concurrently(self):
+        providers = {
+            f"P{index}": {"type": "http", "behavior": "domain", "format": "yaml", "url": f"https://example.invalid/{index}"}
+            for index in range(4)
+        }
+        active = 0
+        maximum = 0
+        lock = threading.Lock()
+        barrier = threading.Barrier(4)
+        def fetch(url, headers, cache):
+            nonlocal active, maximum
+            with lock:
+                active += 1
+                maximum = max(maximum, active)
+            barrier.wait(timeout=2)
+            with lock:
+                active -= 1
+            return f"payload:\n- {url.rsplit('/', 1)[-1]}.example\n"
+        with patch.dict("os.environ", {"PROVIDER_PREFETCH_WORKERS": "4"}), patch("converter.providers.net.fetch_text", side_effect=fetch):
+            result = prefetch_provider_texts(providers, set(providers), {})
+        self.assertGreaterEqual(maximum, 2)
+        self.assertEqual(result.unique_requests, 4)
+        self.assertEqual(result.downloads, 4)
+
+    def test_prefetch_cache_identity_includes_headers_and_reuses_exact_request(self):
+        providers = {
+            "A": {"type": "http", "behavior": "domain", "format": "yaml", "url": "https://example.invalid/rules", "header": {"X-Key": "one"}},
+            "B": {"type": "http", "behavior": "domain", "format": "yaml", "url": "https://example.invalid/rules", "header": {"X-Key": "one"}},
+            "C": {"type": "http", "behavior": "domain", "format": "yaml", "url": "https://example.invalid/rules", "header": {"X-Key": "two"}},
+        }
+        calls = []
+        def fetch(url, headers, cache):
+            calls.append(headers)
+            return headers["X-Key"]
+        with patch("converter.providers.net.fetch_text", side_effect=fetch):
+            result = prefetch_provider_texts(providers, set(providers), {})
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(result.texts, {"A": "one", "B": "one", "C": "two"})
+
+    def test_prefetch_failure_is_propagated(self):
+        providers = {"A": {"type": "http", "behavior": "domain", "format": "yaml", "url": "https://example.invalid/rules"}}
+        with patch("converter.providers.net.fetch_text", side_effect=RuntimeError("upstream down")):
+            with self.assertRaisesRegex(RuntimeError, "upstream down"):
+                prefetch_provider_texts(providers, {"A"}, {})
+
+    def test_prefetch_worker_count_does_not_change_result_order_or_content(self):
+        providers = {
+            f"P{index}": {"type": "http", "behavior": "domain", "format": "yaml", "url": f"https://example.invalid/{index}"}
+            for index in range(6)
+        }
+        def fetch(url, headers, cache):
+            return url.rsplit("/", 1)[-1]
+        results = []
+        for workers in ("1", "8"):
+            with patch.dict("os.environ", {"PROVIDER_PREFETCH_WORKERS": workers}), patch("converter.providers.net.fetch_text", side_effect=fetch):
+                results.append(prefetch_provider_texts(providers, set(providers), {}).texts)
+        self.assertEqual(results[0], results[1])
+
     def test_normalization_contains_payload_but_no_url_or_path(self):
         context = BuildContext({}, {"A"})
         with patch("converter.net.fetch_text", return_value="payload:\n- example.com\n"):

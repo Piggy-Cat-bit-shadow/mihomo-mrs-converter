@@ -11,6 +11,31 @@ from converter.pipeline import build
 
 
 class PipelineTest(unittest.TestCase):
+    def test_prefetch_worker_count_keeps_final_outputs_identical(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            input_path = root / "input.yaml"
+            input_path.write_text(yaml.safe_dump({
+                "rule-providers": {
+                    "Lan": {"type": "http", "behavior": "domain", "format": "yaml", "url": "https://example.invalid/a"},
+                    "me-pure": {"type": "http", "behavior": "domain", "format": "yaml", "url": "https://example.invalid/b"},
+                },
+                "rules": ["RULE-SET,Lan,DIRECT", "RULE-SET,me-pure,DIRECT", "MATCH,DIRECT"],
+            }))
+            mihomo = shutil.which("mihomo")
+            if not mihomo:
+                self.skipTest("real mihomo binary is required")
+            def fetch(url, headers, cache):
+                return f"payload:\n- {url.rsplit('/', 1)[-1]}.example\n"
+            no_op = {"route": {}}
+            snapshots = []
+            for workers, name in (("1", "dist-one"), ("8", "dist-eight")):
+                dist = root / name
+                with patch.dict("os.environ", {"PROVIDER_PREFETCH_WORKERS": workers}), patch("converter.net.fetch_text", side_effect=fetch), patch("converter.pipeline.export_egern", return_value=no_op), patch("converter.pipeline.export_loon", return_value=no_op), patch("converter.pipeline.export_singbox", return_value=no_op), patch("converter.pipeline.export_singbox_dns", return_value=no_op), patch("converter.pipeline.export_dns", return_value=no_op):
+                    build(BuildConfig(input_path, dist, "https://example.invalid/repo/main", mihomo, None))
+                snapshots.append({path.relative_to(dist): path.read_bytes() for path in dist.rglob("*") if path.is_file()})
+            self.assertEqual(snapshots[0], snapshots[1])
+
     def test_sub_rule_provider_is_fetched_materialized_and_unused_is_skipped(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
