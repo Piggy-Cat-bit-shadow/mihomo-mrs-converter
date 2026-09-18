@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+import shutil
 from pathlib import Path
 from unittest.mock import patch
 
@@ -31,8 +32,12 @@ class PipelineTest(unittest.TestCase):
                 "https://example.invalid/china": "payload:\n- +.cn.example\n",
                 "https://example.invalid/global": "payload:\n- +.global.example\n",
             }
+            mihomo = shutil.which("mihomo")
+            sing_box = shutil.which("sing-box")
+            if not mihomo or not sing_box:
+                self.skipTest("real exporter binaries are required")
             with patch("converter.net.fetch_text", side_effect=lambda url, headers, cache: responses[url]):
-                result = build(BuildConfig(input_path, dist, "https://example.invalid/repo/main", "/Users/jie/.local/bin/mihomo", "/Users/jie/.local/bin/sing-box"))
+                result = build(BuildConfig(input_path, dist, "https://example.invalid/repo/main", mihomo, sing_box))
             self.assertEqual(len(result.final_config["rule-providers"]), 4)
             self.assertFalse(any(path.name.startswith("stage-") for path in dist.rglob("*")))
             self.assertTrue((dist / "loon/AI-udp.lsr").exists())
