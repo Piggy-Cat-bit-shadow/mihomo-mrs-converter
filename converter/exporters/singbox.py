@@ -33,6 +33,7 @@ from .dns import collect_dns_domain_payloads
 from ..rules import DNS_DOMAIN_KINDS, parse_rule, parse_ruleset_reference, simple_ruleset_wrapper, split_top_level_commas
 from ..model import parse_legacy_provider_name
 from ..data_sources import GEOLITE2_ASSETS, GEOLITE2_RELEASE
+from ..timing import observe_external
 
 
 class SingBoxExportError(RuntimeError):
@@ -555,17 +556,17 @@ def export_singbox_dns(
             source = source_dir / f"{group}-domain.json"
             binary = binary_dir / f"{group}-domain.srs"
             source.write_text(json.dumps({"version": 2, "rules": source_rules}, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
-            subprocess.run([sing_box, "rule-set", "compile", str(source), "-o", str(binary)], check=True, capture_output=True, text=True)
+            observe_external("sing-box", f"compile DNS {group}", subprocess.run, [sing_box, "rule-set", "compile", str(source), "-o", str(binary)], check=True, capture_output=True, text=True)
             decompiled = stage / f"{group}-domain.decompiled.json"
-            subprocess.run([sing_box, "rule-set", "decompile", str(binary), "-o", str(decompiled)], check=True, capture_output=True, text=True)
+            observe_external("sing-box", f"decompile DNS {group}", subprocess.run, [sing_box, "rule-set", "decompile", str(binary), "-o", str(decompiled)], check=True, capture_output=True, text=True)
             decoded = json.loads(decompiled.read_text(encoding="utf-8"))
             decompiled_rules = _canonicalize_decompiled_rules(decoded.get("rules", []))
             allowed = {"domain", "domain_suffix", "domain_keyword", "domain_regex"}
             if any(set(rule) - allowed for rule in decompiled_rules):
                 raise SingBoxExportError(f"DNS {group}: decompiled SRS contains a non-domain matcher")
             for probe in _representatives(source_rules):
-                source_match = subprocess.run([sing_box, "rule-set", "match", "-f", "source", str(source), probe], capture_output=True, text=True)
-                binary_match = subprocess.run([sing_box, "rule-set", "match", "-f", "binary", str(binary), probe], capture_output=True, text=True)
+                source_match = observe_external("sing-box", f"match DNS source {group}", subprocess.run, [sing_box, "rule-set", "match", "-f", "source", str(source), probe], capture_output=True, text=True)
+                binary_match = observe_external("sing-box", f"match DNS binary {group}", subprocess.run, [sing_box, "rule-set", "match", "-f", "binary", str(binary), probe], capture_output=True, text=True)
                 if (source_match.returncode == 0) != (binary_match.returncode == 0):
                     raise SingBoxExportError(f"DNS {group}: source/binary semantic mismatch for {probe!r}")
             target = output_dist / "dns" / "singbox"
@@ -630,16 +631,16 @@ def export_singbox(config: dict[str, Any], final_payloads: dict[str, list[str]],
             source = source_dir / f"{artifact_tag}.json"
             source.write_text(json.dumps({"version": 2, "rules": source_rules}, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
             binary = binary_dir / f"{artifact_tag}.srs"
-            subprocess.run([sing_box, "rule-set", "compile", str(source), "-o", str(binary)], check=True, capture_output=True, text=True)
+            observe_external("sing-box", f"compile route {artifact_tag}", subprocess.run, [sing_box, "rule-set", "compile", str(source), "-o", str(binary)], check=True, capture_output=True, text=True)
             decompiled = stage / f"{artifact_tag}.decompiled.json"
-            subprocess.run([sing_box, "rule-set", "decompile", str(binary), "-o", str(decompiled)], check=True, capture_output=True, text=True)
+            observe_external("sing-box", f"decompile route {artifact_tag}", subprocess.run, [sing_box, "rule-set", "decompile", str(binary), "-o", str(decompiled)], check=True, capture_output=True, text=True)
             decoded = json.loads(decompiled.read_text(encoding="utf-8"))
             decompiled_rules = decoded.get("rules", [])
             if not _semantic_matcher_equivalent(source_rules, decompiled_rules):
                 raise SingBoxExportError(f"artifact {artifact_tag}: source/decompiled matcher mismatch")
             for probe in _representatives(source_rules):
-                source_match = subprocess.run([sing_box, "rule-set", "match", "-f", "source", str(source), probe], capture_output=True, text=True)
-                binary_match = subprocess.run([sing_box, "rule-set", "match", "-f", "binary", str(binary), probe], capture_output=True, text=True)
+                source_match = observe_external("sing-box", f"match route source {artifact_tag}", subprocess.run, [sing_box, "rule-set", "match", "-f", "source", str(source), probe], capture_output=True, text=True)
+                binary_match = observe_external("sing-box", f"match route binary {artifact_tag}", subprocess.run, [sing_box, "rule-set", "match", "-f", "binary", str(binary), probe], capture_output=True, text=True)
                 if (source_match.returncode == 0) != (binary_match.returncode == 0): raise SingBoxExportError(f"artifact {artifact_tag}: source/binary semantic mismatch for {probe!r}")
         route_rules, final = _route_rules(config, groups, group_buckets)
         route = {"route": {"rule_set": [{"type": "remote", "tag": tag, "format": "binary", "url": f"{base_url.rstrip('/')}/dist/singbox/{tag}.srs", "update_interval": "2d"} for tag, _source_rules in artifacts], "rules": route_rules}}

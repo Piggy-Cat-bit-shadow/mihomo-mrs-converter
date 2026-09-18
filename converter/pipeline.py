@@ -22,6 +22,7 @@ from .optimize import optimize_config
 from .providers import prefetch_provider_texts, process_provider
 from .rules import find_ruleset_refs, iter_all_rules
 from .state import read_managed_manifest, refresh_complete_config, write_managed_manifest
+from .timing import BuildTiming, activate
 from .validate import validate_final_config
 
 
@@ -52,6 +53,7 @@ def _segment_mapping(root: Path) -> dict[str, Any]:
 
 def build(config: BuildConfig) -> BuildResult:
     build_started = time.perf_counter()
+    timing = BuildTiming()
     data = _load_yaml(config.input)
     providers = data.get("rule-providers") or {}
     rules = data.get("rules") or []
@@ -63,8 +65,9 @@ def build(config: BuildConfig) -> BuildResult:
     context = BuildContext(memory_cache={}, used_names=set(referenced))
     prefetch_started = time.perf_counter()
     prefetch = prefetch_provider_texts(providers, referenced, context.memory_cache)
+    timing.phases["provider prefetch"] = time.perf_counter() - prefetch_started
     print(
-        f"provider prefetch: {len(referenced)} providers in {time.perf_counter() - prefetch_started:.2f}s "
+        f"provider prefetch: {len(referenced)} providers in {timing.phases['provider prefetch']:.2f}s "
         f"(unique requests: {prefetch.unique_requests}, cache hits: {prefetch.cache_hits}, downloads: {prefetch.downloads})"
     )
     generated: dict[str, dict[str, Any]] = {}
@@ -82,7 +85,8 @@ def build(config: BuildConfig) -> BuildResult:
             payloads[normalized.name] = list(normalized.payload)
             behaviors[normalized.name] = normalized.behavior.value
         print(f"{name}: ok ({sum(result.original_rules.values())} rules -> {', '.join(result.generated_names)})")
-    print(f"provider processing: {time.perf_counter() - processing_started:.2f}s")
+    timing.phases["provider processing"] = time.perf_counter() - processing_started
+    print(f"provider processing: {timing.phases['provider processing']:.2f}s")
 
     from .optimize import rewrite_rules
     rewritten = rewrite_rules(rules, replacements, behaviors)
@@ -97,8 +101,9 @@ def build(config: BuildConfig) -> BuildResult:
         "sub-rules": rewritten_sub_rules,
     }
     mapping = _segment_mapping(Path.cwd())
-    optimized, final_payloads, dedup_stats = optimize_config(semantic, payloads, mapping)
-    optimized = normalize_no_active_resolve(optimized, final_payloads)
+    with timing.phase("optimize config"):
+        optimized, final_payloads, dedup_stats = optimize_config(semantic, payloads, mapping)
+        optimized = normalize_no_active_resolve(optimized, final_payloads)
 
     previous = read_managed_manifest(config.dist)
     refreshed_complete: dict[str, Any] | None = None
@@ -110,28 +115,43 @@ def build(config: BuildConfig) -> BuildResult:
     old_dist = config.dist.with_name(f".{config.dist.name}.previous")
     export_started = time.perf_counter()
     try:
-        final = materialize_final_config(optimized, final_payloads, publish_dist, config.base_url, config.mihomo_bin)
-        validate_final_config(publish_dist, final)
-        exporter_stats: dict[str, Any] = {}
-        exporter_stats["egern"] = export_egern(final, final_payloads, publish_dist, config.base_url)
-        exporter_stats["loon"] = export_loon(final, final_payloads, publish_dist, config.base_url)
-        exporter_stats["singbox"] = export_singbox(final, final_payloads, publish_dist, config.base_url, config.sing_box_bin, segment_names=mapping)
-        exporter_stats["singbox-dns"] = export_singbox_dns(final, final_payloads, publish_dist, config.base_url, config.sing_box_bin)
-        exporter_stats["dns"] = export_dns(final, final_payloads, publish_dist, config.base_url, config.mihomo_bin)
-        write_yaml_atomic(publish_dist / "generated" / "mihomo-rules.yaml", final)
-        if config.complete_config:
-            complete = _load_yaml(config.complete_config)
-            refreshed_complete = refresh_complete_config(complete, final, previous, config.base_url)
+        with activate(timing):
+            with timing.phase("materialize Mihomo"):
+                final = materialize_final_config(optimized, final_payloads, publish_dist, config.base_url, config.mihomo_bin)
+            with timing.phase("validate final config"):
+                validate_final_config(publish_dist, final)
+            exporter_stats: dict[str, Any] = {}
+            with timing.phase("Egern export"):
+                exporter_stats["egern"] = export_egern(final, final_payloads, publish_dist, config.base_url)
+            with timing.phase("Loon export"):
+                exporter_stats["loon"] = export_loon(final, final_payloads, publish_dist, config.base_url)
+            with timing.phase("Sing-box route export"):
+                exporter_stats["singbox"] = export_singbox(final, final_payloads, publish_dist, config.base_url, config.sing_box_bin, segment_names=mapping)
+            with timing.phase("Sing-box DNS export"):
+                exporter_stats["singbox-dns"] = export_singbox_dns(final, final_payloads, publish_dist, config.base_url, config.sing_box_bin)
+            with timing.phase("DNS export"):
+                exporter_stats["dns"] = export_dns(final, final_payloads, publish_dist, config.base_url, config.mihomo_bin)
+            with timing.phase("write generated Mihomo"):
+                write_yaml_atomic(publish_dist / "generated" / "mihomo-rules.yaml", final)
+            if config.complete_config:
+                with timing.phase("refresh complete config"):
+                    complete = _load_yaml(config.complete_config)
+                    refreshed_complete = refresh_complete_config(complete, final, previous, config.base_url)
+            else:
+                timing.mark_skipped("refresh complete config")
 
-        if old_dist.exists():
-            shutil.rmtree(old_dist)
-        if config.dist.exists():
-            os.replace(config.dist, old_dist)
-        os.replace(publish_dist, config.dist)
-        write_managed_manifest(config.dist, config.base_url, final["rule-providers"])
-        if refreshed_complete is not None and complete_output is not None:
-            write_yaml_atomic(complete_output, refreshed_complete)
-        shutil.rmtree(old_dist, ignore_errors=True)
+            with timing.phase("atomic dist publish"):
+                if old_dist.exists():
+                    shutil.rmtree(old_dist)
+                if config.dist.exists():
+                    os.replace(config.dist, old_dist)
+                os.replace(publish_dist, config.dist)
+            with timing.phase("managed-state write"):
+                write_managed_manifest(config.dist, config.base_url, final["rule-providers"])
+            if refreshed_complete is not None and complete_output is not None:
+                with timing.phase("write complete config"):
+                    write_yaml_atomic(complete_output, refreshed_complete)
+            shutil.rmtree(old_dist, ignore_errors=True)
     except BaseException:
         shutil.rmtree(publish_dist, ignore_errors=True)
         if config.dist.exists() and old_dist.exists():
@@ -151,6 +171,28 @@ def build(config: BuildConfig) -> BuildResult:
                 complete_output.write_bytes(complete_before)
         raise
 
-    print(f"export and publish: {time.perf_counter() - export_started:.2f}s")
-    print(f"total build: {time.perf_counter() - build_started:.2f}s")
+    timing.phases["total export/publish"] = time.perf_counter() - export_started
+    timing.phases["total build"] = time.perf_counter() - build_started
+    print("========== Build Timing ==========")
+    timing_labels = [
+        "provider prefetch", "provider processing", "optimize config", "materialize Mihomo",
+        "validate final config", "Egern export", "Loon export", "Sing-box route export",
+        "Sing-box DNS export", "DNS export", "write generated Mihomo", "refresh complete config",
+        "atomic dist publish", "managed-state write", "write complete config",
+    ]
+    for label in timing_labels:
+        value = timing.phases.get(label, 0.0)
+        suffix = " / skipped" if label in timing.skipped else ""
+        print(f"{label + ':':<28}{value:>8.2f}s{suffix}")
+    for kind in ("mihomo", "sing-box"):
+        stats = timing.external.get(kind)
+        if stats is None:
+            print(f"external {kind} calls:       0 calls, 0.00s")
+        else:
+            print(f"external {kind} calls:       {stats.calls} calls, {stats.seconds:.2f}s")
+            print(f"slowest {kind} call:         {stats.slowest_label} ({stats.slowest_seconds:.2f}s)")
+    print("----------------------------------")
+    print(f"export and publish:          {timing.phases['total export/publish']:.2f}s")
+    print(f"total build:                 {timing.phases['total build']:.2f}s")
+    print("==================================")
     return BuildResult(final, final_payloads, dedup_stats, exporter_stats)

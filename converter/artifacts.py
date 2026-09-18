@@ -10,6 +10,8 @@ from typing import Any
 
 import yaml
 
+from .timing import observe_external
+
 
 def write_yaml_payload(path: Path, rules: list[str]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -77,4 +79,12 @@ def validate_http_url(name: str, url: str) -> None:
 
 def convert_source_to_mrs(mihomo: str, behavior: str, source: Path, output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
-    subprocess.run([mihomo, "convert-ruleset", behavior, "yaml", str(source), str(output)], check=True, capture_output=True, text=True)
+    observe_external(
+        "mihomo",
+        f"convert-ruleset {behavior} {source.name}",
+        subprocess.run,
+        [mihomo, "convert-ruleset", behavior, "yaml", str(source), str(output)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
