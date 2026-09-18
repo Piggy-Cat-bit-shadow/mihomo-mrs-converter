@@ -47,6 +47,7 @@ jobs:
           printf '%s  %s\n' "$SING_BOX_SHA256" sing-box.tar.gz | sha256sum -c -
           tar -xzf sing-box.tar.gz
           install "sing-box-${SING_BOX_VERSION}-linux-amd64/sing-box" ./sing-box
+          echo "$GITHUB_WORKSPACE" >> "$GITHUB_PATH"
       - name: Run tests
         run: python -m unittest discover -s tests
       - name: Build generated rules
