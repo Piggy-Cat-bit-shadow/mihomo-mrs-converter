@@ -1,81 +1,80 @@
-version: 1
-suite: final
+version: 2
 base_url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main
 providers:
   Direct-domain:
     name: Direct-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/Direct-domain.mrs
-    path: ./ruleset/domain/Direct-domain.mrs
+    path: ./ruleset/Direct-domain.mrs
     behavior: domain
     format: mrs
-    fingerprint: 50d5262524d479ffc33a824389a758a9b76c7ffb95a30dd530e5eaaa0d02d376
+    fingerprint: ca2599c12822141feeafd540bff9e5ef50da47efac9a8c8aa82bf00e2a1e386c
   Direct-classical:
     name: Direct-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/Direct-classical.yaml
-    path: ./ruleset/classical/Direct-classical.yaml
+    path: ./ruleset/Direct-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: 58618128c96e762f21672a93e7767185258fc2e591fcfe987571e989f5195553
+    fingerprint: 0538f2f350dbfd7b23d4e5f7f255a52fb2f317f3e6db4401ccccc1bb8015133a
   AI-domain:
     name: AI-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/AI-domain.mrs
-    path: ./ruleset/domain/AI-domain.mrs
+    path: ./ruleset/AI-domain.mrs
     behavior: domain
     format: mrs
-    fingerprint: 7626166395393cfddca4dda4e21e575de9c456b66238d59adebc26f8df498cf0
+    fingerprint: c32a74e371fce520aba4521853476bd4853e6d98a6361497c3e848b07d9185df
   AI-classical:
     name: AI-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/AI-classical.yaml
-    path: ./ruleset/classical/AI-classical.yaml
+    path: ./ruleset/AI-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: 17f0c24492714edb4dda8a423e934f4ad8a08ba8ecd43d78900346f5ade1ad66
+    fingerprint: d5c8e8f9b20658bcb9eb8c53552003159f31688b3280f25bd514dc480238713e
   AI-ip:
     name: AI-ip
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/AI-ip.mrs
-    path: ./ruleset/ipcidr/AI-ip.mrs
+    path: ./ruleset/AI-ip.mrs
     behavior: ipcidr
     format: mrs
-    fingerprint: 3c9492f0c5a0d74f2b697cfecd82b1c68233be5ded37d9a8748d0090dcbbc422
+    fingerprint: e71cc5c58add5a1e0ca1fb5467fc192fb30703eac250fb2e94c342657fddd99d
   Global-domain:
     name: Global-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/Global-domain.mrs
-    path: ./ruleset/domain/Global-domain.mrs
+    path: ./ruleset/Global-domain.mrs
     behavior: domain
     format: mrs
-    fingerprint: 5b6508f740252417f601d6d675375e039f5204d9e6a9dc647ce6ec6e94c0859e
+    fingerprint: 26980838050200bd1c9c55385f2b73359cc6d0487b8bf83226a61b3e78e1b813
   Global-classical:
     name: Global-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/Global-classical.yaml
-    path: ./ruleset/classical/Global-classical.yaml
+    path: ./ruleset/Global-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: 11d655752fa66d42f53f62b1da746df76cf1b4c38dd690dc0b51bbd9a12a5459
+    fingerprint: e174a419ac65cc5363c1b544c590a832d20170b7be0849aefb22f4f76a979fe2
   Global-ip:
     name: Global-ip
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/Global-ip.mrs
-    path: ./ruleset/ipcidr/Global-ip.mrs
+    path: ./ruleset/Global-ip.mrs
     behavior: ipcidr
     format: mrs
-    fingerprint: fbd945276bfb8c1934232ce2afbf24352b3a532aa1350c074f37f458782c0c86
+    fingerprint: af3ac897c33e77cbd324ee2e42271cc5628c1c7f6b4052c6135684d2532ab745
   China-domain:
     name: China-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/China-domain.mrs
-    path: ./ruleset/domain/China-domain.mrs
+    path: ./ruleset/China-domain.mrs
     behavior: domain
     format: mrs
-    fingerprint: 5569abe13674ca9436a59259908f2248a2ebf2ee81b795a0534dc0a998d64fc0
+    fingerprint: 7740b474564f444b1f0679ca5a9d6802993e5f93499d5a7e5483aa40cee1804b
   China-classical:
     name: China-classical
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/China-classical.yaml
-    path: ./ruleset/classical/China-classical.yaml
+    path: ./ruleset/China-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: c67d9284eab7b32f649408e04107b91eceecf23e089c12d742c40ee31988d958
+    fingerprint: a2e20675d1ed5a0a1aee1bd059fc8aab438884febfcc423b1b1d261c4e43fa10
   China-ip:
     name: China-ip
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/China-ip.mrs
-    path: ./ruleset/ipcidr/China-ip.mrs
+    path: ./ruleset/China-ip.mrs
     behavior: ipcidr
     format: mrs
-    fingerprint: a93dc50d112e18c3b9f477c78dfd885c11d3711614ae0fce128a2d161a6c4e66
+    fingerprint: 89f8d5f243c3c645b9a123c079de7ff6b8ba18d5eea227aada41a75f193dea00
