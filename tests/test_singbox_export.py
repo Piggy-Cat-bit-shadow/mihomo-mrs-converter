@@ -12,7 +12,7 @@ from email.message import Message
 from pathlib import Path
 from unittest.mock import patch
 
-from converter.exporters.singbox import LEGACY_ROUTE_ALIASES, SingBoxExportError, _aggregate_buckets, _default_asn_resolver, _github_api_json, _groups, _provider_matchers, export_singbox, export_singbox_dns
+from converter.exporters.singbox import LEGACY_ROUTE_ALIASES, SingBoxExportError, _aggregate_buckets, _default_asn_resolver, _github_api_json, _groups, _provider_matchers, _semantic_matcher_equivalent, export_singbox, export_singbox_dns
 
 
 SING_BOX = shutil.which("sing-box") or "sing-box"
@@ -35,6 +35,35 @@ class Response:
 
 
 class SingBoxExportTest(unittest.TestCase):
+    def test_semantic_matcher_equivalence_handles_scalar_order_duplicates_and_cidr_collapse(self):
+        source = [
+            {"domain": ["Example.COM", "duplicate.example", "duplicate.example"]},
+            {"domain_suffix": ["example.org"]},
+            {"domain_keyword": ["chat"]},
+            {"domain_regex": [r"(?i)^chat\\.example\\.com$"]},
+            {"ip_cidr": ["192.0.2.0/25", "192.0.2.128/25"]},
+            {"source_ip_cidr": ["2001:db8::/65", "2001:db8:0:0:8000::/65"]},
+        ]
+        decoded = [
+            {"source_ip_cidr": "2001:db8::/64"},
+            {"ip_cidr": "192.0.2.0/24"},
+            {"domain_regex": r"(?i)^chat\\.example\\.com$"},
+            {"domain_keyword": "chat"},
+            {"domain_suffix": "example.org"},
+            {"domain": ["duplicate.example", "Example.COM"]},
+        ]
+        self.assertTrue(_semantic_matcher_equivalent(source, decoded))
+        decoded[-1]["domain"] = ["different.example", "Example.COM"]
+        self.assertFalse(_semantic_matcher_equivalent(source, decoded))
+
+    def test_semantic_matcher_equivalence_rejects_mismatched_matcher_family(self):
+        self.assertFalse(
+            _semantic_matcher_equivalent(
+                [{"domain": ["example.com"]}],
+                [{"domain_suffix": ["example.com"]}],
+            )
+        )
+
     def test_github_api_uses_token_but_asset_does_not(self):
         payload = b"network,autonomous_system_number\n192.0.2.0/24,64512\n"
         assets = ({"name": "GeoLite2-ASN-Blocks-IPv4.csv", "url": "https://github.com/example/asset", "sha256": hashlib.sha256(payload).hexdigest()},)

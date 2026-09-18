@@ -186,6 +186,16 @@ def build(config: BuildConfig) -> BuildResult:
         print(f"{label + ':':<28}{value:>8.2f}s{suffix}")
     for label in ("Egern collect", "Egern optimize", "Egern write YAML", "Egern top-level", "Egern total"):
         print(f"{label + ':':<28}{timing.phases.get(label, 0.0):>8.2f}s")
+    for label in (
+        "Sing-box group discovery", "Sing-box matcher conversion", "Sing-box ASN expansion",
+        "Sing-box aggregation", "Sing-box route generation", "Sing-box source JSON write",
+        "Sing-box compile", "Sing-box decompile", "Sing-box decoded JSON parse",
+        "Sing-box semantic equivalence", "Sing-box representative probes",
+        "Sing-box canonical SRS copy", "Sing-box legacy aliases copy", "Sing-box route total",
+    ):
+        print(f"{label + ':':<36}{timing.phases.get(label, 0.0):>8.2f}s")
+    for label in sorted(name for name in timing.phases if name.startswith("Sing-box artifact ")):
+        print(f"{label + ':':<36}{timing.phases[label]:>8.2f}s")
     for kind in ("mihomo", "sing-box"):
         stats = timing.external.get(kind)
         if stats is None:
