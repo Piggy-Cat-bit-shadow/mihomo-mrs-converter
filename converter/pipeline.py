@@ -79,7 +79,13 @@ def build(config: BuildConfig) -> BuildResult:
     optimized = normalize_no_active_resolve(optimized, final_payloads)
 
     previous = read_managed_manifest(config.dist)
+    refreshed_complete: dict[str, Any] | None = None
+    complete_output = config.complete_output or config.complete_config
+    complete_before = complete_output.read_bytes() if complete_output and complete_output.exists() else None
+    state_path = config.dist.parent / ".state" / "managed-state.yaml"
+    state_before = state_path.read_bytes() if state_path.exists() else None
     publish_dist = Path(tempfile.mkdtemp(prefix="mihomo-mrs-publish-", dir=config.dist.parent))
+    old_dist = config.dist.with_name(f".{config.dist.name}.previous")
     try:
         final = materialize_final_config(optimized, final_payloads, publish_dist, config.base_url, config.mihomo_bin)
         validate_final_config(publish_dist, final)
@@ -90,21 +96,36 @@ def build(config: BuildConfig) -> BuildResult:
         exporter_stats["singbox-dns"] = export_singbox_dns(final, final_payloads, publish_dist, config.base_url, config.sing_box_bin)
         exporter_stats["dns"] = export_dns(final, final_payloads, publish_dist, config.base_url, config.mihomo_bin)
         write_yaml_atomic(publish_dist / "generated" / "mihomo-rules.yaml", final)
+        if config.complete_config:
+            complete = _load_yaml(config.complete_config)
+            refreshed_complete = refresh_complete_config(complete, final, previous, config.base_url)
 
-        old_dist = config.dist.with_name(f".{config.dist.name}.previous")
         if old_dist.exists():
             shutil.rmtree(old_dist)
         if config.dist.exists():
             os.replace(config.dist, old_dist)
         os.replace(publish_dist, config.dist)
         write_managed_manifest(config.dist, config.base_url, final["rule-providers"])
+        if refreshed_complete is not None and complete_output is not None:
+            write_yaml_atomic(complete_output, refreshed_complete)
         shutil.rmtree(old_dist, ignore_errors=True)
-    except Exception:
+    except BaseException:
         shutil.rmtree(publish_dist, ignore_errors=True)
+        if config.dist.exists() and old_dist.exists():
+            shutil.rmtree(config.dist)
+        if old_dist.exists():
+            os.replace(old_dist, config.dist)
+        if state_before is None:
+            state_path.unlink(missing_ok=True)
+        else:
+            state_path.parent.mkdir(parents=True, exist_ok=True)
+            state_path.write_bytes(state_before)
+        if complete_output is not None:
+            if complete_before is None:
+                complete_output.unlink(missing_ok=True)
+            else:
+                complete_output.parent.mkdir(parents=True, exist_ok=True)
+                complete_output.write_bytes(complete_before)
         raise
 
-    if config.complete_config:
-        complete = _load_yaml(config.complete_config)
-        refreshed = refresh_complete_config(complete, final, previous, config.base_url)
-        write_yaml_atomic(config.complete_output or config.complete_config, refreshed)
     return BuildResult(final, final_payloads, dedup_stats, exporter_stats)

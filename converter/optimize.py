@@ -218,9 +218,16 @@ def optimize_config(
             for old, new in (segment_mapping or {}).items():
                 if mapped.startswith(old + "-"):
                     mapped = new + mapped[len(old):]
-            if mapped != name:
-                final_providers[mapped] = final_providers.pop(name)
-                final_payloads[mapped] = final_payloads.pop(name)
+            provider = final_providers.pop(name)
+            payload = final_payloads.pop(name)
+            if mapped in final_providers:
+                part = 2
+                base = mapped
+                while f"{base}-part-{part:02d}" in final_providers:
+                    part += 1
+                mapped = f"{base}-part-{part:02d}"
+            final_providers[mapped] = provider
+            final_payloads[mapped] = payload
             rule_parts = ["RULE-SET", mapped]
             if wrapper_signature[0].upper() != "SUB-RULE":
                 rule_parts.append(policy)

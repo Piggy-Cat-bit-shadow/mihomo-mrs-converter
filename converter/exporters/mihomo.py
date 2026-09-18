@@ -4,7 +4,15 @@ from pathlib import Path
 from typing import Any
 
 from ..artifacts import convert_source_to_mrs, public_url, write_yaml_payload
-from ..rules import parse_rule, parse_ruleset_reference, simple_ruleset_wrapper
+from ..rules import (
+    _ruleset_parts_in_expression,
+    parse_rule,
+    parse_ruleset_reference,
+    find_ruleset_refs,
+    simple_ruleset_wrapper,
+    split_top_level_commas,
+    strip_balanced_outer_parentheses,
+)
 from ..semantics import is_target_ip_kind
 
 
@@ -16,6 +24,24 @@ def normalize_no_active_resolve(config: dict[str, Any], payloads: dict[str, list
         or any(is_target_ip_kind(parse_rule(raw).kind) for raw in payloads.get(name, []))
     }
     rules: list[Any] = []
+
+    def add_nested_no_resolve(expression: str) -> str:
+        _, was_wrapped = strip_balanced_outer_parentheses(expression)
+        direct = _ruleset_parts_in_expression(expression)
+        if direct is not None:
+            if direct[1] not in target_providers or any(item.lower() == "no-resolve" for item in direct[2:]):
+                return expression.strip()
+            result = ",".join([*direct, "no-resolve"])
+            return f"({result})" if was_wrapped else result
+        inner, wrapped = strip_balanced_outer_parentheses(expression)
+        parts = split_top_level_commas(inner if wrapped else expression)
+        rewritten = []
+        for part in parts:
+            _, is_wrapped = strip_balanced_outer_parentheses(part)
+            rewritten.append(add_nested_no_resolve(part) if is_wrapped else part)
+        result = ",".join(rewritten)
+        return f"({result})" if wrapped else result
+
     for raw in config.get("rules", []):
         if not isinstance(raw, str):
             rules.append(raw)
@@ -32,6 +58,8 @@ def normalize_no_active_resolve(config: dict[str, Any], payloads: dict[str, list
                 raw = ",".join(item for item in (prefix, f"({nested})", suffix) if item)
             else:
                 raw = raw + ",no-resolve"
+        elif any(provider in target_providers for provider in find_ruleset_refs(raw)):
+            raw = add_nested_no_resolve(raw)
         parts = raw.split(",")
         if is_target_ip_kind(parts[0]) and "no-resolve" not in {item.lower() for item in parts[2:]}:
             raw = ",".join([*parts, "no-resolve"])
