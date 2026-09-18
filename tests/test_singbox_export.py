@@ -10,7 +10,7 @@ from email.message import Message
 from pathlib import Path
 from unittest.mock import patch
 
-from scripts.singbox_export import SingBoxExportError, _aggregate_buckets, _default_asn_resolver, _github_api_json, _groups, _provider_matchers, export_singbox, export_singbox_dns
+from converter.exporters.singbox import SingBoxExportError, _aggregate_buckets, _default_asn_resolver, _github_api_json, _groups, _provider_matchers, export_singbox, export_singbox_dns
 
 
 SING_BOX = shutil.which("sing-box") or "sing-box"
@@ -43,7 +43,7 @@ class SingBoxExportTest(unittest.TestCase):
                 return Response(json.dumps(metadata).encode())
             return Response(b"network,autonomous_system_number\n192.0.2.0/24,64512\n")
 
-        with patch.dict(os.environ, {"GITHUB_TOKEN": "secret-token"}), patch("scripts.singbox_export.urllib.request.urlopen", side_effect=urlopen):
+        with patch.dict(os.environ, {"GITHUB_TOKEN": "secret-token"}), patch("converter.exporters.singbox.urllib.request.urlopen", side_effect=urlopen):
             result = _default_asn_resolver({"64512"})
         self.assertEqual(result, {"64512": ["192.0.2.0/24"]})
         api_headers = {key.lower(): value for key, value in requests[0].header_items()}
@@ -55,7 +55,7 @@ class SingBoxExportTest(unittest.TestCase):
 
     def test_github_api_without_token_is_anonymous(self):
         captured = []
-        with patch.dict(os.environ, {}, clear=True), patch("scripts.singbox_export.urllib.request.urlopen", side_effect=lambda request, **_: captured.append(request) or Response(b"{}")):
+        with patch.dict(os.environ, {}, clear=True), patch("converter.exporters.singbox.urllib.request.urlopen", side_effect=lambda request, **_: captured.append(request) or Response(b"{}")):
             _github_api_json("https://api.github.com/repos/example/repo/releases/latest")
         headers = {key.lower(): value for key, value in captured[0].header_items()}
         self.assertNotIn("authorization", headers)
@@ -66,7 +66,7 @@ class SingBoxExportTest(unittest.TestCase):
         headers["X-RateLimit-Remaining"] = "0"
         headers["X-RateLimit-Reset"] = "1700000000"
         error = urllib.error.HTTPError("https://api.github.com", 403, "rate limit exceeded", headers, io.BytesIO())
-        with patch.dict(os.environ, {"GITHUB_TOKEN": "secret-token"}), patch("scripts.singbox_export.urllib.request.urlopen", side_effect=error) as mocked, patch("scripts.singbox_export.time.sleep") as sleep:
+        with patch.dict(os.environ, {"GITHUB_TOKEN": "secret-token"}), patch("converter.exporters.singbox.urllib.request.urlopen", side_effect=error) as mocked, patch("converter.exporters.singbox.time.sleep") as sleep:
             with self.assertRaisesRegex(SingBoxExportError, "GitHub API rate limit.*remaining=0.*reset=1700000000") as raised:
                 _github_api_json("https://api.github.com/repos/example/repo/releases/latest")
         self.assertEqual(mocked.call_count, 1)
@@ -76,7 +76,7 @@ class SingBoxExportTest(unittest.TestCase):
     def test_github_api_retries_transient_error(self):
         headers = Message()
         error = urllib.error.HTTPError("https://api.github.com", 502, "bad gateway", headers, io.BytesIO())
-        with patch("scripts.singbox_export.urllib.request.urlopen", side_effect=[error, Response(b'{"ok": true}')]) as mocked, patch("scripts.singbox_export.time.sleep") as sleep:
+        with patch("converter.exporters.singbox.urllib.request.urlopen", side_effect=[error, Response(b'{"ok": true}')]) as mocked, patch("converter.exporters.singbox.time.sleep") as sleep:
             self.assertEqual(_github_api_json("https://api.github.com/test"), {"ok": True})
         self.assertEqual(mocked.call_count, 2)
         sleep.assert_called_once_with(1)

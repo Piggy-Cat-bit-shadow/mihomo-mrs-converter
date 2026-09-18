@@ -10,8 +10,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 import yaml
+from converter import net
 
-import converter.pipeline as convert
+import converter.core as convert
 
 
 BASE_URL = "https://raw.githubusercontent.com/owner/repo/main"
@@ -52,7 +53,7 @@ class ConvertTestCase(unittest.TestCase):
         providers: set[str] | None = None,
         mihomo: str | None = None,
     ) -> convert.ProviderResult:
-        with patch.object(convert, "fetch_text", return_value=remote_text):
+        with patch.object(net, "fetch_text", return_value=remote_text):
             return convert.process_provider(
                 name,
                 provider,
@@ -527,33 +528,21 @@ class ProviderConversionTest(ConvertTestCase):
             with self.assertRaises(SystemExit):
                 self.process_with_text("sample", http_provider(), "payload: []\n", Path(tmp))
 
-    def test_mrs_domain_passthrough(self) -> None:
+    def test_mrs_domain_input_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             provider = http_provider("domain", "mrs")
             provider["url"] = "https://example.com/rules.mrs"
             provider["path"] = "./ruleset/sample.mrs"
-            result = convert.process_provider(
-                "sample",
-                provider,
-                self.build_options(Path(tmp), {"sample"}),
-            )
+            with self.assertRaisesRegex(SystemExit, "external MRS input is unsupported"):
+                convert.process_provider("sample", provider, self.build_options(Path(tmp), {"sample"}))
 
-            self.assertEqual(result.generated_names, ["sample"])
-            self.assertEqual(result.providers["sample"]["format"], "mrs")
-            self.assertEqual(result.providers["sample"]["url"], "https://example.com/rules.mrs")
-
-    def test_mrs_ipcidr_passthrough(self) -> None:
+    def test_mrs_ipcidr_input_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             provider = http_provider("ipcidr", "mrs")
             provider["url"] = "https://example.com/ip.mrs"
             provider["path"] = "./ruleset/ip.mrs"
-            result = convert.process_provider(
-                "sample",
-                provider,
-                self.build_options(Path(tmp), {"sample"}),
-            )
-
-            self.assertEqual(result.providers["sample"]["behavior"], "ipcidr")
+            with self.assertRaisesRegex(SystemExit, "external MRS input is unsupported"):
+                convert.process_provider("sample", provider, self.build_options(Path(tmp), {"sample"}))
 
     def test_mrs_classical_fails(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -883,252 +872,6 @@ class SuiteStatsTest(unittest.TestCase):
             total = counts["domain"] + counts["ipcidr"] + counts["classical"]
             self.assertEqual(counts, Counter({"domain": 2, "ipcidr": 1, "classical": 2}))
             self.assertEqual(total, counts["domain"] + counts["ipcidr"] + counts["classical"])
-
-
-class AdjacentClassicalConsolidationTest(ConvertTestCase):
-    def make_config(
-        self,
-        dist: Path,
-        rules: list[str],
-        payloads: dict[str, list[str]],
-        metadata: dict[str, dict[str, object]] | None = None,
-    ) -> dict[str, object]:
-        providers: dict[str, dict[str, object]] = {}
-        for name, payload in payloads.items():
-            convert.write_yaml_payload(dist / "merged-dedup/classical" / f"{name}.yaml", payload)
-            behavior = "domain" if name.endswith("-domain") else "ipcidr" if name.endswith("-ip") else "classical"
-            provider = {
-                "type": "http",
-                "behavior": behavior,
-                "format": "yaml",
-                "url": f"{BASE_URL}/dist/merged-dedup/classical/{name}.yaml",
-                "path": f"./ruleset/merged-dedup/{name}.yaml",
-            }
-            provider.update((metadata or {}).get(name, {}))
-            providers[name] = provider
-        return {"rule-providers": providers, "rules": rules}
-
-    def consolidate(
-        self,
-        rules: list[str],
-        payloads: dict[str, list[str]],
-        metadata: dict[str, dict[str, object]] | None = None,
-    ) -> tuple[dict[str, object], Path]:
-        tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(tmp.cleanup)
-        dist = Path(tmp.name)
-        config = self.make_config(dist, rules, payloads, metadata)
-        result = convert.merge_adjacent_classical_providers(config, self.build_options(dist))
-        return result, dist
-
-    def test_adjacent_classical_providers_merge_in_order(self) -> None:
-        result, dist = self.consolidate(
-            ["RULE-SET,A-classical,Proxy", "RULE-SET,B-classical,Proxy"],
-            {"A-classical": ["A1", "A2"], "B-classical": ["B1", "B2"]},
-        )
-
-        self.assertEqual(result["rules"], ["RULE-SET,merged-classical-01,Proxy"])
-        self.assertEqual(
-            yaml.safe_load((dist / "merged-dedup/classical/merged-classical-01.yaml").read_text()),
-            {"payload": ["A1", "A2", "B1", "B2"]},
-        )
-        self.assertNotIn("A-classical", result["rule-providers"])
-        self.assertNotIn("B-classical", result["rule-providers"])
-        self.assertEqual(result["rule-providers"]["merged-classical-01"]["behavior"], "classical")
-        self.assertEqual(result["rule-providers"]["merged-classical-01"]["format"], "yaml")
-
-    def test_classical_merge_preserves_duplicates(self) -> None:
-        result, dist = self.consolidate(
-            ["RULE-SET,A-classical,Proxy", "RULE-SET,B-classical,Proxy"],
-            {"A-classical": ["DOMAIN,a.com", "DOMAIN,a.com"], "B-classical": ["DOMAIN,a.com"]},
-        )
-
-        provider = result["rule-providers"]["merged-classical-01"]
-        payload = yaml.safe_load(
-            (dist / "merged-dedup/classical/merged-classical-01.yaml").read_text()
-        )["payload"]
-        self.assertEqual(payload, ["DOMAIN,a.com", "DOMAIN,a.com", "DOMAIN,a.com"])
-
-
-        self.assertEqual(provider["url"], f"{BASE_URL}/dist/merged-dedup/classical/merged-classical-01.yaml")
-
-    def test_barriers_and_different_contexts_prevent_merge(self) -> None:
-        for rules in (
-            ["RULE-SET,A-classical,Proxy", "DOMAIN,barrier.example,Proxy", "RULE-SET,B-classical,Proxy"],
-            ["RULE-SET,A-classical,Proxy", "RULE-SET,X-domain,Proxy", "RULE-SET,B-classical,Proxy"],
-            ["RULE-SET,A-classical,DIRECT", "RULE-SET,B-classical,Proxy"],
-        ):
-            with self.subTest(rules=rules):
-                classical = {"A-classical": ["A1"], "B-classical": ["B1"]}
-                if "X-domain" in rules:
-                    classical["X-domain"] = ["X1"]
-                result, _ = self.consolidate(rules, classical)
-                self.assertNotIn("merged-classical-01", result["rule-providers"])
-                self.assertEqual(result["rules"], rules)
-
-    def test_sub_rule_classical_providers_merge(self) -> None:
-        result, _ = self.consolidate(
-            [
-                "SUB-RULE,(RULE-SET,A-classical),AI-Routing",
-                "SUB-RULE,(RULE-SET,B-classical),AI-Routing",
-            ],
-            {"A-classical": ["A1"], "B-classical": ["B1"]},
-        )
-
-        self.assertEqual(result["rules"], ["SUB-RULE,(RULE-SET,merged-classical-01),AI-Routing"])
-
-    def test_sub_rule_classical_can_cross_ipcidr(self) -> None:
-        result, dist = self.consolidate(
-            [
-                "SUB-RULE,(RULE-SET,A-classical),AI-Routing",
-                "SUB-RULE,(RULE-SET,X-ip),AI-Routing",
-                "SUB-RULE,(RULE-SET,B-classical),AI-Routing",
-            ],
-            {"A-classical": ["A1"], "X-ip": ["X1"], "B-classical": ["B1"]},
-        )
-
-        self.assertEqual(
-            result["rules"],
-            [
-                "SUB-RULE,(RULE-SET,merged-classical-01),AI-Routing",
-                "SUB-RULE,(RULE-SET,X-ip),AI-Routing",
-            ],
-        )
-        self.assertEqual(
-            yaml.safe_load((dist / "merged-dedup/classical/merged-classical-01.yaml").read_text())["payload"],
-            ["A1", "B1"],
-        )
-
-    def test_sub_rule_block_keeps_nonclassical_order_and_multiple_gaps(self) -> None:
-        result, _ = self.consolidate(
-            [
-                "SUB-RULE,(RULE-SET,D-domain),AI-Routing",
-                "SUB-RULE,(RULE-SET,A-classical),AI-Routing",
-                "SUB-RULE,(RULE-SET,X-ip),AI-Routing",
-                "SUB-RULE,(RULE-SET,B-classical),AI-Routing",
-                "SUB-RULE,(RULE-SET,Y-domain),AI-Routing",
-                "SUB-RULE,(RULE-SET,C-classical),AI-Routing",
-            ],
-            {
-                "D-domain": ["D1"],
-                "A-classical": ["A1"],
-                "X-ip": ["X1"],
-                "B-classical": ["B1"],
-                "Y-domain": ["Y1"],
-                "C-classical": ["C1"],
-            },
-        )
-
-        self.assertEqual(
-            result["rules"],
-            [
-                "SUB-RULE,(RULE-SET,D-domain),AI-Routing",
-                "SUB-RULE,(RULE-SET,merged-classical-01),AI-Routing",
-                "SUB-RULE,(RULE-SET,X-ip),AI-Routing",
-                "SUB-RULE,(RULE-SET,Y-domain),AI-Routing",
-            ],
-        )
-
-    def test_sub_rule_different_target_and_wrapper_are_barriers(self) -> None:
-        cases = [
-            [
-                "SUB-RULE,(RULE-SET,A-classical),AI-Routing",
-                "SUB-RULE,(RULE-SET,X-ip),Other-Routing",
-                "SUB-RULE,(RULE-SET,B-classical),AI-Routing",
-            ],
-            [
-                "SUB-RULE,(RULE-SET,A-classical),AI-Routing",
-                "RULE-SET,X-ip,AI-Routing",
-                "SUB-RULE,(RULE-SET,B-classical),AI-Routing",
-            ],
-        ]
-        for rules in cases:
-            with self.subTest(rules=rules):
-                result, _ = self.consolidate(
-                    rules,
-                    {"A-classical": ["A1"], "X-ip": ["X1"], "B-classical": ["B1"]},
-                )
-                self.assertEqual(result["rules"], rules)
-
-    def test_incompatible_metadata_does_not_merge(self) -> None:
-        result, _ = self.consolidate(
-            ["RULE-SET,A-classical,Proxy", "RULE-SET,B-classical,Proxy"],
-            {"A-classical": ["A1"], "B-classical": ["B1"]},
-            {
-                "A-classical": {"proxy": "proxy-a"},
-                "B-classical": {"proxy": "proxy-b"},
-            },
-        )
-
-        self.assertEqual(result["rules"], ["RULE-SET,A-classical,Proxy", "RULE-SET,B-classical,Proxy"])
-
-    def canonical_config(self, dist: Path, rules: list[str], behaviors: dict[str, str]) -> dict[str, object]:
-        providers: dict[str, dict[str, object]] = {}
-        for name, behavior in behaviors.items():
-            folder = "classical" if behavior == "classical" else "source/" + ("ipcidr" if behavior == "ipcidr" else "domain")
-            suffix = ".yaml"
-            artifact = dist / "merged-dedup" / folder / f"{name}{suffix}"
-            convert.write_yaml_payload(artifact, [f"{name}-payload"])
-            providers[name] = {
-                "type": "http",
-                "behavior": behavior,
-                "format": "yaml",
-                "url": f"{BASE_URL}/dist/merged-dedup/{folder}/{name}.yaml",
-                "path": f"./ruleset/merged-dedup/{name}.yaml",
-            }
-        return {"rule-providers": providers, "rules": rules}
-
-    def test_logical_blocks_share_segment_ids_and_advance_globally(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            dist = Path(tmp)
-            config = self.canonical_config(
-                dist,
-                [
-                    "RULE-SET,D-domain,DIRECT",
-                    "RULE-SET,Lan-classical,DIRECT",
-                    "SUB-RULE,(RULE-SET,X-ip),AI-Routing",
-                    "SUB-RULE,(RULE-SET,A-domain),AI-Routing",
-                    "SUB-RULE,(RULE-SET,A-classical),AI-Routing",
-                    "RULE-SET,B-domain,DIRECT",
-                    "RULE-SET,B-classical,DIRECT",
-                ],
-                {
-                    "D-domain": "domain",
-                    "Lan-classical": "classical",
-                    "A-domain": "domain",
-                    "A-classical": "classical",
-                    "X-ip": "ipcidr",
-                    "B-domain": "domain",
-                    "B-classical": "classical",
-                },
-            )
-            result, _ = convert.canonicalize_dedup_provider_names(config, self.build_options(dist))
-
-            self.assertEqual(
-                result["rules"],
-                [
-                    "RULE-SET,merged-segment-01-domain,DIRECT",
-                    "RULE-SET,merged-segment-01-classical,DIRECT",
-                    "SUB-RULE,(RULE-SET,merged-segment-02-domain),AI-Routing",
-                    "SUB-RULE,(RULE-SET,merged-segment-02-classical),AI-Routing",
-                    "SUB-RULE,(RULE-SET,merged-segment-02-ip),AI-Routing",
-                    "RULE-SET,merged-segment-03-domain,DIRECT",
-                    "RULE-SET,merged-segment-03-classical,DIRECT",
-                ],
-            )
-            self.assertNotIn("merged-classical-01", result["rule-providers"])
-            for name in (
-                "merged-segment-01-domain",
-                "merged-segment-01-classical",
-                "merged-segment-02-domain",
-                "merged-segment-02-classical",
-                "merged-segment-02-ip",
-                "merged-segment-03-domain",
-                "merged-segment-03-classical",
-            ):
-                provider = result["rule-providers"][name]
-                self.assertTrue((dist / provider["url"].split("/dist/", 1)[1]).exists())
-                self.assertTrue(provider["path"].endswith(f"/{name}.yaml"))
 
 
 class SegmentBehaviorConsolidationTest(ConvertTestCase):
@@ -1543,41 +1286,6 @@ class ManagedStatePathTest(unittest.TestCase):
 
 
 class UnreferencedProviderTest(unittest.TestCase):
-    def test_unreferenced_provider_is_ignored_without_download_or_artifact(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            input_path = root / "input.yaml"
-            dist = root / "dist"
-            used_url = "https://example.com/used.yaml"
-            unused_url = "https://example.com/unused.yaml"
-            input_path.write_text(yaml.safe_dump({
-                "rule-providers": {
-                    "Used": {"type": "http", "behavior": "domain", "format": "yaml", "url": used_url},
-                    "Unused": {"type": "http", "behavior": "domain", "format": "yaml", "url": unused_url},
-                },
-                "rules": ["RULE-SET,Used,DIRECT", "MATCH,DIRECT"],
-            }, sort_keys=False), encoding="utf-8")
-            calls: list[str] = []
-
-            def fetch(url: str, headers: dict[str, object] | None, memory_cache: dict[str, str]) -> str:
-                calls.append(url)
-                return "payload:\n- used.example\n"
-
-            argv = [
-                "convert.py", str(input_path), "--dist", str(dist), "--base-url", BASE_URL,
-                "--allow-no-mihomo", "--allow-no-sing-box",
-            ]
-            with (
-                patch.object(sys, "argv", argv),
-                patch.object(convert, "fetch_text", side_effect=fetch),
-                contextlib.redirect_stdout(io.StringIO()),
-            ):
-                convert.main()
-            self.assertEqual(calls, [used_url])
-            generated_dirs = ((dist / "source/domain").glob("*"), (dist / "domain").glob("*"))
-            self.assertTrue(any(path.is_file() for paths in generated_dirs for path in paths))
-            self.assertFalse(any("Unused" in str(path) for path in dist.rglob("*")))
-
     def test_referenced_missing_provider_still_fails(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -1586,7 +1294,7 @@ class UnreferencedProviderTest(unittest.TestCase):
                 "rule-providers": {"Used": {"type": "http", "behavior": "domain", "format": "yaml", "url": "https://example.com/used.yaml"}},
                 "rules": ["RULE-SET,Missing,DIRECT", "MATCH,DIRECT"],
             }, sort_keys=False), encoding="utf-8")
-            with patch.object(sys, "argv", ["convert.py", str(input_path), "--dist", str(root / "dist"), "--base-url", BASE_URL, "--allow-no-mihomo", "--allow-no-sing-box"]):
+            with patch.object(sys, "argv", ["convert.py", str(input_path), "--dist", str(root / "dist"), "--base-url", BASE_URL]):
                 with self.assertRaisesRegex(SystemExit, "missing provider 'Missing'"):
                     convert.main()
 
@@ -1615,7 +1323,6 @@ class CompleteConfigRefreshTest(unittest.TestCase):
             str(dist),
             "--base-url",
             BASE_URL,
-            "--allow-no-mihomo",
         ]
         if complete_config is not None:
             argv.extend(
@@ -1632,7 +1339,7 @@ class CompleteConfigRefreshTest(unittest.TestCase):
 
         with (
             patch.object(sys, "argv", argv),
-            patch.object(convert, "fetch_text", side_effect=fetch),
+            patch.object(net, "fetch_text", side_effect=fetch),
             contextlib.redirect_stdout(io.StringIO()),
         ):
             convert.main()
@@ -2125,24 +1832,24 @@ class FetchTextTestCase(unittest.TestCase):
             return False
 
     def test_memory_cache_avoids_duplicate_request(self):
-        with patch("converter.pipeline.urllib.request.urlopen", return_value=self.Response(b"payload")) as mocked:
+        with patch("converter.net.urllib.request.urlopen", return_value=self.Response(b"payload")) as mocked:
             cache = {}
-            self.assertEqual(convert.fetch_text("https://example.com/rules", None, cache), "payload")
-            self.assertEqual(convert.fetch_text("https://example.com/rules", None, cache), "payload")
+            self.assertEqual(net.fetch_text("https://example.com/rules", None, cache), "payload")
+            self.assertEqual(net.fetch_text("https://example.com/rules", None, cache), "payload")
         self.assertEqual(mocked.call_count, 1)
 
     def test_404_fails_fast(self):
         error = urllib.error.HTTPError("https://example.com/rules", 404, "not found", None, io.BytesIO())
-        with patch("converter.pipeline.urllib.request.urlopen", side_effect=error) as mocked, patch("converter.pipeline.time.sleep") as sleep:
+        with patch("converter.net.urllib.request.urlopen", side_effect=error) as mocked, patch("converter.net.time.sleep") as sleep:
             with self.assertRaisesRegex(RuntimeError, "HTTP 404.*attempt 1/4"):
-                convert.fetch_text("https://example.com/rules", None, {})
+                net.fetch_text("https://example.com/rules", None, {})
         self.assertEqual(mocked.call_count, 1)
         sleep.assert_not_called()
 
     def test_503_retries_then_succeeds(self):
         error = urllib.error.HTTPError("https://example.com/rules", 503, "unavailable", None, io.BytesIO())
-        with patch("converter.pipeline.urllib.request.urlopen", side_effect=[error, self.Response(b"payload")]) as mocked, patch("converter.pipeline.time.sleep") as sleep:
-            self.assertEqual(convert.fetch_text("https://example.com/rules", None, {}), "payload")
+        with patch("converter.net.urllib.request.urlopen", side_effect=[error, self.Response(b"payload")]) as mocked, patch("converter.net.time.sleep") as sleep:
+            self.assertEqual(net.fetch_text("https://example.com/rules", None, {}), "payload")
         self.assertEqual(mocked.call_count, 2)
         sleep.assert_called_once_with(1)
 
@@ -2150,8 +1857,8 @@ class FetchTextTestCase(unittest.TestCase):
         headers = Message()
         headers["Retry-After"] = "120"
         error = urllib.error.HTTPError("https://example.com/rules", 429, "too many requests", headers, io.BytesIO())
-        with patch("converter.pipeline.urllib.request.urlopen", side_effect=[error, self.Response(b"payload")]), patch("converter.pipeline.time.sleep") as sleep:
-            self.assertEqual(convert.fetch_text("https://example.com/rules", None, {}), "payload")
+        with patch("converter.net.urllib.request.urlopen", side_effect=[error, self.Response(b"payload")]), patch("converter.net.time.sleep") as sleep:
+            self.assertEqual(net.fetch_text("https://example.com/rules", None, {}), "payload")
         sleep.assert_called_once_with(8.0)
 
 

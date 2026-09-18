@@ -11,7 +11,7 @@ import yaml
 from converter import Behavior, ProviderIdentity
 from converter.cli import main as cli_main
 from converter.model import format_provider_name, parse_legacy_provider_name
-from converter.pipeline import export_loon
+from converter.exporters.loon import export_loon
 
 
 class RefactorRegressionTest(unittest.TestCase):
@@ -41,7 +41,7 @@ class RefactorRegressionTest(unittest.TestCase):
             with patch.object(sys, "argv", argv), contextlib.redirect_stdout(io.StringIO()):
                 with self.assertRaises(SystemExit) as error:
                     cli_main()
-            self.assertIn("has no lossless normalized source", str(error.exception))
+            self.assertIn("external MRS input is unsupported", str(error.exception))
 
     def test_unsupported_loon_subrule_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -1,6 +1,28 @@
 """Independent loon exporter implementation."""
 
-from ..pipeline import *  # shared parser, artifacts and semantic primitives
+from ..core import (
+    Any,
+    Counter,
+    Path,
+    find_ruleset_refs,
+    generated_artifact_path,
+    ipaddress,
+    is_target_ip_kind,
+    loon_segment_name,
+    parse_egern_sub_rule_members,
+    parse_ip_network,
+    parse_legacy_provider_name,
+    parse_rule,
+    parse_ruleset_reference,
+    public_url,
+    read_yaml_payload,
+    simple_ruleset_wrapper,
+    source_path_for_provider,
+    split_top_level_commas,
+    write_text_atomic
+)  # shared parser, artifacts and semantic primitives
+
+from ..artifacts import generated_artifact_path, read_yaml_payload, write_text_atomic, write_yaml_atomic
 
 LOON_RULE_PRIORITY = {
     "DOMAIN": 0,
@@ -105,7 +127,7 @@ def export_loon(
         if reference is not None:
             provider_modifiers.setdefault(reference.provider, set()).update(
                 modifier.lower() for modifier in reference.modifiers
-            )
+)
 
     for name, provider in config["rule-providers"].items():
         segment = loon_segment_name(name)

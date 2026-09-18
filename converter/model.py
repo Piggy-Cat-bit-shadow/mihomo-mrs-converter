@@ -1,6 +1,6 @@
 """Small immutable models shared by normalization, optimization and exporters."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
@@ -46,33 +46,3 @@ def parse_legacy_provider_name(name: str) -> ProviderIdentity | None:
         return None
     behavior = {"domain": Behavior.DOMAIN, "classical": Behavior.CLASSICAL, "ip": Behavior.IPCIDR}[match.group(2)]
     return ProviderIdentity(match.group(1), behavior, int(match.group(3) or 1))
-
-
-@dataclass(frozen=True)
-class ProviderMetadata:
-    type: str = "http"
-    behavior: str = ""
-    format: str = "yaml"
-    interval: Any = None
-    proxy: Any = None
-    size_limit: Any = None
-    header: Any = None
-
-
-@dataclass
-class ProviderIR:
-    name: str
-    identity: ProviderIdentity
-    payload: list[str]
-    metadata: ProviderMetadata = field(default_factory=ProviderMetadata)
-    source_names: tuple[str, ...] = ()
-
-
-@dataclass(frozen=True)
-class RouteBlock:
-    segment: str
-    provider_names: tuple[str, ...]
-    policy: str
-    wrapper_kind: str
-    modifiers: tuple[str, ...] = ()
-    original_indexes: tuple[int, ...] = ()

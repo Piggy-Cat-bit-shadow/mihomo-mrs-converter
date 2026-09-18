@@ -3,7 +3,8 @@
 from pathlib import Path
 from typing import Any
 
-from .pipeline import find_ruleset_refs, generated_artifact_path
+from .artifacts import generated_artifact_path
+from .rules import find_ruleset_refs
 
 
 def validate_config(dist: Path, config: dict[str, Any], require_no_orphans: bool = True) -> None:
@@ -25,4 +26,3 @@ def validate_config(dist: Path, config: dict[str, Any], require_no_orphans: bool
         used.update(refs)
     if require_no_orphans and set(providers) - used:
         raise ValueError(f"orphan provider(s): {sorted(set(providers) - used)}")
-

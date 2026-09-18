@@ -1,7 +1,35 @@
 """Provider fetch, parse and normalization boundary."""
 
-from .pipeline import *  # shared artifacts and rule semantics
-from . import pipeline as _pipeline
+from .core import (
+    ALLOWED_PROVIDER_FIELDS,
+    Any,
+    Behavior,
+    BuildOptions,
+    Counter,
+    ProviderIdentity,
+    ProviderResult,
+    convert_source_to_mrs,
+    egern_segment_name,
+    format_provider_name,
+    make_generated_provider,
+    make_provider,
+    parse_ip_network,
+    parse_rule,
+    payload_from_remote,
+    public_url,
+    re,
+    reserve_path,
+    reserve_provider_name,
+    source_domain_value,
+    source_ip_value,
+    validate_http_url,
+    validate_provider_name,
+    validate_rule_counts,
+    validate_source_domain_value,
+    write_yaml_payload
+)  # shared artifacts and rule semantics
+from . import net
+from .artifacts import convert_source_to_mrs, public_url, read_yaml_payload, write_yaml_payload, generated_artifact_path, source_path_for_provider, validate_http_url
 
 def process_provider(
     name: str,
@@ -31,27 +59,12 @@ def process_provider(
     source_payloads: dict[str, list[str]] = {}
 
     if fmt == "mrs":
-        if behavior == "classical":
-            raise SystemExit(f"{name}: format mrs with classical behavior is unsupported")
-        path = provider.get("path")
-        if not isinstance(path, str):
-            raise SystemExit(f"{name}: provider path must be a string")
-        reserve_path(path, options.used_paths)
-        passthrough = {
-            key: value
-            for key, value in provider.items()
-            if key in PASSTHROUGH_PROVIDER_FIELDS
-        }
-        generated[name] = passthrough
-        generated_names.append(name)
-        options.used_names.add(name)
-        empty_counter: Counter[str] = Counter()
-        return ProviderResult(name, generated_names, generated, empty_counter, empty_counter, source_payloads)
+        raise SystemExit(f"{name}: external MRS input is unsupported; use YAML/text source")
 
     headers = provider.get("header")
     if headers is not None and not isinstance(headers, dict):
         raise SystemExit(f"{name}: provider header must be a mapping")
-    remote_text = _pipeline.fetch_text(url, headers, options.memory_cache)
+    remote_text = net.fetch_text(url, headers, options.memory_cache)
     remote_rules = payload_from_remote(name, remote_text, fmt, allow_integer_items=behavior == "ipcidr")
     if not remote_rules:
         raise SystemExit(f"{name}: provider contains no rules")
@@ -241,4 +254,3 @@ def process_provider(
     validate_rule_counts(name, original_counter, rebuilt)
 
     return ProviderResult(name, generated_names, generated, original_counter, rebuilt, source_payloads)
-

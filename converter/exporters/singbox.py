@@ -478,7 +478,7 @@ def export_singbox_dns(
 
 
 def export_singbox(config: dict[str, Any], final_payloads: dict[str, list[str]], output_dist: Path, base_url: str, sing_box: str | None, asn_resolver: Callable[[set[str]], dict[str, list[str]]] | None = None, segment_names: dict[str, str] | None = None) -> dict[str, Any]:
-    if not sing_box: raise SingBoxExportError("sing-box binary not found; install it or pass --allow-no-sing-box for source-only output")
+    if not sing_box: raise SingBoxExportError("sing-box binary not found; install Sing-box and retry")
     groups = _groups(config, segment_names)
     asn_resolver = asn_resolver or _default_asn_resolver
     if not groups: raise SingBoxExportError("no RULE-SET segments available for Sing-box export")

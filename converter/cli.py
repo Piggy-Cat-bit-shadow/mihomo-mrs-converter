@@ -1,6 +1,43 @@
 """Command-line orchestration for the converter package."""
 
-from .pipeline import *
+from .core import (
+    Any,
+    BuildOptions,
+    FINAL_SUITE,
+    Path,
+    __name__,
+    apply_segment_name_mapping,
+    argparse,
+    build_dedup_config,
+    build_merged_config,
+    export_dns,
+    export_egern,
+    export_loon,
+    find_ruleset_refs,
+    load_segment_name_mapping,
+    load_yaml,
+    load_yaml_mapping,
+    main,
+    materialize_suite_config,
+    normalize_no_active_resolve,
+    os,
+    print_dedup_report,
+    print_suite_stats,
+    process_provider,
+    publish_final_config,
+    re,
+    read_managed_manifest,
+    referenced_rule_counts,
+    refresh_complete_config,
+    rewrite_rules,
+    shutil,
+    tempfile,
+    validate_generated_config,
+    validate_top_level_rulesets,
+    write_managed_manifest,
+    write_yaml_atomic,
+    write_yaml_mapping_atomic
+)
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Convert Mihomo rule-providers to MRS safely.")
@@ -12,9 +49,7 @@ def main() -> None:
         help="Public raw URL prefix for this repository, for example https://raw.githubusercontent.com/owner/repo/main",
     )
     parser.add_argument("--mihomo", default=os.environ.get("MIHOMO_BIN") or shutil.which("mihomo"))
-    parser.add_argument("--allow-no-mihomo", action="store_true")
     parser.add_argument("--sing-box", default=os.environ.get("SING_BOX_BIN") or shutil.which("sing-box"))
-    parser.add_argument("--allow-no-sing-box", action="store_true")
     parser.add_argument(
         "--complete-config",
         type=Path,
@@ -25,17 +60,12 @@ def main() -> None:
         type=Path,
         help="Output path for --complete-config. Defaults to overwriting --complete-config.",
     )
-    parser.add_argument(
-        "--allow-orphan-providers",
-        action="store_true",
-        help="Retained for compatibility; unreferenced input providers are ignored.",
-    )
     args = parser.parse_args()
 
-    if not args.mihomo and not args.allow_no_mihomo:
-        raise SystemExit("mihomo binary not found; install it or pass --allow-no-mihomo for source-only output")
-    if not args.sing_box and not args.allow_no_sing_box:
-        raise SystemExit("sing-box binary not found; install it or pass --allow-no-sing-box for source-only output")
+    if not args.mihomo:
+        raise SystemExit("mihomo binary not found; install Mihomo and retry")
+    if not args.sing_box:
+        raise SystemExit("sing-box binary not found; install Sing-box and retry")
 
     data = load_yaml(args.input)
     providers = data.get("rule-providers") or {}
@@ -72,14 +102,9 @@ def main() -> None:
             continue
         if not isinstance(provider, dict):
             raise SystemExit(f"{name}: provider must be a mapping")
-        if (
-            provider.get("format") == "mrs"
-            and args.mihomo
-            and not args.allow_no_mihomo
-        ):
+        if provider.get("format") == "mrs":
             raise SystemExit(
-                f"external MRS provider {name} has no lossless normalized source; "
-                "use YAML/text source for multi-client export"
+                f"{name}: external MRS input is unsupported; use YAML/text source"
             )
         result = process_provider(
             name=name,
@@ -102,7 +127,7 @@ def main() -> None:
         "rule-providers": generated_providers,
         "rules": rewritten_rules,
     }
-    require_no_orphans = not args.allow_orphan_providers
+    require_no_orphans = True
     validate_generated_config(staging, generated, require_no_orphans=require_no_orphans)
     merged = build_merged_config(
         rules,
@@ -151,16 +176,14 @@ def main() -> None:
     # The existing source-only development mode remains source-only unless a
     # Sing-box binary is explicitly supplied.  Production builds install both
     # binaries and therefore always publish the additional exporter.
-    if args.sing_box and (args.mihomo or not args.allow_no_mihomo):
+    if args.sing_box:
         try:
             from converter.exporters.singbox import export_singbox, export_singbox_dns
         except ImportError:
             from converter.exporters.singbox import export_singbox, export_singbox_dns
         export_singbox(dedup, options.final_payloads, publish_dist, args.base_url, args.sing_box, segment_names=segment_mapping)
-        if args.mihomo and not args.allow_no_mihomo:
-            export_singbox_dns(dedup, options.final_payloads, publish_dist, args.base_url, args.sing_box)
-    if args.mihomo and not args.allow_no_mihomo:
-        export_dns(dedup, staging, publish_dist, args.base_url, args.mihomo, options.final_payloads)
+        export_singbox_dns(dedup, options.final_payloads, publish_dist, args.base_url, args.sing_box)
+    export_dns(dedup, staging, publish_dist, args.base_url, args.mihomo, options.final_payloads)
     write_yaml_atomic(publish_dist / "generated" / "mihomo-rules.yaml", final)
     old_dist = args.dist.with_name(f".{args.dist.name}.previous")
     if old_dist.exists():

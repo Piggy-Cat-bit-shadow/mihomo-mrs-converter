@@ -34,10 +34,10 @@ rules:
 对于 `behavior: ipcidr` 的 YAML/text 输入，只有在原始内容明确以 `# IP-ASN: N` 声明且所有非 CIDR 项恰好对应 N 个纯十进制 ASN 时，才会将这些项转入 classical `IP-ASN` companion provider；其他非法项会直接失败，不会静默丢弃或无条件猜测。
 
 带额外修饰符的 IP 规则，例如 `IP-CIDR,1.2.3.0/24,no-resolve`，会完整保留到 classical fallback。
-`format: text` 和 `format: yaml` 会严格按 provider 的 `format` 解析。外部输入的 `format: mrs` 没有可验证的无损 normalized payload，因此多客户端构建会 fail closed，并提示改用 YAML/text 上游；转换器本轮自己生成的 MRS 不受影响。
+`format: text` 和 `format: yaml` 是输入 provider 支持的格式。外部输入的 `format: mrs` 不支持；转换器本轮自己生成的 MRS 仍作为输出发布。
 
 其他 classical 规则类型一律进入 classical fallback。
-`type: file`、inline provider、`path-in-bundle` 和 `format: mrs` 的 classical provider 当前不支持。
+`type: file`、inline provider、`path-in-bundle` 和外部 `format: mrs` provider 当前不支持。
 
 ## 目录
 
@@ -46,7 +46,7 @@ dist/
 ├── domain/
 ├── ipcidr/
 ├── classical/
-├── source/              # 仅在 allow-no-mihomo 模式需要时存在
+├── source/              # YAML/text 输入的规范化源
 └── generated/
     ├── egern-rules.yaml
     └── mihomo-rules.yaml
@@ -102,7 +102,6 @@ python scripts/convert.py examples/my-rules.yaml \
 ```bash
 python scripts/convert.py examples/my-rules.yaml \
   --base-url "https://raw.githubusercontent.com/<owner>/<repo>/main" \
-  --allow-no-mihomo
 ```
 
 此模式下 `domain` / `ipcidr` provider 会引用 `dist/source/domain/*.yaml` 和 `dist/source/ipcidr/*.yaml`，不会生成指向不存在 `.mrs` 的配置。
@@ -122,7 +121,7 @@ python scripts/convert.py examples/my-rules.yaml \
 
 完整配置刷新只替换转换器管理的 `RULE-SET` 区块，不会把 generated 配置里的 `IP-CIDR`、`GEOIP`、`MATCH` 等普通规则再次注入完整配置。普通规则保持原顺序和原出现次数。如果旧 managed `RULE-SET` 不是一个连续区块，刷新会失败，避免猜测插入位置。
 
-默认构建要求零 orphan：每个 `RULE-SET` 必须有 provider，每个生成 provider 必须被 `RULE-SET` 使用，provider `path` 不得重复，指向 `dist/` 的 URL 必须有对应 artifact。只有显式传入 `--allow-orphan-providers` 才允许保留未引用的生成 provider。
+默认构建要求零 orphan：每个 `RULE-SET` 必须有 provider，每个生成 provider 必须被 `RULE-SET` 使用，provider `path` 不得重复，指向 `dist/` 的 URL 必须有对应 artifact。正式构建要求 Mihomo 和 Sing-box 二进制可用。
 
 ## GitHub Actions
 

@@ -1,7 +1,51 @@
 """Unified provider consolidation, canonical naming and final optimization."""
 
-from .pipeline import *  # shared typed rules, artifacts and validation primitives
-from .pipeline import _rewrite_expression, _ruleset_parts_in_expression
+from .core import (
+    Any,
+    BEHAVIOR_ORDER,
+    BuildOptions,
+    Counter,
+    DedupStats,
+    Path,
+    _rewrite_expression,
+    _ruleset_parts_in_expression,
+    canonicalize_dedup_provider_names,
+    consolidate_segment_behavior_providers,
+    convert_source_to_mrs,
+    copy_file,
+    copy_provider_artifacts_to_suite,
+    dedup_domain_payload,
+    dedup_ipcidr_payload,
+    field,
+    find_ruleset_refs,
+    generated_artifact_path,
+    make_merged_provider,
+    make_provider,
+    merge_metadata_compatible,
+    parse_ruleset_reference,
+    provider_path_for_suite,
+    provider_source_dir,
+    public_url,
+    re,
+    read_yaml_payload,
+    reserve_path,
+    reserve_provider_name,
+    rewrite_provider_for_suite,
+    ruleset_parts,
+    ruleset_routing_signature,
+    ruleset_suffix_for_behavior,
+    simple_ruleset_wrapper,
+    source_path_for_provider,
+    split_top_level_commas,
+    strip_balanced_outer_parentheses,
+    validate_generated_config,
+    validate_rule_counts,
+    wrap_ruleset_rule,
+    write_yaml_atomic,
+    write_yaml_payload
+)  # shared typed rules, artifacts and validation primitives
+from .core import _rewrite_expression, _ruleset_parts_in_expression
+from .artifacts import copy_file, public_url, write_yaml_atomic, convert_source_to_mrs
 
 def canonicalize_dedup_provider_names(
     config: dict[str, Any],
@@ -666,4 +710,3 @@ def consolidate_segment_behavior_providers(
         index = next_index
 
     return {**config, "rule-providers": providers, "rules": rewritten_rules}
-

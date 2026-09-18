@@ -1,6 +1,27 @@
 """Independent dns exporter implementation."""
 
-from ..pipeline import *  # shared parser, artifacts and semantic primitives
+from ..core import (
+    Any,
+    Counter,
+    Path,
+    classify_egern_classical,
+    collect_dns_domain_payloads,
+    convert_source_to_mrs,
+    dedup_domain_payload,
+    dedup_exact_rules,
+    egern_segment_name,
+    field,
+    generated_artifact_path,
+    optimize_egern_rule_set,
+    parse_rule,
+    read_yaml_payload,
+    source_path_for_provider,
+    write_yaml_atomic,
+    write_yaml_payload
+)  # shared parser, artifacts and semantic primitives
+
+from ..artifacts import convert_source_to_mrs, generated_artifact_path, read_yaml_payload, write_yaml_atomic, write_yaml_payload
+from .egern import optimize_egern_rule_set
 
 DNS_CLASSICAL_KINDS = {"DOMAIN-KEYWORD", "DOMAIN-WILDCARD", "DOMAIN-REGEX"}
 DNS_DOMAIN_KINDS = {"DOMAIN", "DOMAIN-SUFFIX", "DOMAIN-KEYWORD", "DOMAIN-REGEX", "DOMAIN-WILDCARD"}
@@ -31,7 +52,7 @@ def collect_dns_domain_payloads(
         elif provider.get("behavior") == "classical":
             classical_rules[group].extend(
                 rule for rule in provider_payload if parse_rule(rule).kind in classical_kinds
-            )
+)
     return {
         group: (dedup_domain_payload(domain_rules[group])[0], dedup_exact_rules(classical_rules[group])[0])
         for group in DNS_SEGMENT_GROUPS
@@ -98,5 +119,3 @@ def export_dns(
         print(f"  Mihomo {group}: domain={counts[f'{group}-domain']}, classical-domain={counts[f'{group}-classical']}")
         print(f"  Egern {group}: domain entries={counts[f'{group}-egern']}")
     return dict(counts)
-
-

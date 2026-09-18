@@ -1,6 +1,36 @@
 """Independent egern exporter implementation."""
 
-from ..pipeline import *  # shared parser, artifacts and semantic primitives
+from ..core import (
+    Any,
+    Counter,
+    Path,
+    classify_egern_classical,
+    domain_covered_by_suffix,
+    egern_segment_name,
+    egern_udp_and_ruleset,
+    field,
+    find_ruleset_refs,
+    generated_artifact_path,
+    ipaddress,
+    is_target_ip_kind,
+    network_covered_by_parent,
+    optimize_egern_rule_set,
+    parse_egern_network_rule,
+    parse_egern_sub_rule_members,
+    parse_ip_network,
+    parse_legacy_provider_name,
+    parse_rule,
+    parse_ruleset_reference,
+    public_url,
+    read_yaml_payload,
+    simple_ruleset_wrapper,
+    source_path_for_provider,
+    suffix_covered_by_parent_suffix,
+    validate_provider_name,
+    write_yaml_atomic
+)  # shared parser, artifacts and semantic primitives
+
+from ..artifacts import generated_artifact_path, read_yaml_payload, write_yaml_atomic
 
 EGERN_FIELD_BY_KIND = {
     "DOMAIN": "domain_set",
@@ -282,7 +312,7 @@ def export_egern(
         for field, values in fields.items()
         if field != "no_resolve"
         for _ in values
-    )
+)
     print(f"rule set files: {sum(1 for _ in egern_dir.glob('*.yaml'))}")
     print(f"exact domains: {field_counts['domain_set']}")
     print(f"domain suffixes: {field_counts['domain_suffix_set']}")
@@ -307,5 +337,3 @@ def export_egern(
         print(f"  examples: {', '.join(examples)}")
     print("==========================================")
     return dict(counts)
-
-
