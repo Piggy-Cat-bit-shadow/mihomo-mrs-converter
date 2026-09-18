@@ -39,7 +39,7 @@ except ImportError:  # pragma: no cover - optional runtime fallback
 DOMAIN_RULES = {"DOMAIN", "DOMAIN-SUFFIX"}
 IPCIDR_RULES = {"IP-CIDR", "IP-CIDR6"}
 TARGET_IP_KINDS = {"IP-CIDR", "IP-CIDR6", "IP-ASN", "GEOIP"}
-SUITES = {"unmerged", "merged", "merged-dedup"}
+SUITES = {"stage-input", "stage-merge", "stage-final"}
 FINAL_SUITE = "final"
 MANAGED_STATE_FILENAME = "managed-state.yaml"
 BEHAVIOR_ORDER = {"domain": 0, "classical": 1, "ipcidr": 2}
@@ -647,7 +647,7 @@ def publish_final_config(
         relative = dist_relative_from_url(str(provider.get("url", "")))
         if relative is not None:
             parts = relative.parts
-            if parts and parts[0] == "merged-dedup":
+            if parts and parts[0] == "stage-final":
                 relative = Path(*parts[1:])
             source = work_dist / dist_relative_from_url(str(provider["url"]))
             destination = final_dist / relative

@@ -313,14 +313,14 @@ class DnsExportTest(unittest.TestCase):
             }
             for name, payload in payloads.items():
                 behavior = "domain" if name.endswith("-domain") else "classical"
-                relative = f"merged-dedup/source/domain/{name}.yaml" if behavior == "domain" else f"merged-dedup/classical/{name}.yaml"
+                relative = f"stage-final/source/domain/{name}.yaml" if behavior == "domain" else f"stage-final/classical/{name}.yaml"
                 path = staging / relative
                 path.parent.mkdir(parents=True, exist_ok=True)
                 convert.write_yaml_payload(path, payload)
                 providers[name] = {
                     "behavior": behavior,
                     "url": f"{BASE_URL}/dist/{relative}",
-                    "path": f"./ruleset/merged-dedup/{name}.yaml",
+                    "path": f"./ruleset/stage-final/{name}.yaml",
                 }
             config = {"rule-providers": providers, "rules": []}
 
@@ -350,9 +350,9 @@ class DnsExportTest(unittest.TestCase):
             providers = {}
             for segment in ("Direct", "China", "AI", "Global"):
                 name = f"{segment}-domain"
-                path = staging / "merged-dedup/source/domain" / f"{name}.yaml"
+                path = staging / "stage-final/source/domain" / f"{name}.yaml"
                 convert.write_yaml_payload(path, [f"{segment.lower()}.example"])
-                providers[name] = {"behavior": "domain", "url": f"{BASE_URL}/dist/merged-dedup/source/domain/{name}.yaml"}
+                providers[name] = {"behavior": "domain", "url": f"{BASE_URL}/dist/stage-final/source/domain/{name}.yaml"}
             config = {"rule-providers": providers, "rules": []}
             with patch.object(convert, "convert_source_to_mrs", side_effect=lambda _m, _b, s, d: (d.parent.mkdir(parents=True, exist_ok=True), d.write_bytes(s.read_bytes()))):
                 convert.export_dns(config, staging, output, BASE_URL, "mihomo")
@@ -701,10 +701,10 @@ class ProviderConversionTest(ConvertTestCase):
                 ],
             )
             first_payload = yaml.safe_load(
-                (dist / "merged/source/domain/merged-segment-01-domain.yaml").read_text()
+                (dist / "stage-merge/source/domain/merged-segment-01-domain.yaml").read_text()
             )["payload"]
             second_payload = yaml.safe_load(
-                (dist / "merged/source/domain/merged-segment-02-domain.yaml").read_text()
+                (dist / "stage-merge/source/domain/merged-segment-02-domain.yaml").read_text()
             )["payload"]
             self.assertEqual(first_payload, ["a.example", "b.example"])
             self.assertEqual(second_payload, ["c.example", "d.example"])
@@ -827,7 +827,7 @@ class SafeDedupTest(ConvertTestCase):
     def test_dedup_config_keeps_classical_provider_payload_unchanged(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             dist = Path(tmp)
-            classical_path = dist / "merged/classical/sample.yaml"
+            classical_path = dist / "stage-merge/classical/sample.yaml"
             convert.write_yaml_payload(classical_path, ["DOMAIN-SUFFIX,example.com", "PROCESS-NAME,App"])
             config = {
                 "rule-providers": {
@@ -835,8 +835,8 @@ class SafeDedupTest(ConvertTestCase):
                         "type": "http",
                         "behavior": "classical",
                         "format": "yaml",
-                        "url": f"{BASE_URL}/dist/merged/classical/sample.yaml",
-                        "path": "./ruleset/merged/sample-classical.yaml",
+                        "url": f"{BASE_URL}/dist/stage-merge/classical/sample.yaml",
+                        "path": "./ruleset/stage-merge/sample-classical.yaml",
                     }
                 },
                 "rules": ["RULE-SET,sample-classical,Proxy"],
@@ -847,11 +847,11 @@ class SafeDedupTest(ConvertTestCase):
             self.assertEqual(stats, {})
             self.assertEqual(
                 dedup["rule-providers"]["merged-segment-01-classical"]["path"],
-                "./ruleset/merged-dedup/merged-segment-01-classical.yaml",
+                "./ruleset/stage-final/merged-segment-01-classical.yaml",
             )
             self.assertNotIn("sample-classical", dedup["rule-providers"])
             self.assertEqual(
-                yaml.safe_load((dist / "merged-dedup/classical/merged-segment-01-classical.yaml").read_text()),
+                yaml.safe_load((dist / "stage-final/classical/merged-segment-01-classical.yaml").read_text()),
                 {"payload": ["DOMAIN-SUFFIX,example.com", "PROCESS-NAME,App"]},
             )
 
@@ -877,16 +877,16 @@ class SuiteStatsTest(unittest.TestCase):
 class SegmentBehaviorConsolidationTest(ConvertTestCase):
     def provider(self, dist: Path, name: str, behavior: str, payload: list[str], **metadata: object) -> dict[str, object]:
         if behavior == "classical":
-            relative = Path("merged-dedup/classical") / f"{name}.yaml"
+            relative = Path("stage-final/classical") / f"{name}.yaml"
         else:
-            relative = Path("merged-dedup/source") / ("ipcidr" if behavior == "ipcidr" else "domain") / f"{name}.yaml"
+            relative = Path("stage-final/source") / ("ipcidr" if behavior == "ipcidr" else "domain") / f"{name}.yaml"
         convert.write_yaml_payload(dist / relative, payload)
         provider = {
             "type": "http",
             "behavior": behavior,
             "format": "yaml",
             "url": f"{BASE_URL}/dist/{relative.as_posix()}",
-            "path": f"./ruleset/merged-dedup/{name}.yaml",
+            "path": f"./ruleset/stage-final/{name}.yaml",
         }
         provider.update(metadata)
         return provider
@@ -906,7 +906,7 @@ class SegmentBehaviorConsolidationTest(ConvertTestCase):
             result = self.consolidate(["RULE-SET,A-ip,Proxy", "RULE-SET,B-ip,Proxy"], providers, dist)
             self.assertEqual(result["rules"], ["RULE-SET,A-ip,Proxy"])
             self.assertEqual(
-                yaml.safe_load((dist / "merged-dedup/source/ipcidr/A-ip.yaml").read_text())["payload"],
+                yaml.safe_load((dist / "stage-final/source/ipcidr/A-ip.yaml").read_text())["payload"],
                 ["10.0.0.0/8", "192.168.0.0/16"],
             )
             self.assertEqual(list(result["rule-providers"]), ["A-ip"])
@@ -921,7 +921,7 @@ class SegmentBehaviorConsolidationTest(ConvertTestCase):
             result = self.consolidate(["RULE-SET,A-classical,Proxy", "RULE-SET,B-classical,Proxy"], providers, dist)
             self.assertEqual(result["rules"], ["RULE-SET,A-classical,Proxy"])
             self.assertEqual(
-                yaml.safe_load((dist / "merged-dedup/classical/A-classical.yaml").read_text())["payload"],
+                yaml.safe_load((dist / "stage-final/classical/A-classical.yaml").read_text())["payload"],
                 ["DOMAIN-KEYWORD,a", "IP-ASN,123", "DOMAIN-KEYWORD,b", "PROCESS-NAME,foo"],
             )
 
@@ -952,15 +952,15 @@ class SegmentNameMappingTest(ConvertTestCase):
     def test_mapping_renames_provider_artifact_and_nested_rules(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             dist = Path(tmp)
-            artifact = dist / "merged-dedup" / "domain" / "merged-segment-02-domain.mrs"
+            artifact = dist / "stage-final" / "domain" / "merged-segment-02-domain.mrs"
             artifact.parent.mkdir(parents=True)
             artifact.write_bytes(b"mrs")
             config = {
                 "rule-providers": {
                     "merged-segment-02-domain": {
                         "behavior": "domain", "format": "mrs",
-                        "url": f"{BASE_URL}/dist/merged-dedup/domain/merged-segment-02-domain.mrs",
-                        "path": "./ruleset/merged-dedup/merged-segment-02-domain.mrs",
+                        "url": f"{BASE_URL}/dist/stage-final/domain/merged-segment-02-domain.mrs",
+                        "path": "./ruleset/stage-final/merged-segment-02-domain.mrs",
                     }
                 },
                 "rules": ["SUB-RULE,(RULE-SET,merged-segment-02-domain),Proxy"],
@@ -971,7 +971,7 @@ class SegmentNameMappingTest(ConvertTestCase):
             self.assertIn("AI-domain", result["rule-providers"])
             self.assertNotIn("merged-segment-02-domain", result["rule-providers"])
             self.assertIn("RULE-SET,AI-domain", result["rules"][0])
-            self.assertTrue((dist / "merged-dedup/domain/AI-domain.mrs").exists())
+            self.assertTrue((dist / "stage-final/domain/AI-domain.mrs").exists())
 
     def test_mapping_rejects_duplicate_and_invalid_names(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1191,9 +1191,9 @@ class EgernExporterTest(unittest.TestCase):
     def test_sub_rules_are_preserved_as_a_top_level_field(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             config = {"rule-providers": {}, "sub-rules": {"Foo": ["NETWORK,UDP,Proxy"]}, "rules": []}
-            output = convert.materialize_suite_config(config, "unmerged", Path(tmp), BASE_URL)
+            output = convert.materialize_suite_config(config, "stage-merge", Path(tmp), BASE_URL)
             self.assertEqual(output["sub-rules"], config["sub-rules"])
-            self.assertEqual(yaml.safe_load((Path(tmp) / "unmerged/generated/mihomo-rules.yaml").read_text())["sub-rules"], config["sub-rules"])
+            self.assertEqual(yaml.safe_load((Path(tmp) / "stage-merge/generated/mihomo-rules.yaml").read_text())["sub-rules"], config["sub-rules"])
 
 
 class EgernRuleSetOptimizationTest(unittest.TestCase):
@@ -1251,13 +1251,13 @@ class EgernRuleSetOptimizationTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             staging = Path(tmp) / "staging"
             output = Path(tmp) / "output"
-            convert.write_yaml_payload(staging / "merged-dedup/source/domain/AI-domain.yaml", ["example.com", "+.google.com"])
-            convert.write_yaml_payload(staging / "merged-dedup/source/ipcidr/AI-ip.yaml", ["1.2.3.0/24", "2001:db8::/32"])
-            convert.write_yaml_payload(staging / "merged-dedup/classical/AI-classical.yaml", ["DOMAIN-KEYWORD,chat", "DOMAIN-REGEX,^foo.*$", "DOMAIN-WILDCARD,clients*.google.com", "IP-ASN,132203", "NETWORK,udp", "DST-PORT,443", "IP-CIDR,10.0.0.0/8,no-resolve"])
+            convert.write_yaml_payload(staging / "stage-final/source/domain/AI-domain.yaml", ["example.com", "+.google.com"])
+            convert.write_yaml_payload(staging / "stage-final/source/ipcidr/AI-ip.yaml", ["1.2.3.0/24", "2001:db8::/32"])
+            convert.write_yaml_payload(staging / "stage-final/classical/AI-classical.yaml", ["DOMAIN-KEYWORD,chat", "DOMAIN-REGEX,^foo.*$", "DOMAIN-WILDCARD,clients*.google.com", "IP-ASN,132203", "NETWORK,udp", "DST-PORT,443", "IP-CIDR,10.0.0.0/8,no-resolve"])
             config = {"rule-providers": {
-                "AI-domain": {"behavior": "domain", "format": "mrs", "url": f"{BASE_URL}/dist/merged-dedup/domain/AI-domain.mrs"},
-                "AI-ip": {"behavior": "ipcidr", "format": "mrs", "url": f"{BASE_URL}/dist/merged-dedup/ipcidr/AI-ip.mrs"},
-                "AI-classical": {"behavior": "classical", "format": "yaml", "url": f"{BASE_URL}/dist/merged-dedup/classical/AI-classical.yaml"},
+                "AI-domain": {"behavior": "domain", "format": "mrs", "url": f"{BASE_URL}/dist/stage-final/domain/AI-domain.mrs"},
+                "AI-ip": {"behavior": "ipcidr", "format": "mrs", "url": f"{BASE_URL}/dist/stage-final/ipcidr/AI-ip.mrs"},
+                "AI-classical": {"behavior": "classical", "format": "yaml", "url": f"{BASE_URL}/dist/stage-final/classical/AI-classical.yaml"},
             }, "rules": ["RULE-SET,AI-domain,Proxy", "SUB-RULE,(RULE-SET,AI-ip),Proxy", "RULE-SET,AI-classical,Proxy", "MATCH,DIRECT"]}
             convert.export_egern(config, staging, output, BASE_URL)
             data = yaml.safe_load((output / "egern/AI.yaml").read_text())
@@ -1376,29 +1376,29 @@ class CompleteConfigRefreshTest(unittest.TestCase):
                     "type": "http",
                     "behavior": "classical",
                     "format": "yaml",
-                    "url": f"{BASE_URL}/dist/merged-dedup/classical/xxx.yaml",
-                    "path": "./ruleset/merged-dedup/xxx-classical.yaml",
+                    "url": f"{BASE_URL}/dist/stage-final/classical/xxx.yaml",
+                    "path": "./ruleset/stage-final/xxx-classical.yaml",
                 },
                 "merged-segment-06-domain": {
                     "type": "http",
                     "behavior": "domain",
                     "format": "mrs",
-                    "url": f"{BASE_URL}/dist/merged-dedup/domain/merged-segment-06-domain.mrs",
-                    "path": "./ruleset/merged-dedup/merged-segment-06-domain.mrs",
+                    "url": f"{BASE_URL}/dist/stage-final/domain/merged-segment-06-domain.mrs",
+                    "path": "./ruleset/stage-final/merged-segment-06-domain.mrs",
                 },
                 "merged-segment-07-domain": {
                     "type": "http",
                     "behavior": "domain",
                     "format": "mrs",
-                    "url": f"{BASE_URL}/dist/merged-dedup/domain/merged-segment-07-domain.mrs",
-                    "path": "./ruleset/merged-dedup/merged-segment-07-domain.mrs",
+                    "url": f"{BASE_URL}/dist/stage-final/domain/merged-segment-07-domain.mrs",
+                    "path": "./ruleset/stage-final/merged-segment-07-domain.mrs",
                 },
                 "merged-segment-07-ip": {
                     "type": "http",
                     "behavior": "ipcidr",
                     "format": "mrs",
-                    "url": f"{BASE_URL}/dist/merged-dedup/ipcidr/merged-segment-07-ip.mrs",
-                    "path": "./ruleset/merged-dedup/merged-segment-07-ip.mrs",
+                    "url": f"{BASE_URL}/dist/stage-final/ipcidr/merged-segment-07-ip.mrs",
+                    "path": "./ruleset/stage-final/merged-segment-07-ip.mrs",
                 },
             },
             "rules": [
@@ -1417,8 +1417,8 @@ class CompleteConfigRefreshTest(unittest.TestCase):
                     "type": "http",
                     "behavior": "domain",
                     "format": "mrs",
-                    "url": f"{BASE_URL}/dist/merged-dedup/domain/merged-segment-06-domain.mrs",
-                    "path": "./ruleset/merged-dedup/merged-segment-06-domain.mrs",
+                    "url": f"{BASE_URL}/dist/stage-final/domain/merged-segment-06-domain.mrs",
+                    "path": "./ruleset/stage-final/merged-segment-06-domain.mrs",
                 }
             },
             "rules": ["RULE-SET,merged-segment-06-domain,DIRECT"],
@@ -1429,7 +1429,7 @@ class CompleteConfigRefreshTest(unittest.TestCase):
             for name, provider in complete["rule-providers"].items()
             if name != "custom-provider"
         }
-        manifest = convert.build_managed_manifest("merged-dedup", BASE_URL, old_managed)
+        manifest = convert.build_managed_manifest("stage-final", BASE_URL, old_managed)
 
         refreshed = convert.refresh_complete_config(
             complete,
@@ -1461,8 +1461,8 @@ class CompleteConfigRefreshTest(unittest.TestCase):
                     "type": "http",
                     "behavior": "domain",
                     "format": "mrs",
-                    "url": f"{BASE_URL}/dist/merged-dedup/domain/old-managed.mrs",
-                    "path": "./ruleset/merged-dedup/old-managed.mrs",
+                    "url": f"{BASE_URL}/dist/stage-final/domain/old-managed.mrs",
+                    "path": "./ruleset/stage-final/old-managed.mrs",
                 }
             },
             "rules": [
@@ -1478,8 +1478,8 @@ class CompleteConfigRefreshTest(unittest.TestCase):
                     "type": "http",
                     "behavior": "domain",
                     "format": "mrs",
-                    "url": f"{BASE_URL}/dist/merged-dedup/domain/new-managed.mrs",
-                    "path": "./ruleset/merged-dedup/new-managed.mrs",
+                    "url": f"{BASE_URL}/dist/stage-final/domain/new-managed.mrs",
+                    "path": "./ruleset/stage-final/new-managed.mrs",
                 }
             },
             "rules": [
@@ -1490,7 +1490,7 @@ class CompleteConfigRefreshTest(unittest.TestCase):
             ],
         }
         manifest = convert.build_managed_manifest(
-            "merged-dedup",
+            "stage-final",
             BASE_URL,
             {"old-managed": complete["rule-providers"]["old-managed"]},
         )
@@ -1521,14 +1521,14 @@ class CompleteConfigRefreshTest(unittest.TestCase):
                     "behavior": "domain",
                     "format": "mrs",
                     "url": "https://example.com/custom-path.mrs",
-                    "path": "./ruleset/merged-dedup/custom-path.mrs",
+                    "path": "./ruleset/stage-final/custom-path.mrs",
                 },
                 "old-managed": {
                     "type": "http",
                     "behavior": "domain",
                     "format": "mrs",
-                    "url": f"{BASE_URL}/dist/merged-dedup/domain/old-managed.mrs",
-                    "path": "./ruleset/merged-dedup/old-managed.mrs",
+                    "url": f"{BASE_URL}/dist/stage-final/domain/old-managed.mrs",
+                    "path": "./ruleset/stage-final/old-managed.mrs",
                 },
             },
             "rules": [
@@ -1543,14 +1543,14 @@ class CompleteConfigRefreshTest(unittest.TestCase):
                     "type": "http",
                     "behavior": "domain",
                     "format": "mrs",
-                    "url": f"{BASE_URL}/dist/merged-dedup/domain/new-managed.mrs",
-                    "path": "./ruleset/merged-dedup/new-managed.mrs",
+                    "url": f"{BASE_URL}/dist/stage-final/domain/new-managed.mrs",
+                    "path": "./ruleset/stage-final/new-managed.mrs",
                 }
             },
             "rules": ["RULE-SET,new-managed,Proxy"],
         }
         manifest = convert.build_managed_manifest(
-            "merged-dedup",
+            "stage-final",
             BASE_URL,
             {"old-managed": complete["rule-providers"]["old-managed"]},
         )
@@ -1575,14 +1575,14 @@ class CompleteConfigRefreshTest(unittest.TestCase):
                     "behavior": "domain",
                     "format": "mrs",
                     "url": "https://example.com/custom-path.mrs",
-                    "path": "./ruleset/merged-dedup/custom-path.mrs",
+                    "path": "./ruleset/stage-final/custom-path.mrs",
                 },
                 "old-managed": {
                     "type": "http",
                     "behavior": "domain",
                     "format": "mrs",
-                    "url": f"{BASE_URL}/dist/merged-dedup/domain/old-managed.mrs",
-                    "path": "./ruleset/merged-dedup/old-managed.mrs",
+                    "url": f"{BASE_URL}/dist/stage-final/domain/old-managed.mrs",
+                    "path": "./ruleset/stage-final/old-managed.mrs",
                 },
             },
             "rules": ["RULE-SET,old-managed,Proxy", "RULE-SET,custom-path,Proxy"],
@@ -1593,8 +1593,8 @@ class CompleteConfigRefreshTest(unittest.TestCase):
                     "type": "http",
                     "behavior": "domain",
                     "format": "mrs",
-                    "url": f"{BASE_URL}/dist/merged-dedup/domain/new-managed.mrs",
-                    "path": "./ruleset/merged-dedup/new-managed.mrs",
+                    "url": f"{BASE_URL}/dist/stage-final/domain/new-managed.mrs",
+                    "path": "./ruleset/stage-final/new-managed.mrs",
                 }
             },
             "rules": ["RULE-SET,new-managed,Proxy"],
@@ -1625,8 +1625,8 @@ class CompleteConfigRefreshTest(unittest.TestCase):
                     "type": "http",
                     "behavior": "domain",
                     "format": "mrs",
-                    "url": f"{BASE_URL}/dist/merged-dedup/domain/old-managed.mrs",
-                    "path": "./ruleset/merged-dedup/old-managed.mrs",
+                    "url": f"{BASE_URL}/dist/stage-final/domain/old-managed.mrs",
+                    "path": "./ruleset/stage-final/old-managed.mrs",
                 },
             },
             "rules": ["RULE-SET,old-managed,Proxy", "RULE-SET,new-managed,Proxy"],
@@ -1637,14 +1637,14 @@ class CompleteConfigRefreshTest(unittest.TestCase):
                     "type": "http",
                     "behavior": "domain",
                     "format": "mrs",
-                    "url": f"{BASE_URL}/dist/merged-dedup/domain/new-managed.mrs",
-                    "path": "./ruleset/merged-dedup/new-managed.mrs",
+                    "url": f"{BASE_URL}/dist/stage-final/domain/new-managed.mrs",
+                    "path": "./ruleset/stage-final/new-managed.mrs",
                 }
             },
             "rules": ["RULE-SET,new-managed,Proxy"],
         }
         manifest = convert.build_managed_manifest(
-            "merged-dedup",
+            "stage-final",
             BASE_URL,
             {"old-managed": complete["rule-providers"]["old-managed"]},
         )
@@ -1703,7 +1703,7 @@ class CompleteConfigRefreshTest(unittest.TestCase):
                         "behavior": "domain",
                         "format": "mrs",
                         "url": "https://raw.githubusercontent.com/other/repo/main/dist/domain/custom.mrs",
-                        "path": "./ruleset/merged-dedup/custom.mrs",
+                        "path": "./ruleset/stage-final/custom.mrs",
                     },
                 },
                 "rules": [
@@ -1793,16 +1793,16 @@ class CompleteConfigRefreshTest(unittest.TestCase):
                 "type": "http",
                 "behavior": "domain",
                 "format": "mrs",
-                "url": f"{BASE_URL}/dist/merged-dedup/domain/old-managed.mrs",
-                "path": "./ruleset/merged-dedup/old-managed.mrs",
+                "url": f"{BASE_URL}/dist/stage-final/domain/old-managed.mrs",
+                "path": "./ruleset/stage-final/old-managed.mrs",
             }
         }
-        manifest = convert.build_managed_manifest("merged-dedup", BASE_URL, old_managed)
+        manifest = convert.build_managed_manifest("stage-final", BASE_URL, old_managed)
         complete = {
             "rule-providers": {
                 "old-managed": {
                     **old_managed["old-managed"],
-                    "url": f"{BASE_URL}/dist/merged-dedup/domain/hand-edited.mrs",
+                    "url": f"{BASE_URL}/dist/stage-final/domain/hand-edited.mrs",
                 }
             },
             "rules": ["RULE-SET,old-managed,Proxy"],

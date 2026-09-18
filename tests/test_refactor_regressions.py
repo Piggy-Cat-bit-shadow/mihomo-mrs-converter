@@ -25,7 +25,7 @@ class RefactorRegressionTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "input.yaml"
             path.write_text(yaml.safe_dump({"rule-providers": {}, "rules": []}))
-            with patch.object(sys, "argv", ["convert.py", str(path), "--base-url", "https://example.invalid", "--complete-suite", "merged-dedup"]):
+            with patch.object(sys, "argv", ["convert.py", str(path), "--base-url", "https://example.invalid", "--complete-suite", "stage-final"]):
                 with self.assertRaises(SystemExit) as error:
                     cli_main()
             self.assertEqual(error.exception.code, 2)

@@ -144,7 +144,7 @@ def main() -> None:
     validate_generated_config(staging, merged, require_no_orphans=require_no_orphans)
     merged_suite = materialize_suite_config(
         merged,
-        "merged",
+        "stage-merge",
         staging,
         args.base_url,
         require_no_orphans=require_no_orphans,

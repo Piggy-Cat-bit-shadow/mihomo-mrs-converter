@@ -51,8 +51,8 @@ def canonicalize_dedup_provider_names(
     config: dict[str, Any],
     options: BuildOptions,
 ) -> tuple[dict[str, Any], dict[str, str]]:
-    """Give all providers in each merged-dedup logical rule block one segment ID."""
-    suite = "merged-dedup"
+    """Give all providers in each stage-final logical rule block one segment ID."""
+    suite = "stage-final"
     suite_root = options.dist / suite
     providers = config["rule-providers"]
     provider_segments: dict[str, tuple[int, str, int]] = {}
@@ -195,7 +195,7 @@ def apply_segment_name_mapping(
     """Rename canonical segments only after merge/dedup has completed."""
     if not mapping:
         return config
-    suite = "merged-dedup"
+    suite = "stage-final"
     suite_root = options.dist / suite
     renames: dict[str, str] = {}
     for old_name in config["rule-providers"]:
@@ -250,7 +250,7 @@ def build_dedup_config(
     options: BuildOptions,
     require_no_orphans: bool = True,
 ) -> tuple[dict[str, Any], dict[str, DedupStats]]:
-    suite = "merged-dedup"
+    suite = "stage-final"
     suite_root = options.dist / suite
     dedup_providers: dict[str, dict[str, Any]] = {}
     stats_by_provider: dict[str, DedupStats] = {}
@@ -389,17 +389,17 @@ def write_merged_ruleset(
     validate_rule_counts(merged_name, expected, Counter(payload))
 
     source_dir = "ipcidr" if behavior == "ipcidr" else "domain"
-    source_path = options.dist / "merged" / "source" / source_dir / f"{merged_name}.yaml"
+    source_path = options.dist / "stage-merge" / "source" / source_dir / f"{merged_name}.yaml"
     write_yaml_payload(source_path, payload)
     if options.mihomo:
-        mrs_path = options.dist / "merged" / source_dir / f"{merged_name}.mrs"
+        mrs_path = options.dist / "stage-merge" / source_dir / f"{merged_name}.mrs"
         convert_source_to_mrs(options.mihomo, behavior, source_path, mrs_path)
         fmt = "mrs"
-        url = public_url(options.base_url, "dist/merged", source_dir, f"{merged_name}.mrs")
+        url = public_url(options.base_url, "dist/stage-merge", source_dir, f"{merged_name}.mrs")
         path = f"./ruleset/{merged_name}.mrs"
     else:
         fmt = "yaml"
-        url = public_url(options.base_url, "dist/merged/source", source_dir, f"{merged_name}.yaml")
+        url = public_url(options.base_url, "dist/stage-merge/source", source_dir, f"{merged_name}.yaml")
         path = f"./ruleset/{merged_name}.yaml"
     reserve_path(path, used_paths)
     provider = make_merged_provider(behavior, fmt, url, path, source_providers)
@@ -570,7 +570,7 @@ def consolidate_segment_behavior_providers(
     signature, so this cannot cross a real priority barrier.  The first
     provider remains the stable identity and receives the union payload.
     """
-    suite = "merged-dedup"
+    suite = "stage-final"
     providers = dict(config["rule-providers"])
     rules = list(config["rules"])
     replacements: dict[str, str] = {}
