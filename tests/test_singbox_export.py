@@ -110,7 +110,7 @@ class SingBoxExportTest(unittest.TestCase):
             self.assertEqual(urlopen.call_count, 1)
             self.assertEqual((cache / asset["name"]).read_bytes(), payload)
 
-    def test_asn_index_hit_and_corruption_rebuild(self):
+    def test_sparse_v2_index_hit_and_corruption_rebuild(self):
         payload = b"network,autonomous_system_number\n192.0.2.0/24,64512\n2001:db8::/32,64512\n"
         asset = {"name": "GeoLite2-ASN-Blocks-IPv4.csv", "url": "https://github.com/example/asset", "sha256": hashlib.sha256(payload).hexdigest()}
         with tempfile.TemporaryDirectory() as tmp:
@@ -119,7 +119,7 @@ class SingBoxExportTest(unittest.TestCase):
             with patch.dict(os.environ, {"GEOLITE2_CACHE_DIR": str(cache_root)}), patch("converter.exporters.singbox.GEOLITE2_RELEASE", "release"), patch("converter.exporters.singbox.GEOLITE2_ASSETS", (asset,)), patch("converter.exporters.singbox.urllib.request.urlopen", return_value=Response(payload)) as urlopen:
                 self.assertEqual(_default_asn_resolver({"64512"})["64512"], ["192.0.2.0/24", "2001:db8::/32"])
                 self.assertEqual(urlopen.call_count, 1)
-                index = cache / "asn-index-v1.json"
+                index = cache / "asn-index-v2.json"
                 self.assertTrue(index.exists())
                 index.write_text("{invalid json", encoding="utf-8")
                 self.assertEqual(_default_asn_resolver({"64512"})["64512"], ["192.0.2.0/24", "2001:db8::/32"])
@@ -127,6 +127,75 @@ class SingBoxExportTest(unittest.TestCase):
                 self.assertTrue(index.exists())
 
             self.assertTrue(cache.exists())
+
+    def test_sparse_cache_full_hit_does_not_open_raw_assets(self):
+        payload = b"network,autonomous_system_number\n192.0.2.0/24,100\n"
+        asset = {"name": "GeoLite2-ASN-Blocks-IPv4.csv", "url": "https://github.com/example/asset", "sha256": hashlib.sha256(payload).hexdigest()}
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = Path(tmp) / "geolite2" / "release"
+            cache.mkdir(parents=True)
+            (cache / "asn-index-v2.json").write_text(json.dumps({
+                "version": 2, "release": "release", "assets": {asset["name"]: asset["sha256"]},
+                "asns": {"100": ["192.0.2.0/24"]},
+            }), encoding="utf-8")
+            with patch.dict(os.environ, {"GEOLITE2_CACHE_DIR": str(Path(tmp) / "geolite2")}), patch("converter.exporters.singbox.GEOLITE2_RELEASE", "release"), patch("converter.exporters.singbox.GEOLITE2_ASSETS", (asset,)), patch("converter.exporters.singbox.urllib.request.urlopen", side_effect=AssertionError("raw asset must not open")):
+                self.assertEqual(_default_asn_resolver({"100"}), {"100": ["192.0.2.0/24"]})
+
+    def test_sparse_cache_partial_hit_scans_only_missing_asn_and_merges(self):
+        payload = b"network,autonomous_system_number\n192.0.2.0/24,100\n198.51.100.0/24,200\n"
+        asset = {"name": "GeoLite2-ASN-Blocks-IPv4.csv", "url": "https://github.com/example/asset", "sha256": hashlib.sha256(payload).hexdigest()}
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = Path(tmp) / "geolite2" / "release"
+            cache.mkdir(parents=True)
+            (cache / "asn-index-v2.json").write_text(json.dumps({
+                "version": 2, "release": "release", "assets": {asset["name"]: asset["sha256"]},
+                "asns": {"100": ["192.0.2.0/24"]},
+            }), encoding="utf-8")
+            with patch.dict(os.environ, {"GEOLITE2_CACHE_DIR": str(Path(tmp) / "geolite2")}), patch("converter.exporters.singbox.GEOLITE2_RELEASE", "release"), patch("converter.exporters.singbox.GEOLITE2_ASSETS", (asset,)), patch("converter.exporters.singbox.urllib.request.urlopen", return_value=Response(payload)):
+                self.assertEqual(_default_asn_resolver({"100", "200"}), {
+                    "100": ["192.0.2.0/24"], "200": ["198.51.100.0/24"],
+                })
+            saved = json.loads((cache / "asn-index-v2.json").read_text(encoding="utf-8"))
+            self.assertEqual(list(saved["asns"]), ["100", "200"])
+
+    def test_sparse_cache_requested_invalid_entry_is_repaired_but_unused_invalid_is_ignored(self):
+        payload = b"network,autonomous_system_number\n192.0.2.0/24,100\n"
+        asset = {"name": "GeoLite2-ASN-Blocks-IPv4.csv", "url": "https://github.com/example/asset", "sha256": hashlib.sha256(payload).hexdigest()}
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = Path(tmp) / "geolite2" / "release"
+            cache.mkdir(parents=True)
+            index = cache / "asn-index-v2.json"
+            index.write_text(json.dumps({
+                "version": 2, "release": "release", "assets": {asset["name"]: asset["sha256"]},
+                "asns": {"100": ["not-a-cidr"], "999": ["also-not-a-cidr"]},
+            }), encoding="utf-8")
+            with patch.dict(os.environ, {"GEOLITE2_CACHE_DIR": str(Path(tmp) / "geolite2")}), patch("converter.exporters.singbox.GEOLITE2_RELEASE", "release"), patch("converter.exporters.singbox.GEOLITE2_ASSETS", (asset,)), patch("converter.exporters.singbox.urllib.request.urlopen", return_value=Response(payload)):
+                self.assertEqual(_default_asn_resolver({"100"}), {"100": ["192.0.2.0/24"]})
+            saved = json.loads(index.read_text(encoding="utf-8"))
+            self.assertEqual(saved["asns"]["100"], ["192.0.2.0/24"])
+            self.assertEqual(saved["asns"]["999"], ["also-not-a-cidr"])
+
+    def test_v1_index_is_ignored_and_removed_after_v2_write(self):
+        payload = b"network,autonomous_system_number\n192.0.2.0/24,100\n"
+        asset = {"name": "GeoLite2-ASN-Blocks-IPv4.csv", "url": "https://github.com/example/asset", "sha256": hashlib.sha256(payload).hexdigest()}
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = Path(tmp) / "geolite2" / "release"
+            cache.mkdir(parents=True)
+            legacy = cache / "asn-index-v1.json"
+            legacy.write_text("not loaded", encoding="utf-8")
+            with patch.dict(os.environ, {"GEOLITE2_CACHE_DIR": str(Path(tmp) / "geolite2")}), patch("converter.exporters.singbox.GEOLITE2_RELEASE", "release"), patch("converter.exporters.singbox.GEOLITE2_ASSETS", (asset,)), patch("converter.exporters.singbox.urllib.request.urlopen", return_value=Response(payload)):
+                self.assertEqual(_default_asn_resolver({"100"}), {"100": ["192.0.2.0/24"]})
+            self.assertFalse(legacy.exists())
+            self.assertTrue((cache / "asn-index-v2.json").exists())
+
+    def test_only_requested_rows_are_normalized(self):
+        rows = [f"192.0.2.{index % 256}/32,other" for index in range(1000)]
+        rows += ["198.51.100.0/24,100", "2001:db8::/32,100"]
+        payload = ("network,autonomous_system_number\n" + "\n".join(rows) + "\n").encode()
+        asset = {"name": "GeoLite2-ASN-Blocks-IPv4.csv", "url": "https://github.com/example/asset", "sha256": hashlib.sha256(payload).hexdigest()}
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, {"GEOLITE2_CACHE_DIR": str(Path(tmp) / "geolite2")}), patch("converter.exporters.singbox.GEOLITE2_RELEASE", "release"), patch("converter.exporters.singbox.GEOLITE2_ASSETS", (asset,)), patch("converter.exporters.singbox.urllib.request.urlopen", return_value=Response(payload)), patch("converter.exporters.singbox.ipaddress.ip_network", wraps=__import__("ipaddress").ip_network) as ip_network:
+            self.assertEqual(_default_asn_resolver({"100"})["100"], ["198.51.100.0/24", "2001:db8::/32"])
+        self.assertEqual(ip_network.call_count, 2)
 
     def test_github_api_without_token_is_anonymous(self):
         captured = []

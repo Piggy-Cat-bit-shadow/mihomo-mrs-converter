@@ -189,7 +189,8 @@ def build(config: BuildConfig) -> BuildResult:
     for label in (
         "Sing-box group discovery", "Sing-box matcher conversion", "Sing-box ASN discovery",
         "Sing-box ASN cache/index lookup", "Sing-box ASN payload expansion", "Sing-box ASN index load",
-        "Sing-box ASN index write",
+        "Sing-box ASN cache file read", "Sing-box ASN cache JSON parse",
+        "Sing-box ASN requested-entry validation", "Sing-box ASN cache write",
         "Sing-box aggregation", "Sing-box route generation", "Sing-box source JSON write",
         "Sing-box compile", "Sing-box decompile", "Sing-box decoded JSON parse",
         "Sing-box semantic equivalence", "Sing-box representative probes",
@@ -198,7 +199,7 @@ def build(config: BuildConfig) -> BuildResult:
         print(f"{label + ':':<36}{timing.phases.get(label, 0.0):>8.2f}s")
     for label in sorted(name for name in timing.phases if name.startswith("Sing-box artifact ")):
         print(f"{label + ':':<36}{timing.phases[label]:>8.2f}s")
-    for label in sorted(name for name in timing.phases if name.startswith("Sing-box ASN asset ") or name.startswith("Sing-box ASN checksum ") or name.startswith("Sing-box ASN CSV ")):
+    for label in sorted(name for name in timing.phases if name.startswith("Sing-box ASN asset ") or name.startswith("Sing-box ASN checksum ") or name.startswith("Sing-box ASN CSV ") or name == "Sing-box ASN matched CIDR parse"):
         print(f"{label + ':':<60}{timing.phases[label]:>8.2f}s")
     for label, value in timing.notes.items():
         print(f"{label + ':':<36}{value}")
