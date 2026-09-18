@@ -22,6 +22,7 @@ class BuildTiming:
     phases: dict[str, float] = field(default_factory=dict)
     skipped: set[str] = field(default_factory=set)
     external: dict[str, ExternalTiming] = field(default_factory=dict)
+    notes: dict[str, str] = field(default_factory=dict)
 
     @contextmanager
     def phase(self, name: str) -> Iterator[None]:

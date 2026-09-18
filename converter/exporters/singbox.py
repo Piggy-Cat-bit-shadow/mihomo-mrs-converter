@@ -10,12 +10,12 @@ import csv
 import hashlib
 import io
 import json
+import os
 import re
 import shutil
 import ssl
 import subprocess
 import tempfile
-import os
 import time
 from contextlib import nullcontext
 import urllib.error
@@ -39,6 +39,10 @@ from ..timing import current_timing, observe_external
 
 class SingBoxExportError(RuntimeError):
     pass
+
+
+ASN_INDEX_VERSION = 1
+ASN_INDEX_FILENAME = "asn-index-v1.json"
 
 
 def _timed(name: str):
@@ -208,6 +212,7 @@ def _matcher(kind: str, value: str, context: str) -> tuple[str, Any]:
 def _default_asn_resolver(asns: set[str]) -> dict[str, list[str]]:
     """Resolve ASN to CIDRs only for this exporter; never mutates main IR."""
     context = ssl.create_default_context(cafile=certifi.where()) if certifi else ssl.create_default_context()
+    timing = current_timing()
     result = {asn: [] for asn in asns}
     def download(url: str) -> bytes:
         data = bytearray()
@@ -238,18 +243,66 @@ def _default_asn_resolver(asns: set[str]) -> dict[str, list[str]]:
         raise SingBoxExportError("ASN database download failed")
 
     cache_root = Path(os.environ.get("GEOLITE2_CACHE_DIR", ".cache/geolite2")) / GEOLITE2_RELEASE
+    index_path = cache_root / ASN_INDEX_FILENAME
+
+    def valid_index(value: Any) -> dict[str, list[str]] | None:
+        if not isinstance(value, dict) or value.get("version") != ASN_INDEX_VERSION or value.get("release") != GEOLITE2_RELEASE:
+            return None
+        manifest = {asset["name"]: asset["sha256"] for asset in GEOLITE2_ASSETS}
+        if value.get("assets") != manifest or not isinstance(value.get("asns"), dict):
+            return None
+        index: dict[str, list[str]] = {}
+        try:
+            for asn, networks in value["asns"].items():
+                if not isinstance(asn, str) or not asn.isdigit() or not isinstance(networks, list):
+                    return None
+                normalized: list[str] = []
+                for network in networks:
+                    if not isinstance(network, str):
+                        return None
+                    normalized.append(str(ipaddress.ip_network(network, strict=False)))
+                index[asn] = normalized
+        except ValueError:
+            return None
+        return index
+
+    if index_path.exists():
+        try:
+            with _timed("Sing-box ASN index load"):
+                index = valid_index(json.loads(index_path.read_text(encoding="utf-8")))
+        except (OSError, TypeError, ValueError, json.JSONDecodeError):
+            index = None
+        if index is not None:
+            if timing is not None:
+                timing.notes["GeoLite2 assets"] = "index hit; raw assets not reopened"
+                timing.notes["ASN index"] = f"hit, {index_path.stat().st_size} bytes"
+            missing = sorted(asn for asn in asns if not index.get(asn))
+            if missing:
+                raise SingBoxExportError("ASN database has no prefix for: " + ", ".join(missing))
+            return {asn: list(index[asn]) for asn in asns}
+
+    full_index: dict[str, list[str]] = {}
+    cache_hits = 0
+    downloads = 0
     for asset in GEOLITE2_ASSETS:
         cache_path = cache_root / asset["name"]
         raw = None
         if cache_path.exists():
-            candidate = cache_path.read_bytes()
-            if hashlib.sha256(candidate).hexdigest() == asset["sha256"]:
+            with _timed(f"Sing-box ASN asset read {asset['name']}"):
+                candidate = cache_path.read_bytes()
+            with _timed(f"Sing-box ASN checksum {asset['name']}"):
+                valid = hashlib.sha256(candidate).hexdigest() == asset["sha256"]
+            if valid:
                 raw = candidate
+                cache_hits += 1
             else:
                 cache_path.unlink()
         if raw is None:
-            raw = download(asset["url"])
-        actual_sha256 = hashlib.sha256(raw).hexdigest()
+            with _timed(f"Sing-box ASN asset read/download {asset['name']}"):
+                raw = download(asset["url"])
+            downloads += 1
+        with _timed(f"Sing-box ASN checksum {asset['name']}"):
+            actual_sha256 = hashlib.sha256(raw).hexdigest()
         if actual_sha256 != asset["sha256"]:
             raise SingBoxExportError(
                 f"GeoLite2 asset checksum mismatch for {asset['name']}: "
@@ -258,10 +311,33 @@ def _default_asn_resolver(asns: set[str]) -> dict[str, list[str]]:
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         if not cache_path.exists():
             cache_path.write_bytes(raw)
-        for row in csv.DictReader(io.TextIOWrapper(io.BytesIO(raw), encoding="utf-8")):
-            asn = row.get("autonomous_system_number")
-            if asn in result and row.get("network"):
-                result[asn].append(str(ipaddress.ip_network(row["network"], strict=False)))
+        with _timed(f"Sing-box ASN CSV scan/index build {asset['name']}"):
+            for row in csv.DictReader(io.TextIOWrapper(io.BytesIO(raw), encoding="utf-8")):
+                asn = row.get("autonomous_system_number")
+                if asn and row.get("network"):
+                    full_index.setdefault(asn, []).append(str(ipaddress.ip_network(row["network"], strict=False)))
+    cache_root.mkdir(parents=True, exist_ok=True)
+    index_payload = {
+        "version": ASN_INDEX_VERSION,
+        "release": GEOLITE2_RELEASE,
+        "assets": {asset["name"]: asset["sha256"] for asset in GEOLITE2_ASSETS},
+        "asns": {asn: full_index[asn] for asn in sorted(full_index)},
+    }
+    with _timed("Sing-box ASN index write"):
+        temporary = index_path.with_name(f".{index_path.name}.tmp")
+        try:
+            with temporary.open("w", encoding="utf-8") as handle:
+                json.dump(index_payload, handle, ensure_ascii=False, separators=(",", ":"))
+                handle.write("\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, index_path)
+        finally:
+            temporary.unlink(missing_ok=True)
+    if timing is not None:
+        timing.notes["GeoLite2 assets"] = f"{cache_hits} cache hits / {downloads} downloads"
+        timing.notes["ASN index"] = f"built, {index_path.stat().st_size} bytes"
+    result = {asn: list(full_index.get(asn, [])) for asn in asns}
     missing = sorted(asn for asn, networks in result.items() if not networks)
     if missing:
         raise SingBoxExportError("ASN database has no prefix for: " + ", ".join(missing))
@@ -301,6 +377,17 @@ def _provider_matchers(name: str, behavior: str, payload: list[str], asn_resolve
             continue
         raise SingBoxExportError(f"{context}: unsupported classical rule kind {rule.kind!r}")
     return result
+
+
+def _collect_required_asns(groups: list[dict[str, Any]], payloads: dict[str, list[str]]) -> set[str]:
+    required: set[str] = set()
+    for group in groups:
+        for provider in group["providers"]:
+            for raw in payloads.get(provider, []):
+                parsed = parse_rule(raw)
+                if parsed.kind in {"IP-ASN", "SRC-IP-ASN"} and len(parsed.parts) > 1:
+                    required.add(parsed.parts[1])
+    return required
 
 
 def _aggregate(matchers: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -614,6 +701,19 @@ def export_singbox(config: dict[str, Any], final_payloads: dict[str, list[str]],
         groups = _groups(config, segment_names)
     asn_resolver = asn_resolver or _default_asn_resolver
     if not groups: raise SingBoxExportError("no RULE-SET segments available for Sing-box export")
+    with _timed("Sing-box ASN discovery"):
+        required_asns = _collect_required_asns(groups, final_payloads)
+    timing = current_timing()
+    if timing is not None:
+        timing.notes["ASN required"] = f"{len(required_asns)} unique ASNs"
+        timing.notes["ASN resolver calls"] = "1" if required_asns else "0"
+    asn_map: dict[str, list[str]] = {}
+    if required_asns:
+        with _timed("Sing-box ASN cache/index lookup"):
+            asn_map = asn_resolver(required_asns)
+        missing_asns = sorted(asn for asn in required_asns if not asn_map.get(asn))
+        if missing_asns:
+            raise SingBoxExportError("ASN resolver returned no prefix for: " + ", ".join(missing_asns))
     stage = Path(tempfile.mkdtemp(prefix="singbox-export-", dir=output_dist.parent))
     try:
         source_dir, binary_dir = stage / "source", stage / "singbox"
@@ -629,10 +729,14 @@ def export_singbox(config: dict[str, Any], final_payloads: dict[str, list[str]],
                 behavior = config["rule-providers"][provider].get("behavior")
                 if behavior not in {"domain", "ipcidr", "classical"}: raise SingBoxExportError(f"provider {provider}: unsupported behavior {behavior!r}")
                 payload = final_payloads[provider]
-                asn_values = {parse_rule(raw).parts[1] for raw in payload if isinstance(raw, str) and parse_rule(raw).kind in {"IP-ASN", "SRC-IP-ASN"} and len(parse_rule(raw).parts) > 1}
+                asn_values = set()
+                for raw in payload:
+                    parsed = parse_rule(raw)
+                    if parsed.kind in {"IP-ASN", "SRC-IP-ASN"} and len(parsed.parts) > 1:
+                        asn_values.add(parsed.parts[1])
                 if asn_values:
-                    with _timed("Sing-box ASN expansion"):
-                        expanded = asn_resolver(asn_values)
+                    with _timed("Sing-box ASN payload expansion"):
+                        expanded = asn_map
                         expanded_payload: list[str] = []
                         for raw in payload:
                             parsed = parse_rule(raw)

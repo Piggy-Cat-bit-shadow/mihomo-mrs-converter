@@ -12,7 +12,7 @@ from email.message import Message
 from pathlib import Path
 from unittest.mock import patch
 
-from converter.exporters.singbox import LEGACY_ROUTE_ALIASES, SingBoxExportError, _aggregate_buckets, _default_asn_resolver, _github_api_json, _groups, _provider_matchers, _semantic_matcher_equivalent, export_singbox, export_singbox_dns
+from converter.exporters.singbox import LEGACY_ROUTE_ALIASES, SingBoxExportError, _aggregate_buckets, _collect_required_asns, _default_asn_resolver, _github_api_json, _groups, _provider_matchers, _semantic_matcher_equivalent, export_singbox, export_singbox_dns
 
 
 SING_BOX = shutil.which("sing-box") or "sing-box"
@@ -73,7 +73,7 @@ class SingBoxExportTest(unittest.TestCase):
             requests.append(request)
             return Response(payload)
 
-        with patch.dict(os.environ, {"GITHUB_TOKEN": "secret-token"}), patch("converter.exporters.singbox.GEOLITE2_ASSETS", assets), patch("converter.exporters.singbox.urllib.request.urlopen", side_effect=urlopen):
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, {"GITHUB_TOKEN": "secret-token", "GEOLITE2_CACHE_DIR": tmp}), patch("converter.exporters.singbox.GEOLITE2_ASSETS", assets), patch("converter.exporters.singbox.urllib.request.urlopen", side_effect=urlopen):
             result = _default_asn_resolver({"64512"})
         self.assertEqual(result, {"64512": ["192.0.2.0/24"]})
         asset_headers = {key.lower(): value for key, value in requests[0].header_items()}
@@ -109,6 +109,24 @@ class SingBoxExportTest(unittest.TestCase):
                 self.assertEqual(_default_asn_resolver({"64512"}), {"64512": ["192.0.2.0/24"]})
             self.assertEqual(urlopen.call_count, 1)
             self.assertEqual((cache / asset["name"]).read_bytes(), payload)
+
+    def test_asn_index_hit_and_corruption_rebuild(self):
+        payload = b"network,autonomous_system_number\n192.0.2.0/24,64512\n2001:db8::/32,64512\n"
+        asset = {"name": "GeoLite2-ASN-Blocks-IPv4.csv", "url": "https://github.com/example/asset", "sha256": hashlib.sha256(payload).hexdigest()}
+        with tempfile.TemporaryDirectory() as tmp:
+            cache_root = Path(tmp) / "geolite2"
+            cache = cache_root / "release"
+            with patch.dict(os.environ, {"GEOLITE2_CACHE_DIR": str(cache_root)}), patch("converter.exporters.singbox.GEOLITE2_RELEASE", "release"), patch("converter.exporters.singbox.GEOLITE2_ASSETS", (asset,)), patch("converter.exporters.singbox.urllib.request.urlopen", return_value=Response(payload)) as urlopen:
+                self.assertEqual(_default_asn_resolver({"64512"})["64512"], ["192.0.2.0/24", "2001:db8::/32"])
+                self.assertEqual(urlopen.call_count, 1)
+                index = cache / "asn-index-v1.json"
+                self.assertTrue(index.exists())
+                index.write_text("{invalid json", encoding="utf-8")
+                self.assertEqual(_default_asn_resolver({"64512"})["64512"], ["192.0.2.0/24", "2001:db8::/32"])
+                self.assertEqual(urlopen.call_count, 1)
+                self.assertTrue(index.exists())
+
+            self.assertTrue(cache.exists())
 
     def test_github_api_without_token_is_anonymous(self):
         captured = []
@@ -266,11 +284,22 @@ class SingBoxExportTest(unittest.TestCase):
                 export_singbox(config, {"A": ["GEOIP,CN"]}, Path(tmp), "https://x", SING_BOX)
 
     def test_asn_expansion_is_injected_and_source_is_not_mutated(self):
-        config = {"rule-providers": {"A": {"behavior": "classical"}}, "rules": ["RULE-SET,A,DIRECT"]}
-        payload = {"A": ["IP-ASN,64512", "SRC-IP-ASN,64512"]}
+        config = {"rule-providers": {"A": {"behavior": "classical"}, "B": {"behavior": "classical"}, "C": {"behavior": "classical"}}, "rules": ["RULE-SET,A,DIRECT", "RULE-SET,B,AI", "RULE-SET,C,GLOBAL", "MATCH,DIRECT"]}
+        payload = {"A": ["IP-ASN,64512"], "B": ["SRC-IP-ASN,64513"], "C": ["IP-ASN,64512", "IP-ASN,64514"]}
+        calls = []
+
+        def resolve(asns):
+            calls.append(set(asns))
+            return {asn: ["192.0.2.0/24"] for asn in asns}
+
         with tempfile.TemporaryDirectory() as tmp:
-            export_singbox(config, payload, Path(tmp), "https://x", SING_BOX, lambda _: {"64512": ["192.0.2.0/24", "2001:db8::/32"]})
-            self.assertEqual(payload["A"], ["IP-ASN,64512", "SRC-IP-ASN,64512"])
+            export_singbox(config, payload, Path(tmp), "https://x", SING_BOX, resolve)
+            self.assertEqual(calls, [{"64512", "64513", "64514"}])
+            self.assertEqual(payload["A"], ["IP-ASN,64512"])
+
+    def test_asn_discovery_has_empty_fast_path(self):
+        groups = [{"providers": ["A"]}]
+        self.assertEqual(_collect_required_asns(groups, {"A": ["DOMAIN,example.com"]}), set())
 
     def test_dns_export_contains_only_domain_matchers_from_shared_payloads(self):
         config = {
