@@ -8,6 +8,19 @@ from converter.exporters.egern import export_egern
 
 
 class EgernExporterTest(unittest.TestCase):
+    def test_large_payload_deduplicates_in_first_seen_order(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            payload = [f"domain-{index}.example" for index in range(10000)]
+            payload.extend([payload[0], payload[5000], payload[-1]])
+            export_egern(
+                {"rule-providers": {"China-domain": {"behavior": "domain"}}, "rules": []},
+                {"China-domain": payload}, root, "https://example.invalid",
+            )
+            fields = yaml.safe_load((root / "egern/China.yaml").read_text())
+            self.assertEqual(fields["domain_set"], payload[:10000])
+            self.assertEqual(fields["domain_set"], sorted(fields["domain_set"], key=payload[:10000].index))
+
     def test_export_consumes_payload_mapping(self):
         with tempfile.TemporaryDirectory() as tmp:
             stats = export_egern({"rule-providers": {"AI-domain": {"behavior": "domain"}}, "rules": ["RULE-SET,AI-domain,AI"]}, {"AI-domain": ["example.com"]}, Path(tmp), "https://example.invalid")

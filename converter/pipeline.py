@@ -184,6 +184,8 @@ def build(config: BuildConfig) -> BuildResult:
         value = timing.phases.get(label, 0.0)
         suffix = " / skipped" if label in timing.skipped else ""
         print(f"{label + ':':<28}{value:>8.2f}s{suffix}")
+    for label in ("Egern collect", "Egern optimize", "Egern write YAML", "Egern top-level", "Egern total"):
+        print(f"{label + ':':<28}{timing.phases.get(label, 0.0):>8.2f}s")
     for kind in ("mihomo", "sing-box"):
         stats = timing.external.get(kind)
         if stats is None:

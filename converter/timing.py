@@ -61,6 +61,10 @@ def activate(timing: BuildTiming) -> Iterator[None]:
         _ACTIVE_TIMING.reset(token)
 
 
+def current_timing() -> BuildTiming | None:
+    return _ACTIVE_TIMING.get()
+
+
 def observe_external(kind: str, label: str, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
     timing = _ACTIVE_TIMING.get()
     if timing is None:
