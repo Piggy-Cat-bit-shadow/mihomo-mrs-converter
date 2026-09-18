@@ -948,6 +948,8 @@ class AdjacentClassicalConsolidationTest(ConvertTestCase):
             (dist / "merged-dedup/classical/merged-classical-01.yaml").read_text()
         )["payload"]
         self.assertEqual(payload, ["DOMAIN,a.com", "DOMAIN,a.com", "DOMAIN,a.com"])
+
+
         self.assertEqual(provider["url"], f"{BASE_URL}/dist/merged-dedup/classical/merged-classical-01.yaml")
 
     def test_barriers_and_different_contexts_prevent_merge(self) -> None:
@@ -1127,6 +1129,80 @@ class AdjacentClassicalConsolidationTest(ConvertTestCase):
                 provider = result["rule-providers"][name]
                 self.assertTrue((dist / provider["url"].split("/dist/", 1)[1]).exists())
                 self.assertTrue(provider["path"].endswith(f"/{name}.yaml"))
+
+
+class SegmentBehaviorConsolidationTest(ConvertTestCase):
+    def provider(self, dist: Path, name: str, behavior: str, payload: list[str], **metadata: object) -> dict[str, object]:
+        if behavior == "classical":
+            relative = Path("merged-dedup/classical") / f"{name}.yaml"
+        else:
+            relative = Path("merged-dedup/source") / ("ipcidr" if behavior == "ipcidr" else "domain") / f"{name}.yaml"
+        convert.write_yaml_payload(dist / relative, payload)
+        provider = {
+            "type": "http",
+            "behavior": behavior,
+            "format": "yaml",
+            "url": f"{BASE_URL}/dist/{relative.as_posix()}",
+            "path": f"./ruleset/merged-dedup/{name}.yaml",
+        }
+        provider.update(metadata)
+        return provider
+
+    def consolidate(self, rules: list[str], providers: dict[str, dict[str, object]], dist: Path) -> dict[str, object]:
+        return convert.consolidate_segment_behavior_providers(
+            {"rule-providers": providers, "rules": rules}, self.build_options(dist)
+        )
+
+    def test_same_segment_behavior_merges_ip_and_deduplicates(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            dist = Path(tmp)
+            providers = {
+                "A-ip": self.provider(dist, "A-ip", "ipcidr", ["10.0.0.0/8"]),
+                "B-ip": self.provider(dist, "B-ip", "ipcidr", ["10.1.0.0/16", "192.168.0.0/16"]),
+            }
+            result = self.consolidate(["RULE-SET,A-ip,Proxy", "RULE-SET,B-ip,Proxy"], providers, dist)
+            self.assertEqual(result["rules"], ["RULE-SET,A-ip,Proxy"])
+            self.assertEqual(
+                yaml.safe_load((dist / "merged-dedup/source/ipcidr/A-ip.yaml").read_text())["payload"],
+                ["10.0.0.0/8", "192.168.0.0/16"],
+            )
+            self.assertEqual(list(result["rule-providers"]), ["A-ip"])
+
+    def test_same_segment_classical_merge_preserves_order(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            dist = Path(tmp)
+            providers = {
+                "A-classical": self.provider(dist, "A-classical", "classical", ["DOMAIN-KEYWORD,a", "IP-ASN,123"]),
+                "B-classical": self.provider(dist, "B-classical", "classical", ["DOMAIN-KEYWORD,b", "PROCESS-NAME,foo"]),
+            }
+            result = self.consolidate(["RULE-SET,A-classical,Proxy", "RULE-SET,B-classical,Proxy"], providers, dist)
+            self.assertEqual(result["rules"], ["RULE-SET,A-classical,Proxy"])
+            self.assertEqual(
+                yaml.safe_load((dist / "merged-dedup/classical/A-classical.yaml").read_text())["payload"],
+                ["DOMAIN-KEYWORD,a", "IP-ASN,123", "DOMAIN-KEYWORD,b", "PROCESS-NAME,foo"],
+            )
+
+    def test_barrier_policy_wrapper_and_metadata_prevent_merge(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            dist = Path(tmp)
+            providers = {
+                "A-ip": self.provider(dist, "A-ip", "ipcidr", ["10.0.0.0/8"]),
+                "B-ip": self.provider(dist, "B-ip", "ipcidr", ["192.168.0.0/16"]),
+                "C-ip": self.provider(dist, "C-ip", "ipcidr", ["172.16.0.0/12"], proxy="proxy-a"),
+                "D-ip": self.provider(dist, "D-ip", "ipcidr", ["192.0.2.0/24"], proxy="proxy-b"),
+            }
+            result = self.consolidate([
+                "RULE-SET,A-ip,Proxy",
+                "DOMAIN,barrier.example,DIRECT",
+                "RULE-SET,B-ip,Proxy",
+                "RULE-SET,C-ip,Proxy",
+                "RULE-SET,D-ip,Proxy",
+                "RULE-SET,A-ip,Other",
+                "SUB-RULE,(RULE-SET,A-ip),AI-Routing",
+            ], providers, dist)
+            self.assertEqual(list(result["rule-providers"]), ["A-ip", "B-ip", "C-ip", "D-ip"])
+            self.assertEqual(result["rules"][0], "RULE-SET,A-ip,Proxy")
+            self.assertEqual(result["rules"][2], "RULE-SET,B-ip,Proxy")
 
 
 class SegmentNameMappingTest(ConvertTestCase):

@@ -52,13 +52,6 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/Global-classical.yaml
     path: ./ruleset/classical/Global-classical.yaml
     interval: 172800
-  Global-classical-part-02:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/Global-classical-part-02.yaml
-    path: ./ruleset/classical/Global-classical-part-02.yaml
-    interval: 172800
   Global-ip:
     type: http
     behavior: ipcidr
@@ -80,26 +73,12 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/China-classical.yaml
     path: ./ruleset/classical/China-classical.yaml
     interval: 172800
-  China-classical-part-02:
-    type: http
-    behavior: classical
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/China-classical-part-02.yaml
-    path: ./ruleset/classical/China-classical-part-02.yaml
-    interval: 172800
   China-ip:
     type: http
     behavior: ipcidr
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/China-ip.mrs
     path: ./ruleset/ipcidr/China-ip.mrs
-    interval: 172800
-  China-ip-part-02:
-    type: http
-    behavior: ipcidr
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/China-ip-part-02.mrs
-    path: ./ruleset/ipcidr/China-ip-part-02.mrs
     interval: 172800
 rules:
 - RULE-SET,Direct-domain,🏠 国内流量
@@ -109,13 +88,10 @@ rules:
 - SUB-RULE,(RULE-SET,AI-ip,no-resolve),AI-Routing
 - RULE-SET,Global-domain,🌍 国外流量
 - RULE-SET,Global-classical,🌍 国外流量,no-resolve
-- RULE-SET,Global-classical-part-02,🌍 国外流量,no-resolve
 - RULE-SET,Global-ip,🌍 国外流量,no-resolve
 - RULE-SET,China-domain,🏠 国内流量
-- RULE-SET,China-classical,🏠 国内流量
-- RULE-SET,China-classical-part-02,🏠 国内流量,no-resolve
+- RULE-SET,China-classical,🏠 国内流量,no-resolve
 - RULE-SET,China-ip,🏠 国内流量,no-resolve
-- RULE-SET,China-ip-part-02,🏠 国内流量,no-resolve
 - IP-CIDR6,::/128,REJECT-DROP,no-resolve
 - IP-CIDR,0.0.0.0/32,REJECT-DROP,no-resolve
 - MATCH,🌍 国外流量

@@ -72,7 +72,7 @@ segments:
 
 例如 `merged-segment-02-domain`、`-ip`、`-classical` 会分别变为 `AI-domain`、`AI-ip`、`AI-classical`；未配置的 segment 保持默认名字。命名会同步应用到 provider、artifact、URL、path 和所有 RULE-SET 引用。
 
-合并只发生在原始 `rules` 中连续出现、策略和附加参数完全相同的 `RULE-SET` 区间；`domain`、`ipcidr` 和 classical fallback 不跨优先级边界。
+同一个 logical segment 内，行为类型相同且 policy、wrapper 和 provider metadata 兼容的 `RULE-SET` 会继续合并；`domain` / `ipcidr` 使用既有安全去重，classical 使用稳定顺序拼接。合并不会跨非 `RULE-SET` barrier、不同 policy、不同 wrapper 或不兼容 metadata；只有这些真实边界存在时才保留 `-part-XX` fallback provider。
 
 合并+去重版以合并版为基础，只对最终 MRS payload 做安全精简：删除完全重复规则、删除已被已有 `+.` 后缀覆盖的精确 domain、删除已被已有父 `+.` 后缀覆盖的子 suffix、删除重复 CIDR、删除已被已有父网段覆盖的子网段。它不会对 classical 做语义去重，也不会主动生成更大的 domain suffix 或 CIDR。
 

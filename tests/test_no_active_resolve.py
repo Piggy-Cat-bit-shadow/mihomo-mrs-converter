@@ -15,6 +15,8 @@ class NoActiveResolveAuditTest(unittest.TestCase):
     def test_committed_artifacts_follow_no_active_resolve_policy(self) -> None:
         mihomo = yaml.safe_load((DIST / "generated/mihomo-rules.yaml").read_text(encoding="utf-8"))
         providers = mihomo["rule-providers"]
+        self.assertEqual(len(providers), 11)
+        self.assertFalse(any("-part-" in name for name in providers))
         target_providers = set()
         for name, provider in providers.items():
             relative = str(provider["url"]).split("/dist/", 1)[-1]

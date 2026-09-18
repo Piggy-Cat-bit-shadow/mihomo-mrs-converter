@@ -2164,6 +2164,7 @@ def build_dedup_config(
         "rules": config["rules"],
     }
     dedup_config = merge_adjacent_classical_providers(dedup_config, options)
+    dedup_config = consolidate_segment_behavior_providers(dedup_config, options)
     dedup_config, renamed_providers = canonicalize_dedup_provider_names(dedup_config, options)
     stats_by_provider = {
         renamed_providers.get(name, name): stats
@@ -2199,6 +2200,8 @@ def print_dedup_report(
     ip_after = 0
 
     for name, stats in stats_by_provider.items():
+        if name not in config["rule-providers"]:
+            continue
         behavior = config["rule-providers"][name]["behavior"]
         if behavior == "ipcidr":
             ip_before += stats.input_count
@@ -2871,6 +2874,157 @@ def build_merged_config(
         "rule-providers": merged_providers,
         "rules": merged_rules,
     }
+
+
+def consolidate_segment_behavior_providers(
+    config: dict[str, Any], options: BuildOptions
+) -> dict[str, Any]:
+    """Merge compatible same-behavior providers inside one routing block.
+
+    A block is bounded by any non-RULE-SET rule or by a different routing
+    signature, so this cannot cross a real priority barrier.  The first
+    provider remains the stable identity and receives the union payload.
+    """
+    suite = "merged-dedup"
+    providers = dict(config["rule-providers"])
+    rules = list(config["rules"])
+    replacements: dict[str, str] = {}
+
+    def payload_for(provider: dict[str, Any]) -> tuple[Path | None, list[str]]:
+        source = source_path_for_provider(options.dist, provider)
+        if source is None:
+            source = generated_artifact_path(options.dist, provider)
+        if source is None or not source.exists():
+            return None, []
+        return source, read_yaml_payload(source)
+
+    def merge_group(names: list[str], behavior: str) -> None:
+        if len(names) < 2:
+            return
+        source_providers = [providers[name] for name in names]
+        if not merge_metadata_compatible(source_providers):
+            return
+        first = names[0]
+        first_provider = source_providers[0]
+        paths_and_payloads = [payload_for(provider) for provider in source_providers]
+        if any(path is None for path, _payload in paths_and_payloads):
+            return
+        payload = [item for _path, values in paths_and_payloads for item in values]
+        if behavior == "domain":
+            payload = dedup_domain_payload(payload)[0]
+        elif behavior == "ipcidr":
+            payload = dedup_ipcidr_payload(payload)[0]
+
+        first_source, _first_payload = paths_and_payloads[0]
+        first_artifact = generated_artifact_path(options.dist, first_provider)
+        if first_source is None or first_artifact is None:
+            return
+        if behavior in {"domain", "ipcidr"}:
+            write_yaml_payload(first_source, payload)
+            if first_provider.get("format") == "mrs":
+                if not options.mihomo:
+                    return
+                convert_source_to_mrs(options.mihomo, behavior, first_source, first_artifact)
+            else:
+                if first_source != first_artifact:
+                    copy_file(first_source, first_artifact)
+        else:
+            write_yaml_payload(first_artifact, payload)
+
+        providers[first] = make_merged_provider(
+            behavior,
+            first_provider.get("format", "yaml"),
+            first_provider["url"],
+            first_provider["path"],
+            source_providers,
+        )
+        for name, provider in zip(names[1:], source_providers[1:]):
+            replacements[name] = first
+            old_source = source_path_for_provider(options.dist, provider)
+            old_artifact = generated_artifact_path(options.dist, provider)
+            if old_source is not None and old_source != first_source:
+                old_source.unlink(missing_ok=True)
+            if old_artifact is not None and old_artifact != first_artifact:
+                old_artifact.unlink(missing_ok=True)
+            providers.pop(name, None)
+
+    index = 0
+    while index < len(rules):
+        wrapper = simple_ruleset_wrapper(rules[index])
+        if wrapper is None or wrapper[0][1] not in providers:
+            index += 1
+            continue
+        reference = parse_ruleset_reference(rules[index])
+        assert reference is not None
+        signature = ruleset_routing_signature(reference)
+        block: list[str] = []
+        next_index = index
+        while next_index < len(rules):
+            candidate = simple_ruleset_wrapper(rules[next_index])
+            if candidate is None or candidate[0][1] not in providers:
+                break
+            candidate_reference = parse_ruleset_reference(rules[next_index])
+            assert candidate_reference is not None
+            if ruleset_routing_signature(candidate_reference) != signature:
+                break
+            block.append(candidate[0][1])
+            next_index += 1
+        for behavior in ("domain", "classical", "ipcidr"):
+            names: list[str] = []
+            for name in block:
+                if name in providers and providers[name].get("behavior") == behavior and name not in names:
+                    names.append(name)
+            merge_group(names, behavior)
+        index = next_index
+
+    def rewrite(item: Any) -> Any:
+        if not isinstance(item, str):
+            return item
+        direct = _ruleset_parts_in_expression(item)
+        if direct is not None:
+            name = replacements.get(direct[1], direct[1])
+            rewritten = ",".join(["RULE-SET", name, *direct[2:]])
+            return f"({rewritten})" if strip_balanced_outer_parentheses(item)[1] else rewritten
+        inner, wrapped = strip_balanced_outer_parentheses(item)
+        parts = split_top_level_commas(inner if wrapped else item)
+        rewritten = ",".join(rewrite(part) if strip_balanced_outer_parentheses(part)[1] else part for part in parts)
+        return f"({rewritten})" if wrapped else rewritten
+
+    rewritten_rules: list[Any] = []
+    index = 0
+    while index < len(rules):
+        wrapper = simple_ruleset_wrapper(rules[index])
+        if wrapper is None or (wrapper[0][1] not in providers and wrapper[0][1] not in replacements):
+            rewritten_rules.append(rewrite(rules[index]))
+            index += 1
+            continue
+        reference = parse_ruleset_reference(rules[index])
+        assert reference is not None
+        signature = ruleset_routing_signature(reference)
+        block: list[str] = []
+        next_index = index
+        while next_index < len(rules):
+            candidate = simple_ruleset_wrapper(rules[next_index])
+            if candidate is None or (candidate[0][1] not in providers and candidate[0][1] not in replacements):
+                break
+            candidate_reference = parse_ruleset_reference(rules[next_index])
+            assert candidate_reference is not None
+            if ruleset_routing_signature(candidate_reference) != signature:
+                break
+            block.append(candidate[0][1])
+            next_index += 1
+        seen: set[tuple[str, str]] = set()
+        for offset, name in enumerate(block):
+            target = replacements.get(name, name)
+            behavior = providers.get(target, {}).get("behavior", "")
+            key = (target, behavior)
+            if key in seen:
+                continue
+            seen.add(key)
+            rewritten_rules.append(rewrite(rules[index + offset]))
+        index = next_index
+
+    return {**config, "rule-providers": providers, "rules": rewritten_rules}
 
 
 def contains_ruleset(value: Any) -> bool:

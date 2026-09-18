@@ -51,13 +51,6 @@ providers:
     behavior: classical
     format: yaml
     fingerprint: 11d655752fa66d42f53f62b1da746df76cf1b4c38dd690dc0b51bbd9a12a5459
-  Global-classical-part-02:
-    name: Global-classical-part-02
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/Global-classical-part-02.yaml
-    path: ./ruleset/classical/Global-classical-part-02.yaml
-    behavior: classical
-    format: yaml
-    fingerprint: a337a1791a2591bde86c3313d9c6f72d984bb16bbc3dd1403aa8fb7d5da1c2a2
   Global-ip:
     name: Global-ip
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/Global-ip.mrs
@@ -79,13 +72,6 @@ providers:
     behavior: classical
     format: yaml
     fingerprint: c67d9284eab7b32f649408e04107b91eceecf23e089c12d742c40ee31988d958
-  China-classical-part-02:
-    name: China-classical-part-02
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/China-classical-part-02.yaml
-    path: ./ruleset/classical/China-classical-part-02.yaml
-    behavior: classical
-    format: yaml
-    fingerprint: baa8674672e80ecb2be00306d0a3dea2e8c737a85a2e7337b5a2336c2b661da6
   China-ip:
     name: China-ip
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/China-ip.mrs
@@ -93,10 +79,3 @@ providers:
     behavior: ipcidr
     format: mrs
     fingerprint: a93dc50d112e18c3b9f477c78dfd885c11d3711614ae0fce128a2d161a6c4e66
-  China-ip-part-02:
-    name: China-ip-part-02
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/China-ip-part-02.mrs
-    path: ./ruleset/ipcidr/China-ip-part-02.mrs
-    behavior: ipcidr
-    format: mrs
-    fingerprint: 4c327a22c21b8304324b4c91eaeb49f9e40128486cdfc93907f317fd4d775c49
