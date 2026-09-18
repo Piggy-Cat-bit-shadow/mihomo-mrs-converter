@@ -27,7 +27,7 @@ class ArchitectureTest(unittest.TestCase):
         self.assertIn("\n  publish:\n", workflow)
         for line in workflow.splitlines():
             if "uses:" in line:
-                self.assertRegex(line, r"uses:\s+[0-9a-f]{40}\s+#")
+                self.assertRegex(line, r"uses:\s+[^@\s]+@[0-9a-f]{40}\s+#")
 
     def test_ci_locks_dependencies_and_binary_digests(self):
         root = Path(__file__).parents[1]
