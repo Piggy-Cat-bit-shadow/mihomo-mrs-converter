@@ -10,23 +10,9 @@
       },
       {
         "type": "remote",
-        "tag": "Direct-no-resolve",
-        "format": "binary",
-        "url": "https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/singbox/Direct-no-resolve.srs",
-        "update_interval": "2d"
-      },
-      {
-        "type": "remote",
         "tag": "AI",
         "format": "binary",
         "url": "https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/singbox/AI.srs",
-        "update_interval": "2d"
-      },
-      {
-        "type": "remote",
-        "tag": "AI-ip",
-        "format": "binary",
-        "url": "https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/singbox/AI-ip.srs",
         "update_interval": "2d"
       },
       {
@@ -38,37 +24,9 @@
       },
       {
         "type": "remote",
-        "tag": "Global-ip",
-        "format": "binary",
-        "url": "https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/singbox/Global-ip.srs",
-        "update_interval": "2d"
-      },
-      {
-        "type": "remote",
-        "tag": "Global-no-resolve",
-        "format": "binary",
-        "url": "https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/singbox/Global-no-resolve.srs",
-        "update_interval": "2d"
-      },
-      {
-        "type": "remote",
         "tag": "China",
         "format": "binary",
         "url": "https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/singbox/China.srs",
-        "update_interval": "2d"
-      },
-      {
-        "type": "remote",
-        "tag": "China-ip",
-        "format": "binary",
-        "url": "https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/singbox/China-ip.srs",
-        "update_interval": "2d"
-      },
-      {
-        "type": "remote",
-        "tag": "China-no-resolve",
-        "format": "binary",
-        "url": "https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/singbox/China-no-resolve.srs",
         "update_interval": "2d"
       }
     ],
@@ -82,13 +40,6 @@
       },
       {
         "rule_set": [
-          "Direct-no-resolve"
-        ],
-        "action": "route",
-        "outbound": "🏠 国内流量"
-      },
-      {
-        "rule_set": [
           "AI"
         ],
         "network": [
@@ -99,25 +50,6 @@
       {
         "rule_set": [
           "AI"
-        ],
-        "action": "route",
-        "outbound": "🤖 AI"
-      },
-      {
-        "action": "resolve"
-      },
-      {
-        "rule_set": [
-          "AI-ip"
-        ],
-        "network": [
-          "udp"
-        ],
-        "action": "reject"
-      },
-      {
-        "rule_set": [
-          "AI-ip"
         ],
         "action": "route",
         "outbound": "🤖 AI"
@@ -131,54 +63,10 @@
       },
       {
         "rule_set": [
-          "Global-no-resolve"
-        ],
-        "action": "route",
-        "outbound": "🌍 国外流量"
-      },
-      {
-        "action": "resolve"
-      },
-      {
-        "rule_set": [
-          "Global-ip"
-        ],
-        "action": "route",
-        "outbound": "🌍 国外流量"
-      },
-      {
-        "rule_set": [
-          "Global-no-resolve"
-        ],
-        "action": "route",
-        "outbound": "🌍 国外流量"
-      },
-      {
-        "rule_set": [
           "China"
         ],
         "action": "route",
         "outbound": "🏠 国内流量"
-      },
-      {
-        "action": "resolve"
-      },
-      {
-        "rule_set": [
-          "China-ip"
-        ],
-        "action": "route",
-        "outbound": "🏠 国内流量"
-      },
-      {
-        "rule_set": [
-          "China-no-resolve"
-        ],
-        "action": "route",
-        "outbound": "🏠 国内流量"
-      },
-      {
-        "action": "resolve"
       },
       {
         "ip_cidr": [
@@ -186,9 +74,6 @@
         ],
         "action": "reject",
         "method": "drop"
-      },
-      {
-        "action": "resolve"
       },
       {
         "ip_cidr": [

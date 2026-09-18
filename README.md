@@ -152,7 +152,7 @@ dist/dns/singbox/Global-domain.srs
 
 `.srs` 由官方 `sing-box rule-set compile` 生成并执行 decompile 验收。`singbox-rules.json` 是只包含 `route.rule_set`、规则和可选 `final` 的配置片段，不是完整 Sing-box 客户端配置；支持 remote binary rule-set、原样 policy、SUB-RULE 展开、UDP 条件和 `MATCH` 到 `final` 的映射。
 
-Sing-box SRS 本身没有 `no-resolve` flag。exporter 会在构建阶段区分普通 destination-IP matcher 和 `no-resolve` destination-IP matcher：普通 IP bucket 前按 segment 顺序执行 `resolve`，no-resolve bucket 不会主动触发解析，并可在已有解析结果时再次匹配。Egern 使用原生 `no_resolve: true` rule set；Loon 保留单条规则上的 `,no-resolve` modifier。Loon 的 `SUB-RULE + NETWORK + fallback` 无法完全等价表达，属于目标格式限制。无法无损转换的规则会 fail closed，而不是静默跳过。
+Sing-box 输出采用 no-active-resolve 策略：Sing-box SRS 本身没有 Mihomo `no-resolve` flag，exporter 不再为 destination IP rule 自动插入 `action: resolve`。普通 destination IP 与 Mihomo `no-resolve` destination IP 在 Sing-box 输出中统一进入所属 logical segment；IP matcher 仅匹配已经存在的 destination IP，domain 不会为了 IP rule 在客户端被主动解析，从而让代理 outbound 尽可能继续拿到 domain，由远端代理侧解析。Mihomo、Egern 和 Loon 输出语义不受影响：Egern 使用原生 `no_resolve: true` rule set，Loon 保留单条规则上的 `,no-resolve` modifier。Loon 的 `SUB-RULE + NETWORK + fallback` 无法完全等价表达，属于目标格式限制。无法无损转换的规则会 fail closed，而不是静默跳过。
 
 ## DNS Output
 

@@ -226,7 +226,7 @@ def _provider_matchers(name: str, behavior: str, payload: list[str], asn_resolve
             continue
         if behavior == "ipcidr":
             field, value = _matcher("IP-CIDR", raw, context)
-            result.append(("no-resolve" if provider_no_resolve else "ip", {field: value}))
+            result.append(("base", {field: value}))
             continue
         if rule.kind in {"DOMAIN", "DOMAIN-SUFFIX", "DOMAIN-KEYWORD", "DOMAIN-REGEX", "DOMAIN-WILDCARD", "IP-CIDR", "IP-CIDR6", "SRC-IP-CIDR", "NETWORK", "PROCESS-NAME", "PROCESS-PATH", "PROCESS-PATH-REGEX", "DST-PORT", "SRC-PORT", "IP-ASN", "SRC-IP-ASN"}:
             if len(rule.parts) < 2:
@@ -235,7 +235,11 @@ def _provider_matchers(name: str, behavior: str, payload: list[str], asn_resolve
                 raise SingBoxExportError(f"{context}: ASN expansion must be performed before serialization")
             parsed = _matcher(rule.kind, rule.parts[1], context)
             no_resolve = provider_no_resolve or any(item.lower() == "no-resolve" for item in rule.parts[2:])
-            bucket = "no-resolve" if rule.kind in {"IP-CIDR", "IP-CIDR6"} and no_resolve else ("ip" if rule.kind in {"IP-CIDR", "IP-CIDR6"} else "base")
+            # Sing-box does not actively resolve domains for destination-IP
+            # matching.  Keep IP matchers in the same logical artifact as
+            # domain/classical matchers; no-resolve remains parser-compatible
+            # but has no separate Sing-box output semantics.
+            bucket = "base"
             if isinstance(parsed, list):
                 for field, value in parsed: result.append((bucket, {field: value}))
             else:
@@ -263,10 +267,8 @@ def _aggregate(matchers: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def _aggregate_buckets(matchers: list[tuple[str, dict[str, Any]]]) -> dict[str, list[dict[str, Any]]]:
-    buckets: dict[str, list[dict[str, Any]]] = {"base": [], "ip": [], "no-resolve": []}
-    for bucket, matcher in matchers:
-        buckets[bucket].append(matcher)
-    return {bucket: _aggregate(values) for bucket, values in buckets.items() if values}
+    values = [matcher for _bucket, matcher in matchers]
+    return {"base": _aggregate(values)} if values else {}
 
 
 def _groups(config: dict[str, Any], segment_names: dict[str, str] | None = None) -> list[dict[str, Any]]:
@@ -281,7 +283,11 @@ def _groups(config: dict[str, Any], segment_names: dict[str, str] | None = None)
         reference = parse_ruleset_reference(raw)
         assert reference is not None
         provider = wrapper[0][1]
-        key = (reference.policy, reference.modifiers, reference.wrapper_kind)
+        # no-resolve changes Mihomo semantics, but not Sing-box destination-IP
+        # semantics.  Do not let it split an otherwise identical logical
+        # segment or create a separate artifact.
+        logical_modifiers = tuple(item for item in reference.modifiers if item.lower() != "no-resolve")
+        key = (reference.policy, logical_modifiers, reference.wrapper_kind)
         if current is None or current["key"] != key:
             occurrence[key] = occurrence.get(key, 0) + 1
             ordinal = occurrence[key]
@@ -294,10 +300,8 @@ def _groups(config: dict[str, Any], segment_names: dict[str, str] | None = None)
             if base in (segment_names or {}):
                 base = segment_names[base]
             if base and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", base):
-                # Modifiers are represented by artifact buckets below.  Keep
-                # the logical group identity free of modifier suffixes so a
-                # provider-level no-resolve group becomes exactly
-                # <segment>-no-resolve, not <segment>-no-resolve-no-resolve.
+                # Keep the logical group identity free of no-resolve, which
+                # has no distinct Sing-box destination-IP semantics.
                 tag = base
             else:
                 tag = f"segment-{len(groups) + 1:02d}-{ordinal:02d}"
@@ -351,13 +355,6 @@ def _route_rules(config: dict[str, Any], groups: list[dict[str, Any]], group_buc
                 for extra, action in actions:
                     rules.append({"rule_set": [artifact_tag], **extra, **action})
             emit("base")
-            emit("no-resolve")
-            if "ip" in group_buckets[group["id"]]:
-                rules.append({"action": "resolve"})
-                emit("ip")
-                # A normal lookup can populate DestinationAddresses used by a
-                # no-resolve matcher in the same logical segment.
-                emit("no-resolve")
             continue
         if kind == "NETWORK" and len(parts) == 3 and parts[1].upper() in {"TCP", "UDP"}:
             rules.append({"network": [parts[1].lower()], **_policy_action(parts[2])}); continue
@@ -377,8 +374,6 @@ def _route_rules(config: dict[str, Any], groups: list[dict[str, Any]], group_buc
             raise SingBoxExportError(f"rules[{index}]: malformed top-level rule {raw!r}")
         matcher_kind = matcher_parts[0].upper()
         parsed = _matcher(matcher_kind, ",".join(matcher_parts[1:]), f"rules[{index}]")
-        if matcher_kind in {"IP-CIDR", "IP-CIDR6"} and not any(item.lower() == "no-resolve" for item in modifiers):
-            rules.append({"action": "resolve"})
         if isinstance(parsed, list):
             for field, value in parsed:
                 rules.append({field: value, **_policy_action(policy)})
@@ -512,7 +507,7 @@ def export_singbox(config: dict[str, Any], final_payloads: dict[str, list[str]],
             buckets = _aggregate_buckets(matchers)
             group_buckets[group["id"]] = {}
             for bucket, source_rules in buckets.items():
-                suffix = {"base": "", "ip": "-ip", "no-resolve": "-no-resolve"}[bucket]
+                suffix = ""
                 artifact_tag = group["tag"] + suffix
                 if artifact_tag in used_artifact_tags:
                     collision = 2
@@ -543,6 +538,8 @@ def export_singbox(config: dict[str, Any], final_payloads: dict[str, list[str]],
         route_path.write_text(json.dumps(route, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         target_dir = output_dist / "singbox"
         target_dir.mkdir(parents=True, exist_ok=True)
+        for stale in target_dir.glob("*.srs"):
+            stale.unlink()
         for binary in binary_dir.glob("*.srs"): shutil.copy2(binary, target_dir / binary.name)
         (output_dist / "generated").mkdir(parents=True, exist_ok=True)
         shutil.copy2(route_path, output_dist / "generated/singbox-rules.json")
