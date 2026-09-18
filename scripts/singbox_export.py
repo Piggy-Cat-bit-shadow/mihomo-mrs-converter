@@ -363,10 +363,18 @@ def _route_rules(config: dict[str, Any], groups: list[dict[str, Any]], group_buc
         if len(parts) < 3:
             raise SingBoxExportError(f"rules[{index}]: malformed top-level rule {raw!r}")
         policy_index = len(parts) - 1
-        while policy_index > 1 and parts[policy_index - 1].lower() in {"no-resolve", "src"}:
+        modifiers: list[str] = []
+        # Mihomo writes top-level modifiers after the policy.  Keep accepting
+        # the historical pre-policy form too, since both occur in existing
+        # source configurations.
+        while policy_index > 1 and parts[policy_index].lower() in {"no-resolve", "src"}:
+            modifiers.insert(0, parts[policy_index])
             policy_index -= 1
+        if not modifiers:
+            while policy_index > 1 and parts[policy_index - 1].lower() in {"no-resolve", "src"}:
+                modifiers.insert(0, parts[policy_index - 1])
+                policy_index -= 1
         policy = parts[policy_index]
-        modifiers = parts[policy_index + 1:]
         if any(item.lower() not in {"no-resolve", "src"} for item in modifiers):
             raise SingBoxExportError(f"rules[{index}]: unsupported modifier in {raw!r}")
         matcher_parts = parts[:policy_index]

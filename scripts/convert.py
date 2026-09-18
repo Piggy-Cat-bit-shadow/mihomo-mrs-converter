@@ -29,10 +29,20 @@ except ImportError:  # pragma: no cover - optional runtime fallback
 
 DOMAIN_RULES = {"DOMAIN", "DOMAIN-SUFFIX"}
 IPCIDR_RULES = {"IP-CIDR", "IP-CIDR6"}
+TARGET_IP_KINDS = {"IP-CIDR", "IP-CIDR6", "IP-ASN", "GEOIP"}
 SUITES = {"unmerged", "merged", "merged-dedup"}
 FINAL_SUITE = "final"
 MANAGED_STATE_FILENAME = "managed-state.yaml"
 BEHAVIOR_ORDER = {"domain": 0, "classical": 1, "ipcidr": 2}
+
+
+def is_target_ip_kind(kind: str) -> bool:
+    """Return whether a matcher targets the destination IP.
+
+    Source-IP matchers intentionally remain outside this set: no-resolve is a
+    destination-IP routing policy, not a generic modifier for every IP rule.
+    """
+    return kind.upper() in TARGET_IP_KINDS
 
 
 @dataclass(frozen=True)
@@ -550,6 +560,14 @@ def source_ip_value(rule: RuleLine) -> str | None:
     if len(rule.parts) != 2:
         return None
     return rule.parts[1] if rule.kind in IPCIDR_RULES else None
+
+
+def provider_has_target_ip(behavior: str, payload: list[str]) -> bool:
+    if behavior == "ipcidr":
+        return True
+    if behavior != "classical":
+        return False
+    return any(is_target_ip_kind(parse_rule(rule).kind) for rule in payload)
 
 
 def domain_suffix_value(rule: str) -> str | None:
@@ -1472,8 +1490,7 @@ def loon_rule_from_provider(
         if network is None:
             raise ValueError("normalized ipcidr provider entry is not a CIDR")
         kind = "IP-CIDR" if network.version == 4 else "IP-CIDR6"
-        suffix = ["no-resolve"] if "no-resolve" in {item.lower() for item in modifiers} else []
-        return kind, ",".join([kind, rule, *suffix])
+        return kind, ",".join([kind, rule, "no-resolve"])
 
     parsed = parse_rule(rule)
     kind = parsed.kind
@@ -1487,7 +1504,7 @@ def loon_rule_from_provider(
         raise ValueError("rule has unsupported fields or an embedded policy")
     if len(parsed.parts) == 3 and (
         parsed.parts[2].lower() != "no-resolve"
-        or kind not in {"IP-CIDR", "IP-CIDR6", "IP-ASN"}
+        or not is_target_ip_kind(kind)
     ):
         raise ValueError("only IP-CIDR/IP-CIDR6/IP-ASN may use no-resolve")
     if kind == "IP-CIDR":
@@ -1502,7 +1519,10 @@ def loon_rule_from_provider(
                 raise ValueError("IP-CIDR6 contains an IPv4 network")
         except ValueError as exc:
             raise ValueError(f"invalid IPv6 CIDR: {exc}") from exc
-    return kind, ",".join([kind, *parsed.parts[1:]])
+    values = list(parsed.parts[1:])
+    if is_target_ip_kind(kind) and "no-resolve" not in {item.lower() for item in values[1:]}:
+        values.append("no-resolve")
+    return kind, ",".join([kind, *values])
 
 
 def export_loon(
@@ -1614,18 +1634,22 @@ def export_loon(
                     converted = None
                 if converted is not None:
                     converted_parts = converted[1].split(",")
-                    if modifiers:
-                        converted_parts = [
-                            *converted_parts[: -len(modifiers)], policy, *converted_parts[-len(modifiers):]
-                        ]
-                        loon_rules.append(",".join(converted_parts))
-                    else:
-                        loon_rules.append(f"{converted[1]},{policy}")
+                    modifier_index = next(
+                        (index for index, item in enumerate(converted_parts[2:], start=2)
+                         if item.lower() in {"no-resolve", "src"}),
+                        len(converted_parts),
+                    )
+                    converted_parts.insert(modifier_index, policy)
+                    loon_rules.append(",".join(converted_parts))
                     continue
             record_top_level_unsupported(parsed.kind or "<empty>", raw_rule)
 
     loon_dir = output_dist / "loon"
     emitted_segments: list[str] = []
+    expected_loon_files = {f"{segment}.lsr" for segment in remote_order if segment in policies}
+    for stale in loon_dir.glob("*.lsr"):
+        if stale.name not in expected_loon_files:
+            stale.unlink()
     for segment in remote_order:
         if segment not in policies:
             continue
@@ -1692,7 +1716,7 @@ def classify_egern_classical(rule: str) -> tuple[str, str, bool] | None:
     if field is None or len(parsed.parts) not in {2, 3}:
         return None
     no_resolve = len(parsed.parts) == 3
-    if no_resolve and (parsed.parts[2].lower() != "no-resolve" or parsed.kind not in {"IP-CIDR", "IP-CIDR6", "IP-ASN"}):
+    if no_resolve and (parsed.parts[2].lower() != "no-resolve" or not is_target_ip_kind(parsed.kind)):
         return None
     value = parsed.parts[1]
     if parsed.kind == "IP-CIDR":
@@ -1769,15 +1793,6 @@ def export_egern(
     counts = Counter()
     unsupported = Counter()
     unsupported_classical_examples: dict[str, list[str]] = {}
-    provider_modifiers: dict[str, set[str]] = {}
-
-    for raw_rule in config.get("rules", []):
-        reference = parse_ruleset_reference(raw_rule)
-        if reference is not None:
-            provider_modifiers.setdefault(reference.provider, set()).update(
-                modifier.lower() for modifier in reference.modifiers
-            )
-
     def add(segment: str, field: str, value: str) -> bool:
         values = sets.setdefault(segment, {}).setdefault(field, [])
         if value not in values:
@@ -1805,14 +1820,8 @@ def export_egern(
                 except ValueError:
                     unsupported["invalid-ip"] += 1
                     continue
-                target = (
-                    f"{segment}-no-resolve"
-                    if "no-resolve" in provider_modifiers.get(name, set())
-                    else segment
-                )
-                if target.endswith("-no-resolve"):
-                    sets.setdefault(target, {})["no_resolve"] = True
-                add(target, "ip_cidr6_set" if version == 6 else "ip_cidr_set", rule)
+                sets.setdefault(segment, {})["no_resolve"] = True
+                add(segment, "ip_cidr6_set" if version == 6 else "ip_cidr_set", rule)
                 counts["ipv6" if version == 6 else "ipv4"] += 1
             elif behavior == "classical":
                 classified = classify_egern_classical(rule)
@@ -1823,18 +1832,23 @@ def export_egern(
                     if len(unsupported_classical_examples[kind]) < 5:
                         unsupported_classical_examples[kind].append(rule)
                     continue
-                field, value, no_resolve = classified
-                target = f"{segment}-no-resolve" if no_resolve else segment
-                if no_resolve:
+                field, value, _no_resolve = classified
+                target = segment
+                if is_target_ip_kind(parse_rule(rule).kind):
                     sets.setdefault(target, {})["no_resolve"] = True
+                    counts["no_resolve"] += 1
                 add(target, field, value)
                 counts["classical"] += 1
-                if no_resolve:
-                    counts["no_resolve"] += 1
 
     egern_dir = output_dist / "egern"
     semantic_removed: Counter[str] = Counter()
+    expected_egern_files = {f"{segment}.yaml" for segment in sets}
+    for stale in egern_dir.glob("*.yaml"):
+        if stale.name not in expected_egern_files:
+            stale.unlink()
     for segment, fields in sets.items():
+        if any(field in {"ip_cidr_set", "ip_cidr6_set", "asn_set", "geoip_set"} for field in fields):
+            fields["no_resolve"] = True
         validate_provider_name(segment)
         optimized, removed = optimize_egern_rule_set(fields)
         sets[segment] = optimized
@@ -1845,18 +1859,9 @@ def export_egern(
     emitted_keys: set[tuple[str, ...]] = set()
 
     def segment_targets(segment: str) -> list[str]:
-        targets: list[str] = []
-        if segment in sets:
-            targets.append(segment)
-        no_resolve = f"{segment}-no-resolve"
-        if no_resolve in sets:
-            targets.append(no_resolve)
-        return targets
+        return [segment] if segment in sets else []
 
     def referenced_segment_targets(segment: str, modifiers: tuple[str, ...]) -> list[str]:
-        if "no-resolve" in {modifier.lower() for modifier in modifiers}:
-            target = f"{segment}-no-resolve"
-            return [target] if target in sets else []
         return segment_targets(segment)
 
     def emit_ruleset(target: str, policy: str) -> None:
@@ -1871,7 +1876,7 @@ def export_egern(
         }})
 
     def emit_network(segment: str, protocol: str, policy: str, include_no_resolve: bool = False) -> None:
-        targets = segment_targets(segment) if include_no_resolve else ([segment] if segment in sets else [])
+        targets = segment_targets(segment)
         for target in targets:
             key = ("and-network", target, protocol, policy)
             if key in emitted_keys:
@@ -2350,6 +2355,52 @@ def ruleset_suffix_for_behavior(suffix: tuple[str, ...], behavior: str) -> list[
     if behavior != "ipcidr":
         inherited = [part for part in inherited if part != "no-resolve"]
     return inherited
+
+
+def _with_single_no_resolve(parts: list[str]) -> list[str]:
+    """Add one no-resolve modifier to a RULE-SET reference."""
+    head = parts[:2]
+    modifiers = [item for item in parts[2:] if item.lower() != "no-resolve"]
+    return [*head, *modifiers, "no-resolve"]
+
+
+def normalize_no_active_resolve(
+    config: dict[str, Any], payloads: dict[str, list[str]]
+) -> dict[str, Any]:
+    """Normalize the final Mihomo routing config to destination-IP no-resolve."""
+    target_providers = {
+        name
+        for name, provider in config["rule-providers"].items()
+        if provider_has_target_ip(provider.get("behavior", ""), payloads.get(name, []))
+    }
+
+    def rewrite_expression(expression: str) -> str:
+        direct = _ruleset_parts_in_expression(expression)
+        if direct is not None:
+            parts = _with_single_no_resolve(direct) if direct[1] in target_providers else direct
+            result = ",".join(parts)
+            return f"({result})" if strip_balanced_outer_parentheses(expression)[1] else result
+        inner, wrapped = strip_balanced_outer_parentheses(expression)
+        parts = split_top_level_commas(inner if wrapped else expression)
+        rewritten = [
+            rewrite_expression(part) if strip_balanced_outer_parentheses(part)[1] else part
+            for part in parts
+        ]
+        result = ",".join(rewritten)
+        return f"({result})" if wrapped else result
+
+    rewritten_rules: list[Any] = []
+    for raw_rule in config.get("rules", []):
+        if not isinstance(raw_rule, str):
+            rewritten_rules.append(raw_rule)
+            continue
+        parsed = parse_rule(raw_rule)
+        if is_target_ip_kind(parsed.kind):
+            parts = split_top_level_commas(raw_rule)
+            parts = [*parts[:2], *(item for item in parts[2:] if item.lower() != "no-resolve"), "no-resolve"]
+            raw_rule = ",".join(parts)
+        rewritten_rules.append(rewrite_expression(raw_rule))
+    return {**config, "rules": rewritten_rules}
 
 
 def process_provider(
@@ -3141,6 +3192,8 @@ def main() -> None:
         re.sub(r"^merged-segment-(\d+)", lambda m: segment_mapping.get(f"merged-segment-{m.group(1)}", m.group(0)), name): stats
         for name, stats in dedup_stats.items()
     }
+    validate_generated_config(staging, dedup, require_no_orphans=require_no_orphans)
+    dedup = normalize_no_active_resolve(dedup, options.final_payloads)
     validate_generated_config(staging, dedup, require_no_orphans=require_no_orphans)
     final_rule_counts = referenced_rule_counts(dedup, staging)
     publish_dist = Path(tempfile.mkdtemp(prefix="mihomo-mrs-publish-", dir=args.dist.parent))

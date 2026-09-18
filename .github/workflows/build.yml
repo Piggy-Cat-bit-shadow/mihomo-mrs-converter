@@ -63,6 +63,9 @@ jobs:
           python scripts/convert.py examples/my-rules.yaml \
             --base-url "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}"
 
+      - name: Run no-active-resolve audit
+        run: python -m unittest tests.test_no_active_resolve
+
       - name: Validate Sing-box output
         run: |
           set -euo pipefail

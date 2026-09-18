@@ -103,19 +103,19 @@ rule-providers:
     interval: 172800
 rules:
 - RULE-SET,Direct-domain,🏠 国内流量
-- RULE-SET,Direct-classical,🏠 国内流量
+- RULE-SET,Direct-classical,🏠 国内流量,no-resolve
 - SUB-RULE,(RULE-SET,AI-domain),AI-Routing
-- SUB-RULE,(RULE-SET,AI-classical),AI-Routing
-- SUB-RULE,(RULE-SET,AI-ip),AI-Routing
+- SUB-RULE,(RULE-SET,AI-classical,no-resolve),AI-Routing
+- SUB-RULE,(RULE-SET,AI-ip,no-resolve),AI-Routing
 - RULE-SET,Global-domain,🌍 国外流量
-- RULE-SET,Global-classical,🌍 国外流量
-- RULE-SET,Global-classical-part-02,🌍 国外流量
-- RULE-SET,Global-ip,🌍 国外流量
+- RULE-SET,Global-classical,🌍 国外流量,no-resolve
+- RULE-SET,Global-classical-part-02,🌍 国外流量,no-resolve
+- RULE-SET,Global-ip,🌍 国外流量,no-resolve
 - RULE-SET,China-domain,🏠 国内流量
 - RULE-SET,China-classical,🏠 国内流量
-- RULE-SET,China-classical-part-02,🏠 国内流量
-- RULE-SET,China-ip,🏠 国内流量
+- RULE-SET,China-classical-part-02,🏠 国内流量,no-resolve
+- RULE-SET,China-ip,🏠 国内流量,no-resolve
 - RULE-SET,China-ip-part-02,🏠 国内流量,no-resolve
-- IP-CIDR6,::/128,REJECT-DROP
-- IP-CIDR,0.0.0.0/32,REJECT-DROP
+- IP-CIDR6,::/128,REJECT-DROP,no-resolve
+- IP-CIDR,0.0.0.0/32,REJECT-DROP,no-resolve
 - MATCH,🌍 国外流量

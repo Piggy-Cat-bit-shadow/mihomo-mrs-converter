@@ -112,6 +112,38 @@ class RulesetReferenceTest(unittest.TestCase):
             convert.parse_ruleset_reference("RULE-SET,A,DIRECT,something-unknown")
         self.assertIn("something-unknown", str(error.exception))
 
+    def test_no_active_resolve_normalizes_target_ip_only(self) -> None:
+        config = {
+            "rule-providers": {
+                "A": {"behavior": "ipcidr"},
+                "B": {"behavior": "classical"},
+                "C": {"behavior": "classical"},
+            },
+            "rules": [
+                "RULE-SET,A,DIRECT",
+                "SUB-RULE,(RULE-SET,B),Foo",
+                "RULE-SET,C,DIRECT",
+                "IP-CIDR,0.0.0.0/32,REJECT-DROP",
+                "SRC-IP-CIDR,192.0.2.0/24,DIRECT",
+                "MATCH,DIRECT",
+            ],
+        }
+        normalized = convert.normalize_no_active_resolve(
+            config,
+            {
+                "A": ["1.1.1.0/24"],
+                "B": ["DOMAIN,example.com", "GEOIP,CN"],
+                "C": ["SRC-IP-CIDR,192.0.2.0/24"],
+            },
+        )
+        self.assertEqual(normalized["rules"][:4], [
+            "RULE-SET,A,DIRECT,no-resolve",
+            "SUB-RULE,(RULE-SET,B,no-resolve),Foo",
+            "RULE-SET,C,DIRECT",
+            "IP-CIDR,0.0.0.0/32,REJECT-DROP,no-resolve",
+        ])
+        self.assertEqual(normalized["rules"][4], "SRC-IP-CIDR,192.0.2.0/24,DIRECT")
+
 
 class LoonExportTest(unittest.TestCase):
     def make_provider(self, root: Path, name: str, behavior: str, payload: list[str]) -> dict[str, str]:
@@ -150,7 +182,7 @@ class LoonExportTest(unittest.TestCase):
             self.assertEqual(sorted(path.name for path in (output / "loon").glob("*.lsr")), ["AI.lsr"])
             self.assertEqual(
                 (output / "loon/AI.lsr").read_text(encoding="utf-8").splitlines(),
-                ["DOMAIN,ai.example", "DOMAIN-KEYWORD,ai", "IP-CIDR,1.1.1.0/24"],
+                ["DOMAIN,ai.example", "DOMAIN-KEYWORD,ai", "IP-CIDR,1.1.1.0/24,no-resolve"],
             )
             remote = (output / "generated/loon-rules.conf").read_text(encoding="utf-8")
             self.assertIn("policy=AI-Routing,tag=AI,enabled=true", remote)
@@ -176,7 +208,7 @@ class LoonExportTest(unittest.TestCase):
             convert.export_loon(config, root, output, BASE_URL)
             self.assertEqual(
                 (output / "loon/Direct.lsr").read_text(encoding="utf-8").splitlines(),
-                ["DOMAIN,example.com", "DOMAIN-SUFFIX,example.org", "IP-CIDR,1.1.1.0/24,no-resolve", "IP-CIDR6,2001:db8::/32", "IP-ASN,13335,no-resolve", "DEST-PORT,443"],
+                ["DOMAIN,example.com", "DOMAIN-SUFFIX,example.org", "IP-CIDR,1.1.1.0/24,no-resolve", "IP-CIDR6,2001:db8::/32,no-resolve", "IP-ASN,13335,no-resolve", "DEST-PORT,443"],
             )
             config["rules"].append("RULE-SET,Direct-classical,PROXY")
             with self.assertRaises(SystemExit):
@@ -202,8 +234,8 @@ class LoonExportTest(unittest.TestCase):
                 result = convert.export_loon(config, root, output, BASE_URL)
             rules = (output / "generated/loon-rules.conf").read_text(encoding="utf-8").split("[Rule]\n", 1)[1].splitlines()
             self.assertEqual(rules, [
-                "IP-CIDR,0.0.0.0/32,REJECT-DROP",
-                "IP-CIDR6,::/128,REJECT-DROP",
+                "IP-CIDR,0.0.0.0/32,REJECT-DROP,no-resolve",
+                "IP-CIDR6,::/128,REJECT-DROP,no-resolve",
                 "IP-CIDR,1.2.3.0/24,DIRECT,no-resolve",
                 "DOMAIN-SUFFIX,example.com,DIRECT",
                 "FINAL,DIRECT",
@@ -252,13 +284,13 @@ class LoonExportTest(unittest.TestCase):
             egern_output = root / "egern-output"
             convert.export_egern(config, root, egern_output, BASE_URL)
             self.assertTrue((egern_output / "egern/A.yaml").exists())
-            self.assertTrue((egern_output / "egern/A-no-resolve.yaml").exists())
-            no_resolve = yaml.safe_load((egern_output / "egern/A-no-resolve.yaml").read_text())
+            self.assertFalse((egern_output / "egern/A-no-resolve.yaml").exists())
+            no_resolve = yaml.safe_load((egern_output / "egern/A.yaml").read_text())
             self.assertTrue(no_resolve["no_resolve"])
             egern_rules = yaml.safe_load((egern_output / "generated/egern-rules.yaml").read_text())["rules"]
             urls = [item["rule_set"]["match"] for item in egern_rules if "rule_set" in item]
             self.assertTrue(any(url.endswith("/A.yaml") for url in urls))
-            self.assertTrue(any(url.endswith("/A-no-resolve.yaml") for url in urls))
+            self.assertFalse(any(url.endswith("/A-no-resolve.yaml") for url in urls))
 
 
 class DnsExportTest(unittest.TestCase):
@@ -1333,9 +1365,9 @@ class EgernExporterTest(unittest.TestCase):
             }
             convert.export_egern(config, staging, output, BASE_URL)
             rules = yaml.safe_load((output / "generated/egern-rules.yaml").read_text())["rules"]
-            self.assertEqual(len(rules), 4)
-            self.assertEqual({rule["and"]["match"][0]["rule_set"]["match"] for rule in rules[:2]}, {f"{BASE_URL}/dist/egern/X.yaml", f"{BASE_URL}/dist/egern/X-no-resolve.yaml"})
-            self.assertEqual({rule["rule_set"]["match"] for rule in rules[2:]}, {f"{BASE_URL}/dist/egern/X.yaml", f"{BASE_URL}/dist/egern/X-no-resolve.yaml"})
+            self.assertEqual(len(rules), 2)
+            self.assertEqual(rules[0]["and"]["match"][0]["rule_set"]["match"], f"{BASE_URL}/dist/egern/X.yaml")
+            self.assertEqual(rules[1]["rule_set"]["match"], f"{BASE_URL}/dist/egern/X.yaml")
 
     def test_sub_rules_are_preserved_as_a_top_level_field(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1412,16 +1444,15 @@ class EgernRuleSetOptimizationTest(unittest.TestCase):
             data = yaml.safe_load((output / "egern/AI.yaml").read_text())
             self.assertEqual(data["domain_set"], ["example.com"])
             self.assertEqual(data["domain_suffix_set"], ["google.com"])
-            self.assertEqual(data["ip_cidr_set"], ["1.2.3.0/24"])
+            self.assertEqual(data["ip_cidr_set"], ["1.2.3.0/24", "10.0.0.0/8"])
             self.assertEqual(data["ip_cidr6_set"], ["2001:db8::/32"])
             self.assertEqual(data["domain_regex_set"], ["^foo.*$"])
             self.assertEqual(data["domain_wildcard_set"], ["clients*.google.com"])
             self.assertEqual(data["asn_set"], ["132203"])
-            no_resolve = yaml.safe_load((output / "egern/AI-no-resolve.yaml").read_text())
-            self.assertEqual(no_resolve["ip_cidr_set"], ["10.0.0.0/8"])
-            self.assertIs(no_resolve["no_resolve"], True)
+            self.assertIs(yaml.safe_load((output / "egern/AI.yaml").read_text())["no_resolve"], True)
+            self.assertFalse((output / "egern/AI-no-resolve.yaml").exists())
             rules = yaml.safe_load((output / "generated/egern-rules.yaml").read_text())["rules"]
-            self.assertEqual(len([x for x in rules if "rule_set" in x]), 2)
+            self.assertEqual(len([x for x in rules if "rule_set" in x]), 1)
             self.assertEqual(rules[-1], {"default": {"policy": "DIRECT"}})
 
 

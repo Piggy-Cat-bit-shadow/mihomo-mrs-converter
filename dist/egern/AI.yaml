@@ -783,6 +783,7 @@ domain_keyword_set:
 - metamask
 - okx
 - paypal
+no_resolve: true
 asn_set:
 - '20473'
 domain_regex_set:

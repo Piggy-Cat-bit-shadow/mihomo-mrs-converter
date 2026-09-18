@@ -3,10 +3,6 @@ rules:
     match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/Direct.yaml
     policy: 🏠 国内流量
     update_interval: 172800
-- rule_set:
-    match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/Direct-no-resolve.yaml
-    policy: 🏠 国内流量
-    update_interval: 172800
 - and:
     match:
     - rule_set:
@@ -24,15 +20,7 @@ rules:
     policy: 🌍 国外流量
     update_interval: 172800
 - rule_set:
-    match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/Global-no-resolve.yaml
-    policy: 🌍 国外流量
-    update_interval: 172800
-- rule_set:
     match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/China.yaml
-    policy: 🏠 国内流量
-    update_interval: 172800
-- rule_set:
-    match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/China-no-resolve.yaml
     policy: 🏠 国内流量
     update_interval: 172800
 - default:

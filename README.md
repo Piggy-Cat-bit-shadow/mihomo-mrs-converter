@@ -152,7 +152,16 @@ dist/dns/singbox/Global-domain.srs
 
 `.srs` 由官方 `sing-box rule-set compile` 生成并执行 decompile 验收。`singbox-rules.json` 是只包含 `route.rule_set`、规则和可选 `final` 的配置片段，不是完整 Sing-box 客户端配置；支持 remote binary rule-set、原样 policy、SUB-RULE 展开、UDP 条件和 `MATCH` 到 `final` 的映射。
 
-Sing-box 输出采用 no-active-resolve 策略：Sing-box SRS 本身没有 Mihomo `no-resolve` flag，exporter 不再为 destination IP rule 自动插入 `action: resolve`。普通 destination IP 与 Mihomo `no-resolve` destination IP 在 Sing-box 输出中统一进入所属 logical segment；IP matcher 仅匹配已经存在的 destination IP，domain 不会为了 IP rule 在客户端被主动解析，从而让代理 outbound 尽可能继续拿到 domain，由远端代理侧解析。Mihomo、Egern 和 Loon 输出语义不受影响：Egern 使用原生 `no_resolve: true` rule set，Loon 保留单条规则上的 `,no-resolve` modifier。Loon 的 `SUB-RULE + NETWORK + fallback` 无法完全等价表达，属于目标格式限制。无法无损转换的规则会 fail closed，而不是静默跳过。
+## No-active-resolve routing policy
+
+所有客户端 exporter 统一采用 no-active-resolve 策略：domain 规则继续匹配 domain；destination IP matcher 只检查当前已经存在的真实目标 IP，不为了 IP 规则触发客户端 DNS。这样代理 outbound 可以尽可能继续获得原始 domain，由代理服务端解析最终目标。这是有意统一的产品策略，不再保留源配置中普通 IP 与 `no-resolve` IP 的混合解析差异。
+
+- Mihomo：包含 destination IP/ASN/GeoIP matcher 的 Rule Set 引用统一带 `no-resolve`，顶层 destination-IP 规则也带 `no-resolve`。
+- Egern：包含 `ip_cidr_set`、`ip_cidr6_set`、`asn_set` 或 `geoip_set` 的 Rule Set 使用 `no_resolve: true`，不再生成 `*-no-resolve.yaml` 拆分文件。
+- Loon：destination IP/ASN/GeoIP 单条规则统一带 `,no-resolve`。
+- Sing-box：SRS 合并为 logical segment，route 不生成 `action: resolve`。
+
+Mihomo、Egern、Loon 的其他 matcher 语义保持不变；无法无损转换的规则仍按现有 fail-closed 原则处理。
 
 ## DNS Output
 
@@ -236,11 +245,11 @@ Egern 对已定义 `sub-rules` 的无损展开目前支持 `NETWORK,UDP,Policy`�
 
 顶层 `NETWORK,UDP,Policy` 和 `NETWORK,TCP,Policy` 则分别生成 Egern 的顶层 `protocol` 规则（`match` 为规范化后的 `udp` 或 `tcp`，并保留 `policy`）。顶层 `NETWORK`、`AND` 中的 `RULE-SET + NETWORK`、以及 `SUB-RULE` 内的 `NETWORK` 处于不同的匹配范围；exporter 保持它们各自的原始位置和语义，不会互相去重。顶层仅支持明确的 UDP/TCP 三字段形式，其他 NETWORK 会 warning 并跳过 Egern 导出，但仍保留在 Mihomo 输出中。
 
-Egern exporter 在最终 segment 聚合后执行保守语义去重：仅删除已有 `domain_suffix_set` 覆盖的 exact domain、已有父 suffix 覆盖的子 suffix，以及已有父网络完整覆盖的 IPv4/IPv6 CIDR。不会合成新的 suffix 或 CIDR，也不会跨 segment、跨 `no_resolve` 文件，或在 regex、wildcard、keyword、ASN、GeoIP、port、protocol 等类型之间推断覆盖关系。
+Egern exporter 在最终 segment 聚合后执行保守语义去重：仅删除已有 `domain_suffix_set` 覆盖的 exact domain、已有父 suffix 覆盖的子 suffix，以及已有父网络完整覆盖的 IPv4/IPv6 CIDR。不会合成新的 suffix 或 CIDR，也不会跨 segment，或在 regex、wildcard、keyword、ASN、GeoIP、port、protocol 等类型之间推断覆盖关系。
 
 `segment-names.yaml` 同时控制 Mihomo 和 Egern 的最终 segment 名称。
 
-对于简单的 `IP-CIDR`、`IP-CIDR6` 和 `IP-ASN` `no-resolve` 规则，Egern 会按逻辑 segment 生成可选的 `<segment>-no-resolve.yaml`，并设置 `no_resolve: true`；普通 segment 与辅助文件使用相同 policy。`DOMAIN-REGEX` 和 `DOMAIN-WILDCARD` 会输出到对应 typed set，`PROCESS-NAME` 仍属于 unsupported best-effort 范围。
+对于 `IP-CIDR`、`IP-CIDR6`、`IP-ASN` 和 `GEOIP`，Egern 会将 matcher 放入所属 logical segment，并在该 Rule Set 设置 `no_resolve: true`。`DOMAIN-REGEX` 和 `DOMAIN-WILDCARD` 会输出到对应 typed set，`PROCESS-NAME` 仍属于 unsupported best-effort 范围。
 
 ## Loon 输出
 
@@ -251,4 +260,4 @@ dist/loon/<segment>.lsr
 dist/generated/loon-rules.conf
 ```
 
-`.lsr` 是普通 UTF-8 文本，不使用 MRS，也不依赖 Egern 产物。domain、classical 和 IP provider 会按逻辑 segment 合并；`no-resolve` 保留在对应的单条 IP 规则中。`SUB-RULE` 不展开，只机械继承其第三个参数的 policy 名称。`loon-rules.conf` 是包含 `[Remote Rule]` 和顶层 `[Rule]` 的 Loon 配置片段，可复制或整合到用户自己的配置中。
+`.lsr` 是普通 UTF-8 文本，不使用 MRS，也不依赖 Egern 产物。domain、classical 和 IP provider 会按逻辑 segment 合并；destination IP/ASN/GeoIP 保留在对应的单条规则上的 `,no-resolve`。`SUB-RULE` 不展开，只机械继承其第三个参数的 policy 名称。`loon-rules.conf` 是包含 `[Remote Rule]` 和顶层 `[Rule]` 的 Loon 配置片段，可复制或整合到用户自己的配置中。
