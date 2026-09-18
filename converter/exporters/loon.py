@@ -107,6 +107,7 @@ def export_loon(
     conditional_by_provider: dict[str, list[tuple[str, str]]] = {}
     subrule_fallback_policy: dict[str, str] = {}
     subrule_conditional_policy: dict[tuple[str, str], str] = {}
+    seen_by_segment: dict[str, set[str]] = {}
 
     for raw_rule in config.get("rules", []):
         reference = parse_ruleset_reference(raw_rule)
@@ -119,7 +120,7 @@ def export_loon(
         segment = loon_segment_name(name)
         payload = final_payloads.get(name, [])
         entries = rules_by_segment.setdefault(segment, [])
-        seen = {line for _, line in entries}
+        seen = seen_by_segment.setdefault(segment, set())
         for raw_rule in payload:
             try:
                 converted = loon_rule_from_provider(
@@ -240,14 +241,17 @@ def export_loon(
     loon_dir = output_dist / "loon"
     emitted_segments: list[str] = []
     conditional_lines: dict[tuple[str, str], list[str]] = {}
+    conditional_seen: dict[tuple[str, str], set[str]] = {}
     for provider_name, conditions in conditional_by_provider.items():
         segment = loon_segment_name(provider_name)
         entries = rules_by_segment.get(segment, [])
         for protocol, _policy in conditions:
             lines = conditional_lines.setdefault((segment, protocol), [])
+            seen = conditional_seen.setdefault((segment, protocol), set())
             for _kind, matcher in entries:
                 line = f"AND,(({matcher}),(PROTOCOL,{protocol.upper()}))"
-                if line not in lines:
+                if line not in seen:
+                    seen.add(line)
                     lines.append(line)
 
     expected_loon_files = {f"{segment}.lsr" for segment in remote_order if segment in policies}
