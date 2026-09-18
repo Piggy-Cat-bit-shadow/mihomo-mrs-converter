@@ -8,7 +8,8 @@ from pathlib import Path
 
 import yaml
 
-from .pipeline import is_target_ip_kind, parse_rule
+from .rules import parse_rule
+from .semantics import is_target_ip_kind
 from .validate import validate_config
 
 
@@ -42,18 +43,71 @@ def audit_dist(root: Path, mihomo: str | None = None) -> None:
         parsed = parse_rule(raw)
         if is_target_ip_kind(parsed.kind) and "no-resolve" not in {part.lower() for part in parsed.parts[2:]}:
             raise ValueError(f"destination IP rule lacks no-resolve: {raw}")
-    for path in sorted((root / "egern").glob("*.yaml")):
+    egern_files = sorted((root / "egern").glob("*.yaml"))
+    if not egern_files:
+        raise ValueError(f"Egern: {root / 'egern'} contains no rule-set artifacts")
+    for path in egern_files:
         data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         if any(field in data for field in ("ip_cidr_set", "ip_cidr6_set", "asn_set", "geoip_set")) and data.get("no_resolve") is not True:
-            raise ValueError(f"Egern target-IP set lacks no_resolve: {path}")
-    for path in sorted((root / "loon").glob("*.lsr")):
-        for line in path.read_text(encoding="utf-8").splitlines():
+            raise ValueError(f"Egern: {path}: target-IP set lacks no_resolve:true")
+    egern_config = yaml.safe_load((root / "generated/egern-rules.yaml").read_text(encoding="utf-8")) or {}
+    egern_refs = {
+        Path(str(item["rule_set"]["match"])).name
+        for item in egern_config.get("rules", [])
+        if isinstance(item, dict) and isinstance(item.get("rule_set"), dict)
+    }
+    actual_egern = {path.name for path in egern_files}
+    if egern_refs != actual_egern:
+        raise ValueError(f"Egern: rule-set references {sorted(egern_refs)} != artifacts {sorted(actual_egern)}")
+
+    loon_files = sorted((root / "loon").glob("*.lsr"))
+    if not loon_files:
+        raise ValueError(f"Loon: {root / 'loon'} contains no rule resources")
+    for path in loon_files:
+        lines = path.read_text(encoding="utf-8").splitlines()
+        if len(lines) != len(set(lines)):
+            raise ValueError(f"Loon: {path}: duplicate rule")
+        for line in lines:
             kind = line.split(",", 1)[0].upper()
             if kind in {"IP-CIDR", "IP-CIDR6", "IP-ASN", "GEOIP"} and "no-resolve" not in line.lower():
-                raise ValueError(f"Loon target-IP rule lacks no-resolve: {path}: {line}")
+                raise ValueError(f"Loon: {path}: target-IP rule missing no-resolve: {line}")
+    remote_text = (root / "generated/loon-rules.conf").read_text(encoding="utf-8")
+    remote_section = remote_text.split("[Remote Rule]\n", 1)[1].split("[Rule]", 1)[0]
+    remote_lines = [line for line in remote_section.splitlines() if line.strip()]
+    remote_names = [Path(line.split(",", 1)[0]).name for line in remote_lines]
+    if len(remote_names) != len(set(remote_names)):
+        raise ValueError("Loon: generated/loon-rules.conf contains duplicate remote resources")
+    if set(remote_names) != {path.name for path in loon_files}:
+        raise ValueError(f"Loon: remote resources {sorted(remote_names)} != artifacts {sorted(path.name for path in loon_files)}")
+    if "AI-udp.lsr" in remote_names and "AI.lsr" in remote_names:
+        if remote_names.index("AI-udp.lsr") > remote_names.index("AI.lsr"):
+            raise ValueError("Loon: AI-udp.lsr must precede AI.lsr")
+        udp = next(line for line in remote_lines if line.startswith("http") and "/AI-udp.lsr," in line)
+        fallback = next(line for line in remote_lines if line.startswith("http") and "/AI.lsr," in line)
+        if "policy=REJECT" not in udp or "policy=🤖 AI" not in fallback:
+            raise ValueError("Loon: AI UDP/fallback policies are incorrect")
+
     singbox = json.loads((root / "generated/singbox-rules.json").read_text(encoding="utf-8"))
-    if any(rule.get("action") == "resolve" for rule in singbox.get("route", {}).get("rules", [])):
-        raise ValueError("Sing-box contains action: resolve")
+    route = singbox.get("route", {})
+    route_sets = route.get("rule_set", [])
+    tags = [item.get("tag") for item in route_sets if isinstance(item, dict)]
+    if len(tags) != len(set(tags)):
+        raise ValueError("Sing-box: generated route contains duplicate rule-set tags")
+    if len(tags) != 4:
+        raise ValueError(f"Sing-box: expected 4 route SRS, found {len(tags)}")
+    srs_dir = root / "singbox"
+    for item in route_sets:
+        if not isinstance(item, dict) or item.get("format") != "binary":
+            raise ValueError(f"Sing-box: invalid rule-set declaration: {item!r}")
+        artifact = srs_dir / f"{item.get('tag')}.srs"
+        if not artifact.exists():
+            raise ValueError(f"Sing-box: missing artifact for tag {item.get('tag')}: {artifact}")
+    if any(rule.get("action") == "resolve" for rule in route.get("rules", []) if isinstance(rule, dict)):
+        raise ValueError("Sing-box: route contains action: resolve")
+    dns_dir = root / "dns/singbox"
+    dns_files = sorted(dns_dir.glob("*.srs"))
+    if {path.name for path in dns_files} != {"China-domain.srs", "Global-domain.srs"}:
+        raise ValueError(f"DNS: expected China-domain.srs and Global-domain.srs, found {[path.name for path in dns_files]}")
     if mihomo:
         validate_mihomo(mihomo, config)
     print("converter audit: ok")
