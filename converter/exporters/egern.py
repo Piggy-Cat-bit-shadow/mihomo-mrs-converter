@@ -39,6 +39,12 @@ def validate_provider_name(name: str) -> None:
         raise ValueError(f"invalid provider name: {name!r}")
 
 
+def egern_policy(policy: str) -> str:
+    if policy == "🏠 国内流量":
+        return "DIRECT"
+    return policy
+
+
 def egern_segment_name(provider_name: str) -> str:
     identity = parse_legacy_provider_name(provider_name)
     return identity.segment if identity else provider_name
@@ -200,7 +206,7 @@ def export_egern(
         emitted_keys.add(key)
         egern_rules.append({"rule_set": {
             "match": public_url(base_url, "dist", "egern", f"{target}.yaml"),
-            "policy": policy,
+            "policy": egern_policy(policy),
             "update_interval": 172800,
         }})
 
@@ -219,7 +225,7 @@ def export_egern(
                     }},
                     {"protocol": {"match": protocol}},
                 ],
-                "policy": policy,
+                "policy": egern_policy(policy),
             }})
 
     def emit_protocol(protocol: str, policy: str) -> None:
@@ -227,14 +233,28 @@ def export_egern(
         if key in emitted_keys:
             return
         emitted_keys.add(key)
-        egern_rules.append({"protocol": {"match": protocol, "policy": policy}})
+        egern_rules.append({"protocol": {"match": protocol, "policy": egern_policy(policy)}})
+
+    def emit_native_ip(kind: str, match: str, policy: str) -> None:
+        native_kind = {"IP-CIDR": "ip_cidr", "IP-CIDR6": "ip_cidr6", "IP-ASN": "asn", "GEOIP": "geoip"}[kind]
+        egern_rules.append({native_kind: {
+            "match": match,
+            "policy": egern_policy(policy),
+            "no_resolve": True,
+        }})
 
     for rule in config.get("rules", []):
         if not isinstance(rule, str):
             continue
         parsed = parse_rule(rule)
         if parsed.kind == "MATCH" and len(parsed.parts) >= 2:
-            egern_rules.append({"default": {"policy": parsed.parts[1]}})
+            egern_rules.append({"default": {"policy": egern_policy(parsed.parts[1])}})
+            continue
+        if parsed.kind in {"IP-CIDR", "IP-CIDR6", "IP-ASN", "GEOIP"}:
+            if len(parsed.parts) < 3 or any(item.lower() != "no-resolve" for item in parsed.parts[3:]):
+                print(f"[Egern] unsupported {parsed.kind} rule skipped: {rule}")
+                continue
+            emit_native_ip(parsed.kind, parsed.parts[1], parsed.parts[2])
             continue
         if parsed.kind == "NETWORK":
             network = parse_egern_network_rule(rule)

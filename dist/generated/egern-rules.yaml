@@ -1,7 +1,7 @@
 rules:
 - rule_set:
     match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/Direct.yaml
-    policy: 🏠 国内流量
+    policy: DIRECT
     update_interval: 172800
 - and:
     match:
@@ -21,7 +21,15 @@ rules:
     update_interval: 172800
 - rule_set:
     match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/China.yaml
-    policy: 🏠 国内流量
+    policy: DIRECT
     update_interval: 172800
+- ip_cidr6:
+    match: ::/128
+    policy: REJECT-DROP
+    no_resolve: true
+- ip_cidr:
+    match: 0.0.0.0/32
+    policy: REJECT-DROP
+    no_resolve: true
 - default:
     policy: 🌍 国外流量

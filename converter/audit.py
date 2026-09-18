@@ -57,6 +57,47 @@ def audit_dist(root: Path, mihomo: str | None = None, sing_box: str | None = Non
         if any(field in data for field in ("ip_cidr_set", "ip_cidr6_set", "asn_set", "geoip_set")) and data.get("no_resolve") is not True:
             raise ValueError(f"Egern: {path}: target-IP set lacks no_resolve:true")
     egern_config = yaml.safe_load((root / "generated/egern-rules.yaml").read_text(encoding="utf-8")) or {}
+    egern_rules = egern_config.get("rules", [])
+    egern_rule_set_policies = {
+        Path(str(item["rule_set"]["match"])).name: item["rule_set"].get("policy")
+        for item in egern_rules
+        if isinstance(item, dict) and isinstance(item.get("rule_set"), dict)
+    }
+    expected_egern_policies = {
+        "Direct.yaml": "DIRECT",
+        "AI.yaml": "🤖 AI",
+        "Global.yaml": "🌍 国外流量",
+        "China.yaml": "DIRECT",
+    }
+    for resource, policy in expected_egern_policies.items():
+        if egern_rule_set_policies.get(resource) != policy:
+            raise ValueError(f"Egern: {resource} policy must be {policy!r}")
+    udp_rules = [item for item in egern_rules if isinstance(item, dict) and isinstance(item.get("and"), dict)]
+    if not any(
+        item["and"].get("policy") == "REJECT"
+        and any(
+            isinstance(match, dict)
+            and isinstance(match.get("protocol"), dict)
+            and match["protocol"].get("match") == "udp"
+            for match in item["and"].get("match", [])
+        )
+        for item in udp_rules
+    ):
+        raise ValueError("Egern: AI UDP rule must use REJECT")
+    native_ip = {
+        key: value
+        for item in egern_rules
+        if isinstance(item, dict)
+        for key, value in item.items()
+        if key in {"ip_cidr", "ip_cidr6"} and isinstance(value, dict)
+    }
+    for key, match in (("ip_cidr6", "::/128"), ("ip_cidr", "0.0.0.0/32")):
+        rule = native_ip.get(key)
+        if not rule or rule.get("match") != match or rule.get("policy") != "REJECT-DROP" or rule.get("no_resolve") is not True:
+            raise ValueError(f"Egern: missing or invalid {key} rule for {match}")
+    defaults = [item["default"] for item in egern_rules if isinstance(item, dict) and isinstance(item.get("default"), dict)]
+    if not defaults or defaults[-1].get("policy") != "🌍 国外流量":
+        raise ValueError("Egern: default policy must be 🌍 国外流量")
     egern_refs = {
         Path(str(item["rule_set"]["match"])).name
         for item in egern_config.get("rules", [])
