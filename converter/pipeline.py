@@ -33,7 +33,7 @@ def _load_yaml(path: Path) -> dict[str, Any]:
     return value
 
 
-def _segment_mapping(root: Path) -> dict[str, str]:
+def _segment_mapping(root: Path) -> dict[str, Any]:
     path = root / "segment-names.yaml"
     if not path.exists():
         return {}
@@ -41,8 +41,11 @@ def _segment_mapping(root: Path) -> dict[str, str]:
     if not isinstance(value, dict) or not isinstance(value.get("segments", {}), dict):
         raise SystemExit(f"{path}: expected a segments mapping")
     mapping = value["segments"]
-    if not all(isinstance(old, str) and isinstance(new, str) for old, new in mapping.items()):
-        raise SystemExit(f"{path}: segment names must be strings")
+    for old, value in mapping.items():
+        if not isinstance(old, str) or not isinstance(value, dict):
+            raise SystemExit(f"{path}: each segment mapping must contain name and anchor")
+        if not isinstance(value.get("name"), str) or not isinstance(value.get("anchor"), str) or not value["anchor"]:
+            raise SystemExit(f"{path}: each segment mapping requires string name and non-empty anchor")
     return mapping
 
 

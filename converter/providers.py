@@ -3,7 +3,6 @@
 import re
 from collections import Counter
 from typing import Any
-from urllib.parse import urlparse
 
 import yaml
 
@@ -23,8 +22,10 @@ def validate_provider_name(name: str) -> None:
 
 
 def validate_http_url(name: str, url: str) -> None:
-    if urlparse(url).scheme.lower() not in {"http", "https"}:
-        raise SystemExit(f"{name}: unsupported provider URL scheme")
+    try:
+        net.validate_fetch_url(url)
+    except ValueError as exc:
+        raise SystemExit(f"{name}: {exc}") from exc
 
 
 def strict_yaml_rule_list(name: str, value: Any, allow_integer_items: bool = False) -> list[str]:

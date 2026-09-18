@@ -64,6 +64,21 @@ class OptimizeTest(unittest.TestCase):
         rewritten = rewrite_rules(["AND,((RULE-SET,A,Proxy),(NETWORK,tcp)),DIRECT"], {"A": ["A-domain"]}, {"A-domain": "domain"})
         self.assertEqual(rewritten, ["AND,((RULE-SET,A-domain,Proxy),(NETWORK,tcp)),DIRECT"])
 
+    def test_segment_anchor_rejects_ordinal_shift(self):
+        config = {"rule-providers": {"Inserted": {"behavior": "domain"}, "AI": {"behavior": "domain"}}, "rules": [
+            "RULE-SET,Inserted,Proxy", "DOMAIN,barrier.example,DIRECT", "RULE-SET,AI,Proxy"
+        ]}
+        mapping = {"merged-segment-01": {"name": "Direct", "anchor": "Direct"}}
+        with self.assertRaisesRegex(ValueError, "anchor"):
+            optimize_config(config, {"Inserted": ["inserted.example"], "AI": ["ai.example"]}, mapping)
+
+    def test_segment_anchor_maps_expected_provider(self):
+        config = {"rule-providers": {"AI": {"behavior": "domain"}}, "rules": ["RULE-SET,AI,Proxy"]}
+        final, _, _ = optimize_config(config, {"AI": ["ai.example"]}, {
+            "merged-segment-01": {"name": "AI", "anchor": "AI"}
+        })
+        self.assertIn("AI-domain", final["rule-providers"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,5 +1,13 @@
 segments:
-  merged-segment-01: Direct
-  merged-segment-02: AI
-  merged-segment-03: Global
-  merged-segment-04: China
+  merged-segment-01:
+    name: Direct
+    anchor: Lan
+  merged-segment-02:
+    name: AI
+    anchor: me-pure
+  merged-segment-03:
+    name: Global
+    anchor: Scholar-Foreign
+  merged-segment-04:
+    name: China
+    anchor: apple

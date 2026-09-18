@@ -4,6 +4,8 @@ import ssl
 import time
 import urllib.error
 import urllib.request
+import ipaddress
+from urllib.parse import urlparse
 
 try:
     import certifi
@@ -18,9 +20,30 @@ def retry_after_seconds(value: str | None) -> float:
         return 0.0
 
 
+MAX_PROVIDER_BYTES = 128 * 1024 * 1024
+
+
+def validate_fetch_url(url: str) -> None:
+    parsed = urlparse(url)
+    if parsed.scheme.lower() not in {"http", "https"}:
+        raise ValueError(f"unsupported provider URL scheme: {url}")
+    if parsed.username is not None or parsed.password is not None:
+        raise ValueError(f"provider URL userinfo is not allowed: {url}")
+    hostname = (parsed.hostname or "").rstrip(".").lower()
+    if not hostname or hostname == "localhost":
+        raise ValueError(f"provider URL hostname is not allowed: {url}")
+    try:
+        address = ipaddress.ip_address(hostname)
+    except ValueError:
+        return
+    if address.is_private or address.is_loopback or address.is_link_local or address.is_unspecified or address.is_multicast:
+        raise ValueError(f"provider URL IP literal is not allowed: {url}")
+
+
 def fetch_text(url: str, headers: dict[str, str] | None, memory_cache: dict[str, str]) -> str:
     if url in memory_cache:
         return memory_cache[url]
+    validate_fetch_url(url)
     request_headers = {"User-Agent": "mihomo-mrs-converter"}
     if headers:
         if not all(isinstance(k, str) and isinstance(v, str) for k, v in headers.items()):
@@ -33,7 +56,20 @@ def fetch_text(url: str, headers: dict[str, str] | None, memory_cache: dict[str,
     for attempt in range(4):
         try:
             with urllib.request.urlopen(request, timeout=60, context=context) as response:
-                body = response.read().decode("utf-8-sig")
+                length = response.headers.get("Content-Length") if getattr(response, "headers", None) else None
+                if length and int(length) > MAX_PROVIDER_BYTES:
+                    raise RuntimeError(f"provider response exceeds {MAX_PROVIDER_BYTES} bytes: {url}")
+                chunks: list[bytes] = []
+                total = 0
+                while True:
+                    chunk = response.read(min(1024 * 1024, MAX_PROVIDER_BYTES - total + 1))
+                    if not chunk:
+                        break
+                    chunks.append(chunk)
+                    total += len(chunk)
+                    if total > MAX_PROVIDER_BYTES:
+                        raise RuntimeError(f"provider response exceeds {MAX_PROVIDER_BYTES} bytes: {url}")
+                body = b"".join(chunks).decode("utf-8-sig")
             memory_cache[url] = body
             return body
         except urllib.error.HTTPError as exc:

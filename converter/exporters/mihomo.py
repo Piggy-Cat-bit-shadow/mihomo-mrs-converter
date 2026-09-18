@@ -89,6 +89,13 @@ def materialize_final_config(
             artifact = output_dist / folder / f"{name}.yaml"
             write_yaml_payload(artifact, payload)
             updated.update({"type": "http", "format": "yaml", "url": public_url(base_url, "dist", folder, f"{name}.yaml"), "path": f"./ruleset/{name}.yaml"})
+        size_limit = provider.get("size-limit", 0)
+        if isinstance(size_limit, bool) or not isinstance(size_limit, int) or size_limit < 0:
+            raise ValueError(f"{name}: size-limit must be a non-negative byte count")
+        if size_limit and artifact.stat().st_size > size_limit:
+            raise ValueError(
+                f"{name}: generated artifact is {artifact.stat().st_size} bytes, exceeds size-limit {size_limit} bytes"
+            )
         providers[name] = updated
     return {**config, "rule-providers": providers}
 

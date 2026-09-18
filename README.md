@@ -85,12 +85,18 @@ dist/generated/mihomo-rules.yaml
 
 ```text
 segments:
-  merged-segment-01: China
-  merged-segment-02: AI
-  merged-segment-03: Global
+  merged-segment-01:
+    name: China
+    anchor: China
+  merged-segment-02:
+    name: AI
+    anchor: AI
+  merged-segment-03:
+    name: Global
+    anchor: Global
 ```
 
-例如 `merged-segment-02-domain`、`-ip`、`-classical` 会分别变为 `AI-domain`、`AI-ip`、`AI-classical`；未配置的 segment 保持默认名字。命名会同步应用到 provider、artifact、URL、path 和所有 RULE-SET 引用。
+例如 `merged-segment-02-domain`、`-ip`、`-classical` 会分别变为 `AI-domain`、`AI-ip`、`AI-classical`；未配置的 segment 保持默认名字。`anchor` 必须匹配该 block 中的稳定 source/provider identity；如果前面插入 block 导致 ordinal 与 anchor 不一致，构建会 fail closed，不会静默错命名。命名会同步应用到 provider、artifact、URL、path 和所有 RULE-SET 引用。
 
 同一个 logical segment 内，行为类型相同且 policy、wrapper 和 provider metadata 兼容的 `RULE-SET` 会合并；`domain` / `ipcidr` 使用安全去重，classical 使用稳定顺序拼接。合并不会跨非 `RULE-SET` barrier、不同 policy、不同 wrapper 或不兼容 metadata。
 
@@ -136,13 +142,14 @@ python scripts/convert.py examples/my-rules.yaml \
 
 ## GitHub Actions
 
-推送到 GitHub 后，工作流会：
+推送到 GitHub 后，工作流分为只读的 `verify` 和最小写权限的 `publish` 两个 job：
 
 1. 安装 Python 依赖。
-2. 下载固定的 Mihomo `v1.19.30` 和 Sing-box 二进制并输出版本。
+2. 下载固定版本的 Mihomo `v1.19.30` 和 Sing-box `v1.14.0`，并校验固定 SHA-256。
 3. 运行 `unittest`。
 4. 运行转换和生成结果验收。
-5. 把 `dist/` 提交回仓库。
+5. 通过 Actions artifact 传递已验证的 `dist/` 和 `.state/managed-state.yaml`。
+6. 只有 `publish` job 使用 `contents: write`，只安装已验证生成物并提交回仓库，不重复执行转换器或远程下载。
 
 发布后的客户端 URL 会指向本仓库的 raw 文件。
 
@@ -160,6 +167,22 @@ dist/dns/singbox/Global-domain.srs
 ```
 
 `.srs` 由官方 `sing-box rule-set compile` 生成并执行 decompile 验收。`singbox-rules.json` 是只包含 `route.rule_set`、规则和可选 `final` 的配置片段，不是完整 Sing-box 客户端配置；支持 remote binary rule-set、原样 policy、SUB-RULE 展开、UDP 条件和 `MATCH` 到 `final` 的映射。
+
+流量路由只引用四个 canonical SRS：`Direct.srs`、`AI.srs`、`Global.srs`、`China.srs`。为兼容历史客户端，发布目录同时机械复制 legacy aliases：`Direct-no-resolve.srs`、`AI-ip.srs`、`Global-ip.srs`、`Global-no-resolve.srs`、`China-ip.srs`、`China-no-resolve.srs`。aliases 与对应 canonical 文件字节相同，不进入 generated route，也不承载独立语义。
+
+## Exporter capability matrix
+
+| Matcher | Mihomo | Egern | Loon | Sing-box route |
+|---|---|---|---|---|
+| DOMAIN / DOMAIN-SUFFIX | full | typed set | native rule | domain / domain_suffix |
+| DOMAIN-KEYWORD / REGEX / WILDCARD | classical | typed set | unsupported for regex/wildcard | keyword / regex |
+| IP-CIDR / IP-CIDR6 / IP-ASN / GEOIP | full with no-resolve policy | typed set with `no_resolve` | native IP/ASN/GEOIP with `no-resolve` | CIDR; ASN expanded |
+| NETWORK / ports | classical | supported conservative forms | protocol/port | matcher fields |
+| PROCESS-NAME and other unsupported forms | classical | warning/skip where unsupported | warning/skip | fail closed when not representable |
+
+Egern/Loon 不确定或没有无歧义原生语法的 matcher 会 warning/skip，不生成伪语法。该工具面向可信配置输入，不是公开的不受信任在线 URL fetch service；它只提供基础 URL 安全检查，不承诺防 DNS rebinding 的企业级 SSRF 隔离。
+
+Mihomo `size-limit` 的单位是 bytes，0 表示不限；最终生成 artifact materialize 后会检查实际字节数，超限直接失败。
 
 ## No-active-resolve routing policy
 

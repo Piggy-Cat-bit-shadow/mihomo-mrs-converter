@@ -4,7 +4,7 @@ import ipaddress
 from collections import Counter
 from typing import Any, Iterator
 
-from .model import DedupStats, NormalizedProvider, ProviderMetadata
+from .model import DedupStats, NormalizedProvider, ProviderMetadata, parse_legacy_provider_name
 from .rules import (
     _rewrite_expression,
     find_ruleset_refs,
@@ -172,6 +172,20 @@ def optimize_config(
             continue
         end, routing, wrapper_signature, names = block_by_start[index]
         segment_index += 1
+        segment_key = f"merged-segment-{segment_index:02d}"
+        segment_spec = (segment_mapping or {}).get(segment_key)
+        if isinstance(segment_spec, dict):
+            anchor = segment_spec.get("anchor")
+            if not isinstance(anchor, str) or not anchor:
+                raise ValueError(f"{segment_key}: segment mapping requires an anchor")
+            anchored = any(
+                name == anchor
+                or name.startswith(anchor + "-")
+                or (parse_legacy_provider_name(name) and parse_legacy_provider_name(name).segment == anchor)
+                for name in names
+            )
+            if not anchored:
+                raise ValueError(f"{segment_key}: configured anchor {anchor!r} does not match providers {names}")
         groups: dict[tuple[str, str], list[str]] = {}
         group_modifiers: dict[tuple[str, str], set[str]] = {}
         for offset, name in enumerate(names):
@@ -216,6 +230,10 @@ def optimize_config(
         for name, policy, modifiers in output_names:
             mapped = name
             for old, new in (segment_mapping or {}).items():
+                if isinstance(new, dict):
+                    new = new.get("name")
+                    if not isinstance(new, str):
+                        raise ValueError(f"{old}: segment mapping name must be a string")
                 if mapped.startswith(old + "-"):
                     mapped = new + mapped[len(old):]
             provider = final_providers.pop(name)

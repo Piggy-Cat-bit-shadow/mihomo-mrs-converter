@@ -11,6 +11,7 @@ import yaml
 from .rules import parse_rule
 from .semantics import is_target_ip_kind
 from .validate import validate_config
+from .exporters.singbox import LEGACY_ROUTE_ALIASES
 
 
 def validate_mihomo(binary: str, config: dict) -> None:
@@ -95,15 +96,22 @@ def audit_dist(root: Path, mihomo: str | None = None) -> None:
         raise ValueError("Sing-box: generated route contains duplicate rule-set tags")
     if len(tags) != 4:
         raise ValueError(f"Sing-box: expected 4 route SRS, found {len(tags)}")
+    if any(rule.get("action") == "resolve" for rule in route.get("rules", []) if isinstance(rule, dict)):
+        raise ValueError("Sing-box: route contains action: resolve")
     srs_dir = root / "singbox"
+    canonical_tags = set(tags)
+    expected_aliases = {
+        alias for canonical, aliases in LEGACY_ROUTE_ALIASES.items() if canonical in canonical_tags for alias in aliases
+    }
+    actual_srs = {path.stem for path in srs_dir.glob("*.srs")}
+    if actual_srs != canonical_tags | expected_aliases:
+        raise ValueError(f"Sing-box: canonical/compatibility artifacts mismatch: expected {sorted(canonical_tags | expected_aliases)}, found {sorted(actual_srs)}")
     for item in route_sets:
         if not isinstance(item, dict) or item.get("format") != "binary":
             raise ValueError(f"Sing-box: invalid rule-set declaration: {item!r}")
         artifact = srs_dir / f"{item.get('tag')}.srs"
         if not artifact.exists():
             raise ValueError(f"Sing-box: missing artifact for tag {item.get('tag')}: {artifact}")
-    if any(rule.get("action") == "resolve" for rule in route.get("rules", []) if isinstance(rule, dict)):
-        raise ValueError("Sing-box: route contains action: resolve")
     dns_dir = root / "dns/singbox"
     dns_files = sorted(dns_dir.glob("*.srs"))
     if {path.name for path in dns_files} != {"China-domain.srs", "Global-domain.srs"}:

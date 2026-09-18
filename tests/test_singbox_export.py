@@ -6,11 +6,12 @@ import unittest
 import io
 import os
 import urllib.error
+import inspect
 from email.message import Message
 from pathlib import Path
 from unittest.mock import patch
 
-from converter.exporters.singbox import SingBoxExportError, _aggregate_buckets, _default_asn_resolver, _github_api_json, _groups, _provider_matchers, export_singbox, export_singbox_dns
+from converter.exporters.singbox import LEGACY_ROUTE_ALIASES, SingBoxExportError, _aggregate_buckets, _default_asn_resolver, _github_api_json, _groups, _provider_matchers, export_singbox, export_singbox_dns
 
 
 SING_BOX = shutil.which("sing-box") or "sing-box"
@@ -109,6 +110,39 @@ class SingBoxExportTest(unittest.TestCase):
         self.assertFalse(any(tag.startswith("segment-") or tag == "China-2" for tag in tags))
         self.assertFalse(any(tag.endswith("-ip") or tag.endswith("-no-resolve") for tag in tags))
         self.assertFalse(any(rule.get("action") == "resolve" for rule in route["rules"]))
+
+    def test_legacy_route_artifacts_are_mechanical_aliases_and_not_in_route(self):
+        config = {
+            "rule-providers": {"Direct-domain": {"behavior": "domain"}, "AI-domain": {"behavior": "domain"}},
+            "rules": ["RULE-SET,Direct-domain,DIRECT", "RULE-SET,AI-domain,🤖 AI", "MATCH,DIRECT"],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            result = export_singbox(config, {"Direct-domain": ["direct.example"], "AI-domain": ["ai.example"]}, root, "https://x", SING_BOX)
+            route_tags = [item["tag"] for item in result["route"]["route"]["rule_set"]]
+            self.assertEqual(route_tags, ["Direct", "AI"])
+            for canonical, aliases in LEGACY_ROUTE_ALIASES.items():
+                if canonical in route_tags:
+                    canonical_bytes = (root / "singbox" / f"{canonical}.srs").read_bytes()
+                    for alias in aliases:
+                        self.assertEqual((root / "singbox" / f"{alias}.srs").read_bytes(), canonical_bytes)
+            self.assertFalse(set(result["compatibility_srs"]) & {f"{tag}.srs" for tag in route_tags})
+
+    def test_each_artifact_gets_its_own_decompile_identity(self):
+        config = {
+            "rule-providers": {"Direct-domain": {"behavior": "domain"}, "AI-domain": {"behavior": "domain"}},
+            "rules": ["RULE-SET,Direct-domain,DIRECT", "RULE-SET,AI-domain,🤖 AI", "MATCH,DIRECT"],
+        }
+        seen = []
+        original = subprocess.run
+        def record(command, *args, **kwargs):
+            if len(command) >= 4 and command[:3] == [SING_BOX, "rule-set", "decompile"]:
+                seen.append(Path(command[command.index("-o") + 1]).name)
+            return original(command, *args, **kwargs)
+        with tempfile.TemporaryDirectory() as tmp, patch("converter.exporters.singbox.subprocess.run", side_effect=record):
+            export_singbox(config, {"Direct-domain": ["direct.example"], "AI-domain": ["ai.example"]}, Path(tmp), "https://x", SING_BOX)
+        self.assertEqual(seen, ["Direct.decompiled.json", "AI.decompiled.json"])
+        self.assertIn('f"{artifact_tag}.decompiled.json"', inspect.getsource(export_singbox))
 
     def test_classical_ip_modifiers_share_one_bucket(self):
         matchers = _provider_matchers("Direct-classical", "classical", [

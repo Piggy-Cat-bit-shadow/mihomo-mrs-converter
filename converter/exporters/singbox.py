@@ -37,6 +37,14 @@ class SingBoxExportError(RuntimeError):
     pass
 
 
+LEGACY_ROUTE_ALIASES = {
+    "Direct": ("Direct-no-resolve",),
+    "AI": ("AI-ip",),
+    "Global": ("Global-ip", "Global-no-resolve"),
+    "China": ("China-ip", "China-no-resolve"),
+}
+
+
 def _retry_after_seconds(value: str | None) -> float:
     if not value:
         return 0.0
@@ -64,7 +72,7 @@ def _github_api_json(url: str) -> Any:
     for attempt in range(max_attempts):
         try:
             with urllib.request.urlopen(request, context=context, timeout=60) as response:
-                return json.loads(response.read())
+                return json.loads(_read_capped(response, 4 * 1024 * 1024, url))
         except urllib.error.HTTPError as exc:
             remaining = exc.headers.get("X-RateLimit-Remaining") if exc.headers else None
             reset = exc.headers.get("X-RateLimit-Reset") if exc.headers else None
@@ -86,6 +94,27 @@ def _github_api_json(url: str) -> Any:
                 ) from exc
             time.sleep(2 ** attempt)
     raise SingBoxExportError("GitHub API request failed")
+
+
+def _read_capped(response: Any, limit: int, context: str) -> bytes:
+    length = response.headers.get("Content-Length") if getattr(response, "headers", None) else None
+    if length and int(length) > limit:
+        raise SingBoxExportError(f"response exceeds {limit} byte limit: {context}")
+    data = bytearray()
+    while True:
+        try:
+            chunk = response.read(min(1024 * 1024, limit - len(data) + 1))
+        except TypeError:  # small test doubles and simple file-like objects
+            chunk = response.read()
+            data.extend(chunk)
+            if len(data) > limit:
+                raise SingBoxExportError(f"response exceeds {limit} byte limit: {context}")
+            return bytes(data)
+        if not chunk:
+            return bytes(data)
+        data.extend(chunk)
+        if len(data) > limit:
+            raise SingBoxExportError(f"response exceeds {limit} byte limit: {context}")
 
 
 def _policy_action(policy: str) -> dict[str, Any]:
@@ -182,7 +211,8 @@ def _default_asn_resolver(asns: set[str]) -> dict[str, list[str]]:
                     if data and response.status != 206: raise SingBoxExportError("ASN server ignored HTTP Range resume")
                     expected = response.headers.get("Content-Length")
                     expected_total = len(data) + int(expected) if expected else None
-                    data.extend(response.read())
+                    remaining = 128 * 1024 * 1024 - len(data)
+                    data.extend(_read_capped(response, remaining, url))
                 if expected_total is None or len(data) >= expected_total: return bytes(data)
             except IncompleteRead as exc:
                 data.extend(exc.partial)
@@ -409,16 +439,70 @@ def _representatives(source_rules: list[dict[str, Any]]) -> list[str]:
             probes.append("audit." + rule["domain_suffix"][0])
         elif "domain_keyword" in rule:
             probes.append("audit-" + rule["domain_keyword"][0] + ".invalid")
+        elif "ip_cidr" in rule:
+            probes.append(str(ipaddress.ip_network(rule["ip_cidr"][0], strict=False).network_address))
     return list(dict.fromkeys(probes))
 
 
 def _canonicalize_decompiled_rules(rules: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Match decompile's scalar shorthand to the source list representation."""
-    matcher_fields = {"domain", "domain_suffix", "domain_keyword", "domain_regex", "ip_cidr"}
+    matcher_fields = {
+        "domain", "domain_suffix", "domain_keyword", "domain_regex", "ip_cidr", "source_ip_cidr",
+        "network", "process_name", "process_path", "process_path_regex", "port", "source_port",
+        "port_range", "source_port_range",
+    }
     return [
         {field: value if isinstance(value, list) else [value] if field in matcher_fields else value for field, value in rule.items()}
         for rule in rules
     ]
+
+
+def _canonical_rule_set(rules: list[dict[str, Any]]) -> list[str]:
+    normalized = []
+    for rule in _canonicalize_decompiled_rules(rules):
+        value = {
+            field: sorted(values) if isinstance(values, list) else values
+            for field, values in rule.items()
+        }
+        normalized.append(json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
+    return sorted(normalized)
+
+
+def _semantic_matcher_equivalent(source: list[dict[str, Any]], decoded: list[dict[str, Any]]) -> bool:
+    """Compare matcher families without depending on rule order or scalar style."""
+    source_rules = _canonicalize_decompiled_rules(source)
+    decoded_rules = _canonicalize_decompiled_rules(decoded)
+    fields = {
+        field for rule in source_rules + decoded_rules for field in rule
+    }
+    cidr_fields = {"ip_cidr", "source_ip_cidr"}
+    for field in fields:
+        source_values = {
+            value for rule in source_rules for value in rule.get(field, [])
+        }
+        decoded_values = {
+            value for rule in decoded_rules for value in rule.get(field, [])
+        }
+        if field not in cidr_fields:
+            if source_values != decoded_values:
+                return False
+            continue
+        try:
+            source_networks = [ipaddress.ip_network(value, strict=False) for value in source_values]
+            decoded_networks = [ipaddress.ip_network(value, strict=False) for value in decoded_values]
+        except ValueError:
+            return False
+        def collapsed(networks: list[ipaddress._BaseNetwork]) -> list[str]:
+            return sorted(
+                str(network)
+                for version in (4, 6)
+                for network in ipaddress.collapse_addresses([item for item in networks if item.version == version])
+            )
+        source_collapsed = collapsed(source_networks)
+        decoded_collapsed = collapsed(decoded_networks)
+        if source_collapsed != decoded_collapsed:
+            return False
+    return True
 
 
 def export_singbox_dns(
@@ -530,14 +614,16 @@ def export_singbox(config: dict[str, Any], final_payloads: dict[str, list[str]],
             source.write_text(json.dumps({"version": 2, "rules": source_rules}, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
             binary = binary_dir / f"{artifact_tag}.srs"
             subprocess.run([sing_box, "rule-set", "compile", str(source), "-o", str(binary)], check=True, capture_output=True, text=True)
-            decompiled = stage / f"{group['tag']}.decompiled.json"
+            decompiled = stage / f"{artifact_tag}.decompiled.json"
             subprocess.run([sing_box, "rule-set", "decompile", str(binary), "-o", str(decompiled)], check=True, capture_output=True, text=True)
-            json.loads(decompiled.read_text(encoding="utf-8"))
-            probe = _representative(source_rules)
-            if probe is not None:
+            decoded = json.loads(decompiled.read_text(encoding="utf-8"))
+            decompiled_rules = decoded.get("rules", [])
+            if not _semantic_matcher_equivalent(source_rules, decompiled_rules):
+                raise SingBoxExportError(f"artifact {artifact_tag}: source/decompiled matcher mismatch")
+            for probe in _representatives(source_rules):
                 source_match = subprocess.run([sing_box, "rule-set", "match", "-f", "source", str(source), probe], capture_output=True, text=True)
                 binary_match = subprocess.run([sing_box, "rule-set", "match", "-f", "binary", str(binary), probe], capture_output=True, text=True)
-                if (source_match.returncode == 0) != (binary_match.returncode == 0): raise SingBoxExportError(f"segment {group['tag']}: source/binary semantic mismatch for {probe!r}")
+                if (source_match.returncode == 0) != (binary_match.returncode == 0): raise SingBoxExportError(f"artifact {artifact_tag}: source/binary semantic mismatch for {probe!r}")
         route_rules, final = _route_rules(config, groups, group_buckets)
         route = {"route": {"rule_set": [{"type": "remote", "tag": tag, "format": "binary", "url": f"{base_url.rstrip('/')}/dist/singbox/{tag}.srs", "update_interval": "2d"} for tag, _source_rules in artifacts], "rules": route_rules}}
         if final is not None: route["route"]["final"] = final
@@ -547,9 +633,17 @@ def export_singbox(config: dict[str, Any], final_payloads: dict[str, list[str]],
         target_dir.mkdir(parents=True, exist_ok=True)
         for stale in target_dir.glob("*.srs"):
             stale.unlink()
-        for binary in binary_dir.glob("*.srs"): shutil.copy2(binary, target_dir / binary.name)
+        for binary in binary_dir.glob("*.srs"):
+            shutil.copy2(binary, target_dir / binary.name)
+            for alias in LEGACY_ROUTE_ALIASES.get(binary.stem, ()):
+                shutil.copy2(binary, target_dir / f"{alias}.srs")
         (output_dist / "generated").mkdir(parents=True, exist_ok=True)
         shutil.copy2(route_path, output_dist / "generated/singbox-rules.json")
-        return {"segments": len(groups), "srs": [tag + ".srs" for tag, _source_rules in artifacts], "route": route}
+        return {
+            "segments": len(groups),
+            "srs": [tag + ".srs" for tag, _source_rules in artifacts],
+            "compatibility_srs": [alias + ".srs" for tag, aliases in LEGACY_ROUTE_ALIASES.items() if any(item[0] == tag for item in artifacts) for alias in aliases],
+            "route": route,
+        }
     finally:
         shutil.rmtree(stage, ignore_errors=True)
