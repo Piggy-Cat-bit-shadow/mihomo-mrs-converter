@@ -1,7 +1,3 @@
-sub-rules:
-  AI-Routing:
-  - NETWORK,UDP,REJECT
-  - MATCH,🤖 AI
 rule-providers:
   Direct-domain:
     behavior: domain
@@ -95,3 +91,7 @@ rules:
 - IP-CIDR6,::/128,REJECT-DROP,no-resolve
 - IP-CIDR,0.0.0.0/32,REJECT-DROP,no-resolve
 - MATCH,🌍 国外流量
+sub-rules:
+  AI-Routing:
+  - NETWORK,UDP,REJECT
+  - MATCH,🤖 AI
