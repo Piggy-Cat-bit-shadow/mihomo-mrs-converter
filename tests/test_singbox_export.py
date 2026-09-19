@@ -282,6 +282,30 @@ class SingBoxExportTest(unittest.TestCase):
             self.assertEqual(route_tags, ["Direct", "AI"])
             self.assertEqual({path.stem for path in (root / "singbox").glob("*.srs")}, set(route_tags))
 
+    def test_configured_reject_segment_extends_route_without_fixed_count(self):
+        names = {name: name for name in ("ExampleReject", "Direct", "AI", "Global", "China")}
+        config = {
+            "rule-providers": {f"{name}-domain": {"behavior": "domain"} for name in names},
+            "rules": [
+                "RULE-SET,ExampleReject-domain,REJECT-DROP,no-resolve",
+                "RULE-SET,Direct-domain,DIRECT",
+                "RULE-SET,AI-domain,AI",
+                "RULE-SET,Global-domain,GLOBAL",
+                "RULE-SET,China-domain,DIRECT",
+                "MATCH,DIRECT",
+            ],
+        }
+        payloads = {f"{name}-domain": [f"{name.lower()}.example"] for name in names}
+        with tempfile.TemporaryDirectory() as tmp:
+            result = export_singbox(config, payloads, Path(tmp), "https://x", SING_BOX, segment_names=names)
+            route = result["route"]["route"]
+            tags = [item["tag"] for item in route["rule_set"]]
+            self.assertEqual(tags, list(names))
+            self.assertEqual([item.get("action") for item in route["rules"][:5]], ["reject", "route", "route", "route", "route"])
+            self.assertEqual(route["rules"][0]["method"], "drop")
+            self.assertEqual(result["segments"], 5)
+            self.assertEqual({path.stem for path in (Path(tmp) / "singbox").glob("*.srs")}, set(names))
+
     def test_each_artifact_gets_its_own_decompile_identity(self):
         config = {
             "rule-providers": {"Direct-domain": {"behavior": "domain"}, "AI-domain": {"behavior": "domain"}},

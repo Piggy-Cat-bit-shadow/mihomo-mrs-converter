@@ -21,6 +21,7 @@ from .model import BuildConfig, BuildContext, BuildResult
 from .optimize import optimize_config
 from .providers import prefetch_provider_texts, process_provider
 from .rules import find_ruleset_refs, iter_all_rules
+from .segments import load_segment_specs, segment_mapping, segment_roles
 from .state import bootstrap_managed_manifest, build_managed_manifest, read_managed_manifest, refresh_complete_config, write_managed_manifest
 from .timing import BuildTiming, activate
 from .validate import validate_final_config
@@ -79,36 +80,11 @@ def _load_export_config(path: Path | None) -> dict[str, str]:
 
 
 def _segment_mapping(path: Path | None) -> dict[str, str]:
-    if path is None:
-        return {}
-    value = yaml.safe_load(path.read_text(encoding="utf-8"))
-    if not isinstance(value, dict) or not isinstance(value.get("segments", {}), dict):
-        raise SystemExit(f"{path}: expected a segments mapping")
-    mapping = value["segments"]
-    result: dict[str, str] = {}
-    for anchor, value in mapping.items():
-        if not isinstance(anchor, str) or not anchor or not isinstance(value, dict):
-            raise SystemExit(f"{path}: each segment key must be a non-empty source/provider identity")
-        if anchor.startswith("merged-segment-"):
-            raise SystemExit(f"{path}: ordinal segment keys are not supported: {anchor}")
-        name = value.get("name")
-        if not isinstance(name, str) or not name:
-            raise SystemExit(f"{path}: each segment mapping requires a non-empty string name")
-        if anchor in result or name in result.values():
-            raise SystemExit(f"{path}: segment anchors and names must be unique")
-        result[anchor] = name
-    return result
+    return segment_mapping(load_segment_specs(path))
 
 
 def _segment_roles(path: Path | None) -> dict[str, str]:
-    if path is None or not path.exists():
-        return {}
-    value = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    roles: dict[str, str] = {}
-    for anchor, spec in (value.get("segments", {}) if isinstance(value, dict) else {}).items():
-        if isinstance(spec, dict) and isinstance(spec.get("name"), str) and isinstance(spec.get("role"), str):
-            roles[spec["name"]] = spec["role"]
-    return roles
+    return segment_roles(load_segment_specs(path))
 
 
 def build(config: BuildConfig) -> BuildResult:

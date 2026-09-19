@@ -11,6 +11,17 @@ from converter.pipeline import build
 
 
 class PipelineTest(unittest.TestCase):
+    @staticmethod
+    def write_segment_names(root: Path) -> Path:
+        path = root / "segment-names.yaml"
+        path.write_text(yaml.safe_dump({"segments": {
+            "Lan": {"name": "Direct", "role": "direct"},
+            "me-pure": {"name": "AI", "role": "ai"},
+            "Scholar-Foreign": {"name": "Global", "role": "global"},
+            "apple": {"name": "China", "role": "china"},
+        }}), encoding="utf-8")
+        return path
+
     def test_prefetch_worker_count_keeps_final_outputs_identical(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -91,7 +102,7 @@ class PipelineTest(unittest.TestCase):
             with patch("converter.net.fetch_text", side_effect=lambda url, headers, cache: responses[url]):
                 result = build(BuildConfig(
                     input_path, dist, "https://example.invalid/repo/main", mihomo, sing_box,
-                    segment_names=Path(__file__).parents[1] / "segment-names.yaml",
+                    segment_names=self.write_segment_names(root),
                 ))
             self.assertEqual(len(result.final_config["rule-providers"]), 4)
             self.assertFalse(any(path.name.startswith("stage-") for path in dist.rglob("*")))

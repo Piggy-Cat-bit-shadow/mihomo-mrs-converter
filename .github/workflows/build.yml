@@ -75,7 +75,7 @@ jobs:
         run: |
           python -m converter config/rules.yaml --segment-names segment-names.yaml --export-config config/export.yaml --base-url "$BASE_URL" --mihomo ./.tools/mihomo --sing-box ./.tools/sing-box
           python -m converter.audit dist --mihomo ./.tools/mihomo --sing-box ./.tools/sing-box
-          python -m converter.production_audit dist --mihomo ./.tools/mihomo --sing-box ./.tools/sing-box
+          python -m converter.production_audit dist --segment-names segment-names.yaml --mihomo ./.tools/mihomo --sing-box ./.tools/sing-box
           python -m compileall -q converter
           git diff --check
       - name: Upload verified generated artifacts
