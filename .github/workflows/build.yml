@@ -124,7 +124,6 @@ jobs:
             git switch --create rules --track origin/rules
           else
             git switch --orphan rules
-            git rm -rf .
           fi
           rm -rf dist .state
           cp -a .verified-generated/dist dist
