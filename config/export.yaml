@@ -1,3 +1,25 @@
 egern:
   policy-map:
     "🏠 国内流量": DIRECT
+  allowed-unsupported:
+    - PROCESS-NAME
+    - DOMAIN-REGEX
+    - DOMAIN-WILDCARD
+singbox:
+  policy-map:
+    "🏠 国内流量": direct
+loon:
+  allowed-unsupported:
+    - PROCESS-NAME
+    - DOMAIN-REGEX
+    - DOMAIN-WILDCARD
+dns:
+  groups:
+    China:
+      roles:
+        - direct
+        - china
+    Global:
+      roles:
+        - ai
+        - global

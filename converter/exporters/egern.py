@@ -133,7 +133,7 @@ def optimize_egern_rule_set(fields: dict[str, Any]) -> tuple[dict[str, Any], Cou
 
 def export_egern(
     config: dict[str, Any], final_payloads: dict[str, list[str]], output_dist: Path, base_url: str,
-    policy_map: dict[str, str] | None = None,
+    policy_map: dict[str, str] | None = None, allowed_unsupported: frozenset[str] | set[str] | None = None,
 ) -> dict[str, int]:
     """Serialize the already-final Mihomo config into compact Egern rule sets."""
     egern_started = perf_counter()
@@ -266,27 +266,23 @@ def export_egern(
                 continue
             if parsed.kind in {"IP-CIDR", "IP-CIDR6", "IP-ASN", "GEOIP"}:
                 if len(parsed.parts) < 3 or any(item.lower() != "no-resolve" for item in parsed.parts[3:]):
-                    print(f"[Egern] unsupported {parsed.kind} rule skipped: {rule}")
-                    continue
+                    raise ValueError(f"Egern structural unsupported {parsed.kind} rule: {rule}")
                 emit_native_ip(parsed.kind, parsed.parts[1], parsed.parts[2])
                 continue
             if parsed.kind == "NETWORK":
                 network = parse_egern_network_rule(rule)
                 if network is None:
-                    print(f"[Egern] unsupported NETWORK rule skipped: {rule}")
-                    continue
+                    raise ValueError(f"Egern structural unsupported NETWORK rule: {rule}")
                 emit_protocol(*network)
                 continue
             udp_and = egern_udp_and_ruleset(rule)
             if parsed.kind == "AND":
                 if udp_and is None:
-                    print(f"[Egern] unsupported AND rule skipped: {rule}")
-                    continue
+                    raise ValueError(f"Egern structural unsupported AND rule: {rule}")
                 provider_name, policy = udp_and
                 segment = egern_segment_name(provider_name)
                 if segment not in sets:
-                    print(f"[Egern] rule references an empty or unsupported segment and was skipped: {rule}")
-                    continue
+                    raise ValueError(f"Egern rule references an empty or unsupported segment: {rule}")
                 emit_network(segment, "udp", policy)
                 continue
             wrapper = simple_ruleset_wrapper(rule)
@@ -297,21 +293,18 @@ def export_egern(
             parts, prefix, suffix = wrapper
             refs = find_ruleset_refs(rule)
             if len(refs) != 1:
-                print(f"[Egern] unsupported rule skipped: {rule}")
-                continue
+                raise ValueError(f"Egern structural unsupported rule: {rule}")
             segment = egern_segment_name(refs[0])
             targets = referenced_segment_targets(segment, reference.modifiers)
             if not targets:
-                print(f"[Egern] rule references an empty or unsupported segment and was skipped: {rule}")
-                continue
+                raise ValueError(f"Egern rule references an empty or unsupported segment: {rule}")
 
             sub_rules = config.get("sub-rules", {})
             sub_rule_name = reference.policy
             if prefix.upper() == "SUB-RULE" and isinstance(sub_rules, dict) and sub_rule_name in sub_rules:
                 members = parse_egern_sub_rule_members(sub_rules[sub_rule_name])
                 if members is None:
-                    print(f"[Egern] unsupported sub-rule member; SUB-RULE expansion skipped: {sub_rule_name}: {sub_rules[sub_rule_name]}")
-                    continue
+                    raise ValueError(f"Egern unsupported SUB-RULE member: {sub_rule_name}: {sub_rules[sub_rule_name]}")
                 for protocol, member_policy in members:
                     if protocol == "match":
                         for target in targets:
@@ -322,6 +315,10 @@ def export_egern(
 
             for target in targets:
                 emit_ruleset(target, reference.policy)
+    unexpected_unsupported = set(unsupported) - set(allowed_unsupported or ())
+    if unexpected_unsupported:
+        examples = {kind: unsupported_classical_examples.get(kind, [])[:1] for kind in sorted(unexpected_unsupported)}
+        raise ValueError(f"Egern unsupported matcher(s) not allowlisted: {examples}")
     with _timed("Egern write YAML"):
         for segment, fields in sets.items():
             write_yaml_atomic(egern_dir / f"{segment}.yaml", fields)

@@ -12,7 +12,7 @@ from email.message import Message
 from pathlib import Path
 from unittest.mock import patch
 
-from converter.exporters.singbox import SingBoxExportError, _aggregate_buckets, _collect_required_asns, _default_asn_resolver, _github_api_json, _groups, _provider_matchers, _semantic_matcher_equivalent, export_singbox, export_singbox_dns
+from converter.exporters.singbox import SingBoxExportError, _aggregate_buckets, _collect_required_asns, _default_asn_resolver, _github_api_json, _groups, _policy_action, _provider_matchers, _semantic_matcher_equivalent, export_singbox, export_singbox_dns
 
 
 SING_BOX = shutil.which("sing-box") or "sing-box"
@@ -35,6 +35,13 @@ class Response:
 
 
 class SingBoxExportTest(unittest.TestCase):
+    def test_policy_map_translates_client_policy_without_changing_intrinsics(self):
+        self.assertEqual(_policy_action("🏠 国内流量", {"🏠 国内流量": "direct"}), {"action": "route", "outbound": "direct"})
+        self.assertEqual(_policy_action("CUSTOM", {}), {"action": "route", "outbound": "CUSTOM"})
+        self.assertEqual(_policy_action("REJECT-DROP", {"REJECT-DROP": "direct"}), {"action": "reject", "method": "drop"})
+        with self.assertRaises(SingBoxExportError):
+            _policy_action("CUSTOM", {"CUSTOM": "REJECT-DROP"})
+
     def test_semantic_matcher_equivalence_handles_scalar_order_duplicates_and_cidr_collapse(self):
         source = [
             {"domain": ["Example.COM", "duplicate.example", "duplicate.example"]},

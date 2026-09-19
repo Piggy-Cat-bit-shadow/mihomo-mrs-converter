@@ -6,16 +6,60 @@ from pathlib import Path
 
 import yaml
 
+from .export_config import ExportProfile, load_export_profile
+from .rules import find_ruleset_refs, iter_all_rules
+from .model import provider_segment
 from .segments import load_segment_specs
+from .yamlio import load_yaml_unique
 
 
-def audit_production(root: Path, mihomo: str | None = None, sing_box: str | None = None, segment_names: Path | None = None) -> None:
+def _canonical_route_order(config: dict, expected_names: set[str]) -> list[str]:
+    order: list[str] = []
+    for raw in iter_all_rules(config):
+        for provider in find_ruleset_refs(raw):
+            name = provider_segment(provider)
+            if name in expected_names and name not in order:
+                order.append(name)
+    return order
+
+
+def _assert_no_legacy_top_level_rules(root: Path) -> None:
+    legacy = {"0.0.0.0/32", "::/128"}
+    mihomo = load_yaml_unique(root / "generated/mihomo-rules.yaml") or {}
+    for raw in mihomo.get("rules", []):
+        if isinstance(raw, str):
+            parts = [part.strip() for part in raw.split(",")]
+            if len(parts) >= 3 and parts[0].upper() in {"IP-CIDR", "IP-CIDR6"} and parts[1] in legacy and parts[2] in {"REJECT", "REJECT-DROP"}:
+                raise ValueError(f"production Mihomo route contains removed zero-address rule: {raw}")
+    egern = load_yaml_unique(root / "generated/egern-rules.yaml") or {}
+    for item in egern.get("rules", []):
+        for key in ("ip_cidr", "ip_cidr6"):
+            if isinstance(item, dict) and isinstance(item.get(key), dict) and item[key].get("match") in legacy:
+                raise ValueError(f"production Egern route contains removed zero-address rule: {item}")
+    loon = (root / "generated/loon-rules.conf").read_text(encoding="utf-8")
+    rule_section = loon.split("[Rule]", 1)[1] if "[Rule]" in loon else ""
+    if any(address in rule_section for address in legacy):
+        raise ValueError("production Loon route contains removed zero-address rule")
+    route = json.loads((root / "generated/singbox-rules.json").read_text(encoding="utf-8")).get("route", {})
+    for item in route.get("rules", []):
+        if not isinstance(item, dict):
+            continue
+        if any(item.get(key) in (["0.0.0.0/32"], ["::/128"], "0.0.0.0/32", "::/128") for key in ("ip_cidr", "ip_cidr6")) and item.get("action") == "reject":
+            raise ValueError(f"production Sing-box route contains removed zero-address rule: {item}")
+
+
+def audit_production(root: Path, segment_names: Path | None = None, export_config: Path | None = None) -> None:
     metadata_path = segment_names or root.parent / "segment-names.yaml"
     specs = load_segment_specs(metadata_path)
     if not specs:
         raise ValueError(f"production segment metadata is empty: {metadata_path}")
+    profile_path = export_config or root.parent / "config/export.yaml"
+    profile = load_export_profile(profile_path if profile_path.exists() else None)
     expected_names = [spec.name for spec in specs]
-    egern = yaml.safe_load((root / "generated/egern-rules.yaml").read_text(encoding="utf-8")) or {}
+    canonical_order = _canonical_route_order(load_yaml_unique(root / "generated/mihomo-rules.yaml"), set(expected_names))
+    if set(canonical_order) != set(expected_names):
+        raise ValueError(f"production canonical route segments mismatch: {canonical_order}")
+    egern = load_yaml_unique(root / "generated/egern-rules.yaml") or {}
     policies = {
         Path(str(item["rule_set"]["match"])).name: item["rule_set"].get("policy")
         for item in egern.get("rules", [])
@@ -26,55 +70,43 @@ def audit_production(root: Path, mihomo: str | None = None, sing_box: str | None
         for item in egern.get("rules", [])
         if isinstance(item, dict) and isinstance(item.get("rule_set"), dict)
     ]
-    egern_positions = {name: egern_order.index(name) for name in expected_names if name in egern_order}
+    expected_order = canonical_order
     for spec in specs:
         resource = f"{spec.name}.yaml"
         if resource not in policies:
             raise ValueError(f"production Egern missing segment: {spec.name}")
         if spec.role == "reject" and policies[resource] != "REJECT-DROP":
             raise ValueError(f"production Egern reject segment must use REJECT-DROP: {spec.name}")
-    if list(egern_positions) != expected_names:
+    actual_egern_order = [name for name in egern_order if name in set(expected_order)]
+    if actual_egern_order != expected_order:
         raise ValueError("production Egern segment order does not match segment metadata")
-    udp = [item for item in egern.get("rules", []) if isinstance(item, dict) and isinstance(item.get("and"), dict)]
-    if not any(item["and"].get("policy") == "REJECT" and any(isinstance(m, dict) and m.get("protocol", {}).get("match") == "udp" for m in item["and"].get("match", [])) for item in udp):
-        raise ValueError("production Egern AI UDP rule must use REJECT")
-    legacy_zero_addresses = ("0.0.0.0/32", "::/128")
-    generated_text_paths = [
-        root / "generated/egern-rules.yaml",
-        root / "generated/mihomo-rules.yaml",
-        root / "generated/loon-rules.conf",
-        root / "generated/singbox-rules.json",
-    ]
-    for path in generated_text_paths:
-        text = path.read_text(encoding="utf-8")
-        if any(address in text for address in legacy_zero_addresses):
-            raise ValueError(f"production generated output contains removed zero-address rule: {path}")
+    _assert_no_legacy_top_level_rules(root)
     defaults = [item["default"] for item in egern.get("rules", []) if isinstance(item, dict) and isinstance(item.get("default"), dict)]
-    if not defaults or defaults[-1].get("policy") != "🌍 国外流量":
+    mihomo = load_yaml_unique(root / "generated/mihomo-rules.yaml") or {}
+    default_rules = [raw for raw in mihomo.get("rules", []) if isinstance(raw, str) and raw.upper().startswith("MATCH,")]
+    expected_default = profile.egern_policy_map.get(default_rules[-1].split(",", 1)[1], default_rules[-1].split(",", 1)[1]) if default_rules else None
+    if not defaults or expected_default is None or defaults[-1].get("policy") != expected_default:
         raise ValueError("production Egern default policy mismatch")
     loon = (root / "generated/loon-rules.conf").read_text(encoding="utf-8")
     loon_order = [
         line.split("tag=", 1)[1].split(",", 1)[0]
         for line in loon.splitlines()
         if line.startswith("http") and "tag=" in line
-        and line.split("tag=", 1)[1].split(",", 1)[0] in expected_names
+        and line.split("tag=", 1)[1].split(",", 1)[0] in expected_order
     ]
-    if loon_order != expected_names:
+    if loon_order != expected_order:
         raise ValueError(f"production Loon segment order mismatch: {loon_order}")
     for spec in specs:
         if spec.role == "reject" and f"tag={spec.name}," in loon and "policy=REJECT-DROP" not in next(line for line in loon.splitlines() if f"tag={spec.name}," in line):
             raise ValueError(f"production Loon reject segment must use REJECT-DROP: {spec.name}")
-    if "AI-udp.lsr" in loon and "AI.lsr" in loon:
-        if loon.index("AI-udp.lsr") > loon.index("AI.lsr") or "policy=REJECT" not in loon or "policy=🤖 AI" not in loon:
-            raise ValueError("production Loon AI UDP/fallback policy mismatch")
     route = json.loads((root / "generated/singbox-rules.json").read_text(encoding="utf-8")).get("route", {})
     route_sets = route.get("rule_set", [])
     tags = [item.get("tag") for item in route_sets if isinstance(item, dict)]
     if len(tags) != len(set(tags)):
         raise ValueError("production Sing-box route contains duplicate SRS tags")
-    if tags != expected_names:
-        missing = sorted(set(expected_names) - set(tags))
-        unknown = sorted(set(tags) - set(expected_names))
+    if tags != expected_order:
+        missing = sorted(set(expected_order) - set(tags))
+        unknown = sorted(set(tags) - set(expected_order))
         raise ValueError(f"production Sing-box route segments mismatch: missing={missing}, unknown={unknown}, order={tags}")
     actual_srs = {path.name for path in (root / "singbox").glob("*.srs")}
     expected_srs = {f"{tag}.srs" for tag in tags}
@@ -87,17 +119,18 @@ def audit_production(root: Path, mihomo: str | None = None, sing_box: str | None
         if isinstance(item, dict)
         for tag in (item.get("rule_set", []) if isinstance(item.get("rule_set"), list) else [])
     }
-    if set(rule_positions) != set(expected_names):
+    if set(rule_positions) != set(expected_order):
         raise ValueError("production Sing-box route rules do not reference every configured segment")
-    if any(rule_positions[expected_names[i]] > rule_positions[expected_names[i + 1]] for i in range(len(expected_names) - 1)):
+    if any(rule_positions[expected_order[i]] > rule_positions[expected_order[i + 1]] for i in range(len(expected_order) - 1)):
         raise ValueError("production Sing-box route segment order does not match segment metadata")
     for spec in specs:
         if spec.role == "reject":
             rule = next((item for item in route_rules if isinstance(item, dict) and spec.name in item.get("rule_set", [])), None)
             if not rule or rule.get("action") != "reject" or rule.get("method") != "drop":
                 raise ValueError(f"production Sing-box reject segment must use drop: {spec.name}")
-    if {path.name for path in (root / "dns/singbox").glob("*.srs")} != {"China-domain.srs", "Global-domain.srs"}:
-        raise ValueError("production DNS must contain China and Global SRS")
+    expected_dns = {f"{group}-domain.srs" for group in profile.dns_groups}
+    if {path.name for path in (root / "dns/singbox").glob("*.srs")} != expected_dns:
+        raise ValueError("production DNS files do not match export profile groups")
     print("converter production audit: ok")
 
 
@@ -105,11 +138,10 @@ def main() -> None:
     import argparse
     parser = argparse.ArgumentParser(description="Audit the repository production profile.")
     parser.add_argument("root", nargs="?", type=Path, default=Path("dist"))
-    parser.add_argument("--mihomo")
-    parser.add_argument("--sing-box")
     parser.add_argument("--segment-names", type=Path)
+    parser.add_argument("--export-config", type=Path)
     args = parser.parse_args()
-    audit_production(args.root, args.mihomo, args.sing_box, args.segment_names)
+    audit_production(args.root, args.segment_names, args.export_config)
 
 
 if __name__ == "__main__":

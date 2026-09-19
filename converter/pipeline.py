@@ -17,6 +17,7 @@ from .exporters.egern import export_egern
 from .exporters.loon import export_loon
 from .exporters.mihomo import materialize_final_config, normalize_no_active_resolve
 from .exporters.singbox import export_singbox, export_singbox_dns
+from .export_config import ExportProfile, load_export_profile
 from .model import BuildConfig, BuildContext, BuildResult
 from .optimize import optimize_config
 from .providers import prefetch_provider_texts, process_provider
@@ -25,10 +26,11 @@ from .segments import load_segment_specs, segment_mapping, segment_roles
 from .state import bootstrap_managed_manifest, build_managed_manifest, read_managed_manifest, refresh_complete_config, write_managed_manifest
 from .timing import BuildTiming, activate
 from .validate import validate_final_config
+from .yamlio import load_yaml_unique
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
-    value = yaml.safe_load(path.read_text(encoding="utf-8"))
+    value = load_yaml_unique(path)
     validate_input_schema(path, value)
     return value
 
@@ -68,15 +70,8 @@ def validate_input_schema(path: Path, value: Any) -> None:
                     raise SystemExit(f"{path}: sub-rules.{name}[{index}] must be a string")
 
 
-def _load_export_config(path: Path | None) -> dict[str, str]:
-    if path is None:
-        return {}
-    value = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    egern = value.get("egern", {}) if isinstance(value, dict) else {}
-    mapping = egern.get("policy-map", {}) if isinstance(egern, dict) else {}
-    if not isinstance(mapping, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in mapping.items()):
-        raise SystemExit(f"{path}: egern.policy-map must be a string mapping")
-    return mapping
+def _load_export_config(path: Path | None) -> ExportProfile:
+    return load_export_profile(path)
 
 
 def _segment_mapping(path: Path | None) -> dict[str, str]:
@@ -138,7 +133,7 @@ def build(config: BuildConfig) -> BuildResult:
     }
     mapping = _segment_mapping(config.segment_names)
     segment_roles = _segment_roles(config.segment_names)
-    policy_map = _load_export_config(config.export_config)
+    export_profile = _load_export_config(config.export_config)
     with timing.phase("optimize config"):
         optimized, final_payloads, dedup_stats = optimize_config(semantic, payloads, mapping)
         optimized = normalize_no_active_resolve(optimized, final_payloads)
@@ -159,18 +154,18 @@ def build(config: BuildConfig) -> BuildResult:
             with timing.phase("validate final config"):
                 validate_final_config(publish_dist, final)
             exporter_calls = {
-                "egern": ("Egern export", export_egern, (final, final_payloads, publish_dist, config.base_url, policy_map)),
-                "loon": ("Loon export", export_loon, (final, final_payloads, publish_dist, config.base_url)),
-                "singbox": ("Sing-box route export", export_singbox, (final, final_payloads, publish_dist, config.base_url, config.sing_box_bin)),
-                "singbox-dns": ("Sing-box DNS export", export_singbox_dns, (final, final_payloads, publish_dist, config.base_url, config.sing_box_bin, segment_roles)),
-                "dns": ("DNS export", export_dns, (final, final_payloads, publish_dist, config.base_url, config.mihomo_bin, segment_roles)),
+                "egern": ("Egern export", export_egern, (final, final_payloads, publish_dist, config.base_url, export_profile.egern_policy_map, export_profile.allowed_unsupported.get("egern", frozenset()))),
+                "loon": ("Loon export", export_loon, (final, final_payloads, publish_dist, config.base_url, export_profile.allowed_unsupported.get("loon", frozenset()))),
+                "singbox": ("Sing-box route export", export_singbox, (final, final_payloads, publish_dist, config.base_url, config.sing_box_bin, None, mapping, export_profile.singbox_policy_map)),
+                "singbox-dns": ("Sing-box DNS export", export_singbox_dns, (final, final_payloads, publish_dist, config.base_url, config.sing_box_bin, segment_roles, export_profile.dns_groups)),
+                "dns": ("DNS export", export_dns, (final, final_payloads, publish_dist, config.base_url, config.mihomo_bin, segment_roles, export_profile.dns_groups)),
             }
             def run_export(item: tuple[str, Any, tuple[Any, ...]]) -> tuple[str, Any, BuildTiming]:
                 key, (_label, function, args) = item
                 started = time.perf_counter()
                 worker_timing = BuildTiming()
                 with activate(worker_timing):
-                    result = function(*args, **({"segment_names": mapping} if key == "singbox" else {}))
+                    result = function(*args)
                 worker_timing.phases[exporter_calls[key][0]] = time.perf_counter() - started
                 return key, result, worker_timing
             parallel_started = time.perf_counter()

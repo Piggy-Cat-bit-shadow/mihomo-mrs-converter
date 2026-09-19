@@ -37,7 +37,9 @@ class RefactorRegressionTest(unittest.TestCase):
                 "rule-providers": {"external": {"type": "http", "behavior": "domain", "format": "mrs", "url": "https://example.invalid/rules.mrs", "path": "./ruleset/external.mrs"}},
                 "rules": ["RULE-SET,external,DIRECT"],
             }))
-            argv = ["convert.py", str(path), "--base-url", "https://example.invalid", "--mihomo", "/bin/true", "--sing-box", "/bin/true", "--dist", str(Path(tmp) / "dist")]
+            metadata = Path(tmp) / "segment-names.yaml"
+            metadata.write_text("segments: {}\n", encoding="utf-8")
+            argv = ["convert.py", str(path), "--base-url", "https://example.invalid", "--mihomo", "/bin/true", "--sing-box", "/bin/true", "--dist", str(Path(tmp) / "dist"), "--segment-names", str(metadata)]
             with patch.object(sys, "argv", argv), contextlib.redirect_stdout(io.StringIO()):
                 with self.assertRaises(SystemExit) as error:
                     cli_main()

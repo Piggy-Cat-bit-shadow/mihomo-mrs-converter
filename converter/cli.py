@@ -46,6 +46,8 @@ def main() -> None:
     if segment_names is None:
         candidate = args.input.parent.parent / "segment-names.yaml"
         segment_names = candidate if candidate.exists() else None
+    if segment_names is None:
+        parser.error("multi-client build requires segment metadata; pass --segment-names")
     result = build(BuildConfig(
         args.input, args.dist, args.base_url, args.mihomo, args.sing_box,
         args.complete_config, args.complete_output, segment_names, args.export_config, args.bootstrap_managed,

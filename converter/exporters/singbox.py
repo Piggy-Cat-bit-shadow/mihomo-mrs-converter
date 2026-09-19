@@ -26,6 +26,7 @@ from typing import Any, Callable
 from urllib.parse import urlparse
 
 from .dns import collect_dns_domain_payloads
+from ..export_config import DEFAULT_DNS_GROUPS
 from ..rules import DNS_DOMAIN_KINDS, parse_rule, parse_ruleset_reference, simple_ruleset_wrapper, split_top_level_commas
 from ..model import parse_provider_identity
 from ..net import read_capped_response as _read_capped, retry_after_seconds, ssl_context
@@ -89,14 +90,21 @@ def _github_api_json(url: str) -> Any:
     raise SingBoxExportError("GitHub API request failed")
 
 
-def _policy_action(policy: str) -> dict[str, Any]:
-    if policy == "DIRECT":
+def _policy_action(policy: str, policy_map: dict[str, str] | None = None) -> dict[str, Any]:
+    mapped = (policy_map or {}).get(policy, policy)
+    if policy not in {"DIRECT", "REJECT", "REJECT-DROP"} and mapped in {"DIRECT", "REJECT", "REJECT-DROP"} and mapped != "DIRECT":
+        raise SingBoxExportError(f"policy mapping cannot introduce intrinsic rejection policy: {policy!r} -> {mapped!r}")
+    if policy in {"DIRECT", "REJECT", "REJECT-DROP"}:
+        mapped = policy
+    if mapped == "DIRECT":
         return {"action": "route", "outbound": "direct"}
-    if policy == "REJECT":
+    if mapped == "REJECT":
         return {"action": "reject"}
-    if policy == "REJECT-DROP":
+    if mapped == "REJECT-DROP":
         return {"action": "reject", "method": "drop"}
-    return {"action": "route", "outbound": policy}
+    if mapped in {"REJECT", "REJECT-DROP"}:
+        raise SingBoxExportError(f"policy mapping cannot route intrinsic rejection policy: {policy!r} -> {mapped!r}")
+    return {"action": "route", "outbound": mapped}
 
 
 def _wildcard_regex(value: str) -> str:
@@ -438,7 +446,7 @@ def _groups(config: dict[str, Any], segment_names: dict[str, str] | None = None)
     return groups
 
 
-def _subrule_actions(config: dict[str, Any], name: str) -> list[tuple[dict[str, Any], dict[str, Any]]]:
+def _subrule_actions(config: dict[str, Any], name: str, policy_map: dict[str, str] | None = None) -> list[tuple[dict[str, Any], dict[str, Any]]]:
     members = (config.get("sub-rules") or {}).get(name)
     if members is None:
         raise SingBoxExportError(f"SUB-RULE {name!r} is not defined")
@@ -446,9 +454,9 @@ def _subrule_actions(config: dict[str, Any], name: str) -> list[tuple[dict[str, 
     for index, raw in enumerate(members):
         parts = split_top_level_commas(raw)
         if len(parts) == 3 and parts[0].upper() == "NETWORK" and parts[1].upper() in {"TCP", "UDP"}:
-            actions.append(({"network": [parts[1].lower()]}, _policy_action(parts[2])))
+            actions.append(({"network": [parts[1].lower()]}, _policy_action(parts[2], policy_map)))
         elif len(parts) == 2 and parts[0].upper() == "MATCH":
-            actions.append(({}, _policy_action(parts[1])))
+            actions.append(({}, _policy_action(parts[1], policy_map)))
         else:
             raise SingBoxExportError(f"sub-rules[{name!r}][{index}]: unsupported member {raw!r}")
     if not actions or not any(not match for match, _ in actions):
@@ -456,7 +464,7 @@ def _subrule_actions(config: dict[str, Any], name: str) -> list[tuple[dict[str, 
     return actions
 
 
-def _route_rules(config: dict[str, Any], groups: list[dict[str, Any]], group_buckets: dict[str, dict[str, list[dict[str, Any]]]]) -> tuple[list[dict[str, Any]], str | None]:
+def _route_rules(config: dict[str, Any], groups: list[dict[str, Any]], group_buckets: dict[str, dict[str, list[dict[str, Any]]]], policy_map: dict[str, str] | None = None) -> tuple[list[dict[str, Any]], str | None]:
     by_index = {index: group for group in groups for index in group["indexes"]}
     rules: list[dict[str, Any]] = []
     final: str | None = None
@@ -466,14 +474,14 @@ def _route_rules(config: dict[str, Any], groups: list[dict[str, Any]], group_buc
         kind = parts[0].upper() if parts else ""
         if kind == "MATCH":
             if index != len(config["rules"]) - 1 or len(parts) != 2: raise SingBoxExportError(f"rules[{index}]: MATCH must be terminal and have one policy")
-            action = _policy_action(parts[1])
+            action = _policy_action(parts[1], policy_map)
             if action["action"] == "route": final = action["outbound"]
             else: rules.append(action)
             continue
         group = by_index.get(index)
         if group is not None:
             if index != group["indexes"][0]: continue
-            actions = _subrule_actions(config, group["policy"]) if group["wrapper"] == "SUB-RULE" else [({}, _policy_action(group["policy"]))]
+            actions = _subrule_actions(config, group["policy"], policy_map) if group["wrapper"] == "SUB-RULE" else [({}, _policy_action(group["policy"], policy_map))]
             def emit(bucket: str) -> None:
                 if bucket not in group_buckets[group["id"]]:
                     return
@@ -483,7 +491,7 @@ def _route_rules(config: dict[str, Any], groups: list[dict[str, Any]], group_buc
             emit("base")
             continue
         if kind == "NETWORK" and len(parts) == 3 and parts[1].upper() in {"TCP", "UDP"}:
-            rules.append({"network": [parts[1].lower()], **_policy_action(parts[2])}); continue
+            rules.append({"network": [parts[1].lower()], **_policy_action(parts[2], policy_map)}); continue
         if kind == "RULE-SET":
             raise SingBoxExportError(f"rules[{index}]: RULE-SET was not assigned a segment")
         if len(parts) < 3:
@@ -504,10 +512,10 @@ def _route_rules(config: dict[str, Any], groups: list[dict[str, Any]], group_buc
         parsed = _matcher(matcher_kind, ",".join(matcher_parts[1:]), f"rules[{index}]")
         if isinstance(parsed, list):
             for field, value in parsed:
-                rules.append({field: value, **_policy_action(policy)})
+                rules.append({field: value, **_policy_action(policy, policy_map)})
         else:
             field, value = parsed
-            entry = {field: value if isinstance(value, list) else [value], **_policy_action(policy)}
+            entry = {field: value if isinstance(value, list) else [value], **_policy_action(policy, policy_map)}
             rules.append(entry)
     return rules, final
 
@@ -515,17 +523,19 @@ def _route_rules(config: dict[str, Any], groups: list[dict[str, Any]], group_buc
 def export_singbox_dns(
     config: dict[str, Any], final_payloads: dict[str, list[str]], output_dist: Path,
     base_url: str, sing_box: str | None, segment_roles: dict[str, str] | None = None,
+    dns_groups: dict[str, frozenset[str]] | None = None,
 ) -> dict[str, Any]:
     """Compile the shared normalized DNS domain view into two pure SRS files."""
     if not sing_box:
         raise SingBoxExportError("sing-box binary not found; DNS SRS output requires sing-box")
-    dns_payloads = collect_dns_domain_payloads(config, final_payloads, DNS_DOMAIN_KINDS, segment_roles)
+    groups = dns_groups or DEFAULT_DNS_GROUPS
+    dns_payloads = collect_dns_domain_payloads(config, final_payloads, DNS_DOMAIN_KINDS, segment_roles, groups)
     stage = Path(tempfile.mkdtemp(prefix="singbox-dns-export-", dir=output_dist.parent))
     try:
         source_dir, binary_dir = stage / "source", stage / "dns"
         source_dir.mkdir(); binary_dir.mkdir()
         result: dict[str, Any] = {"groups": {}, "srs": []}
-        for group in ("China", "Global"):
+        for group in groups:
             domain_payload, classical_payload = dns_payloads[group]
             matchers: list[dict[str, Any]] = []
             for raw in domain_payload:
@@ -568,7 +578,7 @@ def export_singbox_dns(
         shutil.rmtree(stage, ignore_errors=True)
 
 
-def export_singbox(config: dict[str, Any], final_payloads: dict[str, list[str]], output_dist: Path, base_url: str, sing_box: str | None, asn_resolver: Callable[[set[str]], dict[str, list[str]]] | None = None, segment_names: dict[str, str] | None = None) -> dict[str, Any]:
+def export_singbox(config: dict[str, Any], final_payloads: dict[str, list[str]], output_dist: Path, base_url: str, sing_box: str | None, asn_resolver: Callable[[set[str]], dict[str, list[str]]] | None = None, segment_names: dict[str, str] | None = None, policy_map: dict[str, str] | None = None) -> dict[str, Any]:
     if not sing_box: raise SingBoxExportError("sing-box binary not found; install Sing-box and retry")
     route_started = time.perf_counter()
     with _timed("Sing-box group discovery"):
@@ -665,7 +675,7 @@ def export_singbox(config: dict[str, Any], final_payloads: dict[str, list[str]],
             if timing is not None:
                 timing.phases[f"Sing-box artifact {artifact_tag}"] = artifact_times[artifact_tag]
         with _timed("Sing-box route generation"):
-            route_rules, final = _route_rules(config, groups, group_buckets)
+            route_rules, final = _route_rules(config, groups, group_buckets, policy_map)
         route = {"route": {"rule_set": [{"type": "remote", "tag": tag, "format": "binary", "url": f"{base_url.rstrip('/')}/dist/singbox/{tag}.srs", "update_interval": "2d"} for tag, _source_rules in artifacts], "rules": route_rules}}
         if final is not None: route["route"]["final"] = final
         route_path = stage / "singbox-rules.json"

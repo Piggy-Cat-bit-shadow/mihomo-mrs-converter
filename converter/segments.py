@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import yaml
+from .yamlio import load_yaml_unique
 
 
 VALID_ROLES = frozenset({"direct", "ai", "global", "china", "reject"})
@@ -23,7 +23,7 @@ def load_segment_specs(path: Path | None) -> tuple[SegmentSpec, ...]:
     if path is None:
         return ()
     try:
-        value = yaml.safe_load(path.read_text(encoding="utf-8"))
+        value = load_yaml_unique(path)
     except OSError as exc:
         raise SystemExit(f"{path}: unable to read segment metadata: {exc}") from exc
     if not isinstance(value, dict) or not isinstance(value.get("segments"), dict):

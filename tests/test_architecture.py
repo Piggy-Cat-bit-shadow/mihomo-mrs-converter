@@ -63,6 +63,12 @@ class ArchitectureTest(unittest.TestCase):
         self.assertIn('GEOLITE2_RELEASE = "1789596753"', data_sources)
         self.assertEqual(data_sources.count('"sha256":'), 2)
 
+    def test_production_contract_is_configuration_driven(self):
+        root = Path(__file__).parents[1]
+        source = (root / "converter/production_audit.py").read_text(encoding="utf-8")
+        for literal in ("AI-udp.lsr", "China-domain.srs", "Global-domain.srs", "🤖 AI", "🌍 国外流量"):
+            self.assertNotIn(literal, source)
+
 
 if __name__ == "__main__":
     unittest.main()

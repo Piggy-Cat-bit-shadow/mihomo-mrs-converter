@@ -93,7 +93,8 @@ def loon_rule_from_provider(
 
 
 def export_loon(
-    config: dict[str, Any], final_payloads: dict[str, list[str]], output_dist: Path, base_url: str
+    config: dict[str, Any], final_payloads: dict[str, list[str]], output_dist: Path, base_url: str,
+    allowed_unsupported: frozenset[str] | set[str] | None = None,
 ) -> dict[str, int]:
     """Export final normalized providers directly as independent Loon rule lists."""
     rules_by_segment: dict[str, list[tuple[str, str]]] = {}
@@ -291,6 +292,12 @@ def export_loon(
             rule_count = sum(1 for _ in handle)
         print(f"  {segment}.lsr: {rule_count} rules, policy={policies[segment]}")
     total_skipped = sum(unsupported.values()) + sum(top_level_unsupported.values())
+    unexpected_unsupported = set(unsupported) - set(allowed_unsupported or ())
+    if unexpected_unsupported:
+        examples = {kind: unsupported_examples.get(kind, [])[:1] for kind in sorted(unexpected_unsupported)}
+        raise ValueError(f"Loon unsupported matcher(s) not allowlisted: {examples}")
+    if top_level_unsupported:
+        raise ValueError(f"Loon structural unsupported rule(s): {dict(top_level_unsupported)}")
     print("========== Loon Unsupported Summary ==========")
     type_counts = unsupported + top_level_unsupported
     for kind, count in sorted(type_counts.items()):

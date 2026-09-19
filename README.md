@@ -67,6 +67,10 @@ segments:
 
 显示名称可以调整，DNS role 用于保持 DNS 分组身份不变。
 
+`segment-names.yaml` 是生产 segment metadata 的唯一来源。生产构建会从生成的 Mihomo route 中读取实际 segment 顺序，并要求 Egern、Loon、Sing-box 与之保持一致；新增、删除、重命名或重排 segment 时只需同步 metadata 和输入规则。
+
+多客户端导出策略位于 [`config/export.yaml`](config/export.yaml)：其中包含客户端 policy 映射、允许降级处理的 matcher 类型，以及 DNS role 分组。未列入 allowlist 的 matcher 和任何结构性跳过都会使 Egern/Loon 构建失败，避免生成静默缺规则的生产文件。
+
 ## 输出
 
 生成物发布在 `rules` 分支的 `dist/`：
