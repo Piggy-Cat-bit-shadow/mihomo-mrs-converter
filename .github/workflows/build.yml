@@ -47,6 +47,7 @@ jobs:
           tar -xzf sing-box.tar.gz
           install "sing-box-${SING_BOX_VERSION}-linux-amd64/sing-box" ./sing-box
           chmod +x mihomo
+          echo "$GITHUB_WORKSPACE" >> "$GITHUB_PATH"
       - name: Run tests
         run: |
           set -o pipefail
