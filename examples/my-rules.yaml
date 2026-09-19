@@ -7,14 +7,14 @@ rule-providers:
     type: http    
     behavior: classical
     format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/me-China
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/sources/me-China.yaml
     path: ./ruleset/me-China.yaml
     interval: 172800
   me-pure:
     type: http
     behavior: classical
     format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/me-pure
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/sources/me-pure.yaml
     path: ./ruleset/me-pure.yaml
     interval: 172800
   Lan:
@@ -34,7 +34,7 @@ rule-providers:
     type: http
     behavior: classical
     format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/Scholar-Foreign
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/sources/Scholar-Foreign.yaml
     path: ./ruleset/Scholar-Foreign.yaml
     interval: 172800
   Scholar:
