@@ -48,7 +48,16 @@ jobs:
           install "sing-box-${SING_BOX_VERSION}-linux-amd64/sing-box" ./sing-box
           chmod +x mihomo
       - name: Run tests
-        run: PYTHONPATH=. python -m pytest tests -n 2 --dist=loadfile
+        run: |
+          set -o pipefail
+          PYTHONPATH=. python -m pytest tests -n 2 --dist=loadfile 2>&1 | tee pytest.log
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: test-log-${{ github.sha }}
+          path: pytest.log
+          compression-level: 0
 
   build:
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-24.04' }}
