@@ -9,7 +9,7 @@ from ..artifacts import convert_source_to_mrs, write_yaml_atomic, write_yaml_pay
 from ..rules import parse_rule
 from ..model import provider_segment
 from ..optimize import dedup_domain_payload, dedup_exact_rules
-from .egern import classify_egern_classical, optimize_egern_rule_set
+from .egern_ruleset import classify_egern_classical, optimize_egern_rule_set
 
 DNS_CLASSICAL_KINDS = {"DOMAIN-KEYWORD", "DOMAIN-WILDCARD", "DOMAIN-REGEX"}
 from ..rules import DNS_DOMAIN_KINDS
@@ -29,7 +29,9 @@ def collect_dns_domain_payloads(
     classical_kinds = classical_kinds or DNS_CLASSICAL_KINDS
     for name, provider in config["rule-providers"].items():
         segment = provider_segment(name)
-        role = (segment_roles or {}).get(segment, segment.lower())
+        role = (segment_roles or {}).get(segment)
+        if role is None:
+            raise SystemExit(f"DNS provider segment {segment!r} has no explicit role")
         group = next((group for group, roles in DNS_ROLE_GROUPS.items() if role in roles), None)
         if group is None:
             continue
@@ -59,7 +61,7 @@ def export_dns(
     dns_payloads = collect_dns_domain_payloads(config, final_payloads, segment_roles=segment_roles)
 
     present_segments = {
-        (segment_roles or {}).get(provider_segment(name), provider_segment(name).lower())
+        (segment_roles or {}).get(provider_segment(name))
         for name in config["rule-providers"]
         if (segment_roles or {}).get(provider_segment(name), provider_segment(name).lower()) in {"direct", "china", "ai", "global"}
     }

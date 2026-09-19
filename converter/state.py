@@ -19,7 +19,7 @@ def provider_fingerprint(provider: dict[str, Any]) -> str:
 
 
 def build_managed_manifest(base_url: str, providers: dict[str, dict[str, Any]]) -> dict[str, Any]:
-    return {
+    manifest = {
         "version": 2,
         "base_url": base_url.rstrip("/"),
         "providers": {
@@ -27,6 +27,8 @@ def build_managed_manifest(base_url: str, providers: dict[str, dict[str, Any]]) 
             for name, provider in providers.items()
         },
     }
+    manifest["generation"] = provider_fingerprint({"base_url": manifest["base_url"], "providers": manifest["providers"]})
+    return manifest
 
 
 def managed_manifest_path(dist: Path) -> Path:
@@ -45,6 +47,10 @@ def read_managed_manifest(dist: Path) -> dict[str, Any] | None:
         or not isinstance(manifest.get("providers"), dict)
     ):
         raise SystemExit(f"{path}: invalid managed state schema")
+    generation_path = dist / ".generation"
+    if manifest.get("generation") is not None:
+        if generation_path.exists() and generation_path.read_text(encoding="utf-8").strip() != manifest["generation"]:
+            raise SystemExit(f"{path}: dist/state generation mismatch; refusing incremental refresh")
     for name, state in manifest["providers"].items():
         if not isinstance(name, str) or not isinstance(state, dict) or not isinstance(state.get("fingerprint"), str):
             raise SystemExit(f"{path}: invalid managed provider state")
@@ -147,3 +153,18 @@ def refresh_complete_config(
     if missing:
         raise SystemExit(f"complete config contains missing RULE-SET provider(s): {sorted(missing)}")
     return refreshed
+
+
+def bootstrap_managed_manifest(complete_config: dict[str, Any], final_config: dict[str, Any], base_url: str) -> dict[str, Any]:
+    """Adopt only an exact existing generated provider/rule block."""
+    old_providers = complete_config.get("rule-providers") or {}
+    new_providers = final_config.get("rule-providers") or {}
+    if not isinstance(old_providers, dict) or set(old_providers) != set(new_providers):
+        raise SystemExit("bootstrap requires complete-config providers to exactly match generated providers")
+    for name, provider in new_providers.items():
+        if provider_fingerprint(old_providers[name]) != provider_fingerprint(provider):
+            raise SystemExit(f"bootstrap provider mismatch: {name}")
+    managed_indexes = [index for index, rule in enumerate(complete_config.get("rules") or []) if find_ruleset_refs(rule) & set(new_providers)]
+    if not managed_indexes or managed_indexes != list(range(managed_indexes[0], managed_indexes[-1] + 1)):
+        raise SystemExit("bootstrap requires one contiguous generated RULE-SET block")
+    return build_managed_manifest(base_url, new_providers)

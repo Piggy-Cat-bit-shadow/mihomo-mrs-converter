@@ -136,6 +136,7 @@ pip install -r requirements.txt
 ```bash
 python -m converter config/rules.yaml \
   --segment-names segment-names.yaml \
+  --export-config config/export.yaml \
   --base-url "https://raw.githubusercontent.com/<owner>/<repo>/rules"
 ```
 
@@ -144,6 +145,7 @@ python -m converter config/rules.yaml \
 ```bash
 python -m converter config/rules.yaml \
   --segment-names segment-names.yaml \
+  --export-config config/export.yaml \
   --base-url "https://raw.githubusercontent.com/<owner>/<repo>/rules" \
   --complete-config "/path/to/full-config.yaml" \
   --complete-output "/path/to/full-config.generated.yaml"

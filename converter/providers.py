@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from collections import Counter
 from dataclasses import dataclass
 from typing import Any
+from pathlib import Path
 
 import yaml
 
@@ -77,6 +78,7 @@ class ProviderPrefetch:
     unique_requests: int
     cache_hits: int
     downloads: int
+    disk_hits: int
 
 
 def _prefetch_workers(request_count: int) -> int:
@@ -88,7 +90,7 @@ def _prefetch_workers(request_count: int) -> int:
 
 
 def prefetch_provider_texts(
-    providers: dict[str, dict[str, Any]], referenced: set[str], memory_cache: dict[object, str]
+    providers: dict[str, dict[str, Any]], referenced: set[str], memory_cache: dict[object, str], disk_cache_dir: Path | None = None
 ) -> ProviderPrefetch:
     requests: dict[tuple[object, ...], tuple[str, dict[str, str] | None, list[str]]] = {}
     for name, provider in providers.items():
@@ -118,11 +120,28 @@ def prefetch_provider_texts(
         requests[key][2].append(name)
 
     cache_hits = sum(key in memory_cache for key in requests)
+    disk_hits = 0
+    if disk_cache_dir:
+        for key, (url, headers, _names) in requests.items():
+            cache_path = net.provider_cache_path(disk_cache_dir, url, headers)
+            if key not in memory_cache and net.fresh_provider_cache(cache_path):
+                memory_cache[key] = cache_path.read_text(encoding="utf-8")
+                disk_hits += 1
     pending = [(key, request) for key, request in requests.items() if key not in memory_cache]
 
     def download(item: tuple[tuple[object, ...], tuple[str, dict[str, str] | None, list[str]]]) -> tuple[tuple[object, ...], str]:
         key, (url, headers, _names) = item
-        return key, net.fetch_text(url, headers, memory_cache)
+        text = net.fetch_text(url, headers, {})
+        if disk_cache_dir:
+            cache_path = net.provider_cache_path(disk_cache_dir, url, headers)
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+            import os
+            import tempfile
+            with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=cache_path.parent, delete=False) as handle:
+                handle.write(text)
+                temporary = Path(handle.name)
+            os.replace(temporary, cache_path)
+        return key, text
 
     with ThreadPoolExecutor(max_workers=_prefetch_workers(len(pending))) if pending else _NullExecutor() as executor:
         for key, text in executor.map(download, pending):
@@ -133,7 +152,7 @@ def prefetch_provider_texts(
         for key, (_url, _headers, names) in requests.items()
         for name in names
     }
-    return ProviderPrefetch(texts, len(requests), cache_hits, len(pending))
+    return ProviderPrefetch(texts, len(requests), cache_hits, len(pending), disk_hits)
 
 
 class _NullExecutor:

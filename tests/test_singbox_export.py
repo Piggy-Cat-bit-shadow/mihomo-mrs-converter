@@ -397,7 +397,7 @@ class SingBoxExportTest(unittest.TestCase):
             "Global-classical": ["DOMAIN-KEYWORD,global", "DOMAIN-WILDCARD,*.cloud.example", "DST-PORT,443"],
         }
         with tempfile.TemporaryDirectory() as tmp:
-            result = export_singbox_dns(config, payloads, Path(tmp), "https://x", SING_BOX)
+            result = export_singbox_dns(config, payloads, Path(tmp), "https://x", SING_BOX, {"Direct": "direct", "China": "china", "AI": "ai", "Global": "global"})
             self.assertEqual(result["srs"], ["China-domain.srs", "Global-domain.srs"])
             for group in ("China", "Global"):
                 srs = Path(tmp) / "dns/singbox" / f"{group}-domain.srs"

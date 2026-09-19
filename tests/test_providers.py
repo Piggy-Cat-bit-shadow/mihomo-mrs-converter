@@ -1,6 +1,8 @@
 import tempfile
 import unittest
 import threading
+import os
+import time
 from email.message import Message
 from pathlib import Path
 from unittest.mock import patch
@@ -106,6 +108,31 @@ class ProvidersTest(unittest.TestCase):
     def test_fetch_text_streams_and_caches_normal_response(self):
         with patch("converter.net.urllib.request.urlopen", return_value=Response(b"payload")):
             self.assertEqual(net.fetch_text("https://example.invalid/rules", None, {}), "payload")
+
+    def test_provider_disk_cache_fresh_and_expired(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = Path(tmp)
+            with patch("converter.net.urllib.request.urlopen", return_value=Response(b"old")) as opened:
+                self.assertEqual(net.fetch_text("https://example.invalid/rules", None, {}, cache), "old")
+            with patch("converter.net.urllib.request.urlopen", side_effect=AssertionError("fresh cache must not fetch")):
+                self.assertEqual(net.fetch_text("https://example.invalid/rules", None, {}, cache), "old")
+            path = net.provider_cache_path(cache, "https://example.invalid/rules", None)
+            os.utime(path, (time.time() - 90000, time.time() - 90000))
+            with patch("converter.net.urllib.request.urlopen", return_value=Response(b"new")) as opened:
+                self.assertEqual(net.fetch_text("https://example.invalid/rules", None, {}, cache), "new")
+                self.assertTrue(opened.called)
+
+    def test_provider_disk_cache_keeps_old_content_on_failed_refresh(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = Path(tmp)
+            with patch("converter.net.urllib.request.urlopen", return_value=Response(b"old")):
+                net.fetch_text("https://example.invalid/rules", None, {}, cache)
+            path = net.provider_cache_path(cache, "https://example.invalid/rules", None)
+            os.utime(path, (time.time() - 90000, time.time() - 90000))
+            with patch("converter.net.urllib.request.urlopen", side_effect=RuntimeError("down")):
+                with self.assertRaises(RuntimeError):
+                    net.fetch_text("https://example.invalid/rules", None, {}, cache)
+            self.assertEqual(path.read_text(encoding="utf-8"), "old")
 
     def test_fetch_text_rejects_oversized_response(self):
         with patch.object(net, "MAX_PROVIDER_BYTES", 3), patch("converter.net.urllib.request.urlopen", return_value=Response(b"four")):

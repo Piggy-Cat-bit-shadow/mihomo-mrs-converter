@@ -7,6 +7,10 @@ from datetime import datetime, timezone
 import urllib.error
 import urllib.request
 import ipaddress
+import hashlib
+import os
+import tempfile
+from pathlib import Path
 from urllib.parse import urlparse
 
 try:
@@ -29,6 +33,7 @@ def retry_after_seconds(value: str | None) -> float:
 
 
 MAX_PROVIDER_BYTES = 128 * 1024 * 1024
+PROVIDER_CACHE_TTL = 86400
 
 
 def ssl_context() -> ssl.SSLContext:
@@ -74,6 +79,15 @@ def validate_fetch_url(url: str) -> None:
         raise ValueError(f"provider URL IP literal is not allowed: {url}")
 
 
+def validate_base_url(url: str) -> str:
+    parsed = urlparse(url)
+    if parsed.scheme.lower() not in {"http", "https"} or not parsed.hostname:
+        raise ValueError("base URL must use http/https and include a hostname")
+    if parsed.username or parsed.password or parsed.query or parsed.fragment:
+        raise ValueError("base URL must not contain credentials, query, or fragment")
+    return url.rstrip("/")
+
+
 def request_cache_key(url: str, headers: dict[str, str] | None) -> tuple[str, tuple[tuple[str, str], ...]]:
     effective = {"user-agent": "mihomo-mrs-converter"}
     if headers:
@@ -83,10 +97,28 @@ def request_cache_key(url: str, headers: dict[str, str] | None) -> tuple[str, tu
     return url, tuple(sorted(effective.items()))
 
 
-def fetch_text(url: str, headers: dict[str, str] | None, memory_cache: dict[object, str]) -> str:
+def provider_cache_path(cache_dir: Path, url: str, headers: dict[str, str] | None) -> Path:
+    key = request_cache_key(url, headers)
+    encoded = repr(key).encode("utf-8")
+    return cache_dir / (hashlib.sha256(encoded).hexdigest() + ".cache")
+
+
+def fresh_provider_cache(path: Path, now: float | None = None) -> bool:
+    try:
+        return (now or time.time()) - path.stat().st_mtime < PROVIDER_CACHE_TTL
+    except FileNotFoundError:
+        return False
+
+
+def fetch_text(url: str, headers: dict[str, str] | None, memory_cache: dict[object, str], disk_cache_dir: Path | None = None) -> str:
     cache_key = request_cache_key(url, headers)
     if cache_key in memory_cache:
         return memory_cache[cache_key]
+    cache_path = provider_cache_path(disk_cache_dir, url, headers) if disk_cache_dir else None
+    if cache_path and fresh_provider_cache(cache_path):
+        body = cache_path.read_text(encoding="utf-8")
+        memory_cache[cache_key] = body
+        return body
     validate_fetch_url(url)
     request_headers = {"User-Agent": "mihomo-mrs-converter"}
     if headers:
@@ -115,6 +147,12 @@ def fetch_text(url: str, headers: dict[str, str] | None, memory_cache: dict[obje
                         raise RuntimeError(f"provider response exceeds {MAX_PROVIDER_BYTES} bytes: {url}")
                 body = b"".join(chunks).decode("utf-8-sig")
             memory_cache[cache_key] = body
+            if cache_path:
+                cache_path.parent.mkdir(parents=True, exist_ok=True)
+                with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=cache_path.parent, delete=False) as handle:
+                    handle.write(body)
+                    temporary = Path(handle.name)
+                os.replace(temporary, cache_path)
             return body
         except urllib.error.HTTPError as exc:
             last_error = exc

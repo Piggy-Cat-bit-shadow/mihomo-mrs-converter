@@ -37,12 +37,22 @@ def public_url(base_url: str, *parts: str) -> str:
 
 
 def dist_relative_from_url(url: str) -> Path | None:
-    return Path(url.split("/dist/", 1)[1]) if "/dist/" in url else None
+    if "/dist/" not in url:
+        return None
+    relative = Path(url.split("/dist/", 1)[1])
+    if relative.is_absolute() or ".." in relative.parts:
+        raise ValueError(f"artifact URL escapes dist: {url}")
+    return relative
 
 
 def generated_artifact_path(dist: Path, provider: dict[str, Any]) -> Path | None:
     relative = dist_relative_from_url(str(provider.get("url", "")))
-    return dist / relative if relative is not None else None
+    if relative is None:
+        return None
+    candidate = (dist / relative).resolve()
+    if not candidate.is_relative_to(dist.resolve()):
+        raise ValueError(f"artifact path escapes dist: {candidate}")
+    return candidate
 
 
 def convert_source_to_mrs(mihomo: str, behavior: str, source: Path, output: Path) -> None:

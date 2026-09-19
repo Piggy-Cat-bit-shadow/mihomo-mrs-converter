@@ -21,23 +21,54 @@ from .model import BuildConfig, BuildContext, BuildResult
 from .optimize import optimize_config
 from .providers import prefetch_provider_texts, process_provider
 from .rules import find_ruleset_refs, iter_all_rules
-from .state import read_managed_manifest, refresh_complete_config, write_managed_manifest
+from .state import bootstrap_managed_manifest, build_managed_manifest, read_managed_manifest, refresh_complete_config, write_managed_manifest
 from .timing import BuildTiming, activate
 from .validate import validate_final_config
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
     value = yaml.safe_load(path.read_text(encoding="utf-8"))
-    if not isinstance(value, dict):
-        raise SystemExit(f"{path} must be a YAML mapping")
-    if not isinstance(value.get("rule-providers", {}), dict) or not isinstance(value.get("rules", []), list):
-        raise SystemExit(f"{path}: rule-providers mapping and rules list are required")
+    validate_input_schema(path, value)
     return value
 
 
-def _export_policy_map(input_path: Path) -> dict[str, str]:
-    path = input_path.parent / "export.yaml"
-    if not path.exists():
+def validate_input_schema(path: Path, value: Any) -> None:
+    if not isinstance(value, dict):
+        raise SystemExit(f"{path} must be a YAML mapping")
+    providers = value.get("rule-providers")
+    if not isinstance(providers, dict):
+        raise SystemExit(f"{path}: rule-providers must be a mapping")
+    for name, provider in providers.items():
+        if not isinstance(name, str) or not name:
+            raise SystemExit(f"{path}: provider name must be a non-empty string")
+        if not isinstance(provider, dict):
+            raise SystemExit(f"{path}: rule-providers.{name} must be a mapping")
+        for field in ("type", "behavior", "format", "url", "path", "proxy"):
+            if field in provider and not isinstance(provider[field], str):
+                raise SystemExit(f"{path}: rule-providers.{name}.{field} must be a string")
+        for field in ("interval", "size-limit"):
+            if field in provider and (isinstance(provider[field], bool) or not isinstance(provider[field], int) or provider[field] < 0):
+                raise SystemExit(f"{path}: rule-providers.{name}.{field} must be a non-negative integer")
+        if "header" in provider and (not isinstance(provider["header"], dict) or any(not isinstance(k, str) or not isinstance(v, str) for k, v in provider["header"].items())):
+            raise SystemExit(f"{path}: rule-providers.{name}.header must map strings to strings")
+    if not isinstance(value.get("rules"), list) or any(not isinstance(item, str) for item in value["rules"]):
+        raise SystemExit(f"{path}: rules must be a list of strings")
+    sub_rules = value.get("sub-rules")
+    if sub_rules is not None:
+        if not isinstance(sub_rules, dict):
+            raise SystemExit(f"{path}: sub-rules must be a mapping")
+        for name, members in sub_rules.items():
+            if not isinstance(name, str) or not name:
+                raise SystemExit(f"{path}: sub-rules names must be non-empty strings")
+            if not isinstance(members, list):
+                raise SystemExit(f"{path}: sub-rules.{name} must be a list")
+            for index, member in enumerate(members):
+                if not isinstance(member, str):
+                    raise SystemExit(f"{path}: sub-rules.{name}[{index}] must be a string")
+
+
+def _load_export_config(path: Path | None) -> dict[str, str]:
+    if path is None:
         return {}
     value = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     egern = value.get("egern", {}) if isinstance(value, dict) else {}
@@ -93,11 +124,11 @@ def build(config: BuildConfig) -> BuildResult:
 
     context = BuildContext(memory_cache={}, used_names=set(referenced))
     prefetch_started = time.perf_counter()
-    prefetch = prefetch_provider_texts(providers, referenced, context.memory_cache)
+    prefetch = prefetch_provider_texts(providers, referenced, context.memory_cache, config.provider_cache)
     timing.phases["provider prefetch"] = time.perf_counter() - prefetch_started
     print(
         f"provider prefetch: {len(referenced)} providers in {timing.phases['provider prefetch']:.2f}s "
-        f"(unique requests: {prefetch.unique_requests}, cache hits: {prefetch.cache_hits}, downloads: {prefetch.downloads})"
+        f"(unique requests: {prefetch.unique_requests}, memory hits: {prefetch.cache_hits}, disk hits: {prefetch.disk_hits}, downloads: {prefetch.downloads})"
     )
     generated: dict[str, dict[str, Any]] = {}
     payloads: dict[str, list[str]] = {}
@@ -131,7 +162,7 @@ def build(config: BuildConfig) -> BuildResult:
     }
     mapping = _segment_mapping(config.segment_names)
     segment_roles = _segment_roles(config.segment_names)
-    policy_map = _export_policy_map(config.input)
+    policy_map = _load_export_config(config.export_config)
     with timing.phase("optimize config"):
         optimized, final_payloads, dedup_stats = optimize_config(semantic, payloads, mapping)
         optimized = normalize_no_active_resolve(optimized, final_payloads)
@@ -182,11 +213,17 @@ def build(config: BuildConfig) -> BuildResult:
             if config.complete_config:
                 with timing.phase("refresh complete config"):
                     complete = _load_yaml(config.complete_config)
+                    if previous is None and config.bootstrap_managed:
+                        previous = bootstrap_managed_manifest(complete, final, config.base_url)
                     refreshed_complete = refresh_complete_config(complete, final, previous, config.base_url)
+                    if previous is None and not config.bootstrap_managed:
+                        raise SystemExit("complete config has no managed state; rerun with --bootstrap-managed after verifying ownership")
             else:
                 timing.mark_skipped("refresh complete config")
 
             with timing.phase("atomic dist publish"):
+                generation = build_managed_manifest(config.base_url, final["rule-providers"])["generation"]
+                (publish_dist / ".generation").write_text(generation + "\n", encoding="utf-8")
                 if old_dist.exists():
                     shutil.rmtree(old_dist)
                 if config.dist.exists():

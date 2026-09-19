@@ -7,6 +7,7 @@ from pathlib import Path
 
 from .model import BuildConfig
 from .pipeline import build
+from .net import validate_base_url
 
 
 def main() -> None:
@@ -19,9 +20,18 @@ def main() -> None:
     parser.add_argument("--complete-config", type=Path)
     parser.add_argument("--complete-output", type=Path)
     parser.add_argument("--segment-names", type=Path)
+    parser.add_argument("--export-config", type=Path)
+    parser.add_argument("--bootstrap-managed", action="store_true")
+    parser.add_argument("--provider-cache", type=Path, default=Path(".cache/providers"))
     args = parser.parse_args()
     if args.complete_output and not args.complete_config:
         parser.error("--complete-output requires --complete-config")
+    if args.bootstrap_managed and not args.complete_config:
+        parser.error("--bootstrap-managed requires --complete-config")
+    try:
+        args.base_url = validate_base_url(args.base_url)
+    except ValueError as exc:
+        parser.error(str(exc))
     input_path = args.input.resolve()
     dist_path = args.dist.resolve()
     home = Path.home().resolve()
@@ -38,7 +48,8 @@ def main() -> None:
         segment_names = candidate if candidate.exists() else None
     result = build(BuildConfig(
         args.input, args.dist, args.base_url, args.mihomo, args.sing_box,
-        args.complete_config, args.complete_output, segment_names,
+        args.complete_config, args.complete_output, segment_names, args.export_config, args.bootstrap_managed,
+        args.provider_cache,
     ))
     print(f"wrote {args.dist / 'generated/mihomo-rules.yaml'}")
     print(f"final providers: {len(result.final_config['rule-providers'])}")

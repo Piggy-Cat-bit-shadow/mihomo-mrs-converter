@@ -91,6 +91,9 @@ class BuildConfig:
     complete_config: Path | None = None
     complete_output: Path | None = None
     segment_names: Path | None = None
+    export_config: Path | None = None
+    bootstrap_managed: bool = False
+    provider_cache: Path | None = None
 
 
 @dataclass

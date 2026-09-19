@@ -6,11 +6,7 @@ from pathlib import Path
 
 import yaml
 
-from .audit import audit_dist
-
-
 def audit_production(root: Path, mihomo: str | None = None, sing_box: str | None = None) -> None:
-    audit_dist(root, mihomo, sing_box)
     egern = yaml.safe_load((root / "generated/egern-rules.yaml").read_text(encoding="utf-8")) or {}
     policies = {
         Path(str(item["rule_set"]["match"])).name: item["rule_set"].get("policy")
