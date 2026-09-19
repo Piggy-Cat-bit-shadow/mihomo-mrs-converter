@@ -38,14 +38,17 @@ def audit_production(root: Path, mihomo: str | None = None, sing_box: str | None
     udp = [item for item in egern.get("rules", []) if isinstance(item, dict) and isinstance(item.get("and"), dict)]
     if not any(item["and"].get("policy") == "REJECT" and any(isinstance(m, dict) and m.get("protocol", {}).get("match") == "udp" for m in item["and"].get("match", [])) for item in udp):
         raise ValueError("production Egern AI UDP rule must use REJECT")
-    native_ip = {
-        key: value for item in egern.get("rules", []) if isinstance(item, dict)
-        for key, value in item.items() if key in {"ip_cidr", "ip_cidr6"} and isinstance(value, dict)
-    }
-    for key, match in (("ip_cidr6", "::/128"), ("ip_cidr", "0.0.0.0/32")):
-        rule = native_ip.get(key)
-        if not rule or rule.get("match") != match or rule.get("policy") != "REJECT-DROP" or rule.get("no_resolve") is not True:
-            raise ValueError(f"production Egern missing {key} rule for {match}")
+    legacy_zero_addresses = ("0.0.0.0/32", "::/128")
+    generated_text_paths = [
+        root / "generated/egern-rules.yaml",
+        root / "generated/mihomo-rules.yaml",
+        root / "generated/loon-rules.conf",
+        root / "generated/singbox-rules.json",
+    ]
+    for path in generated_text_paths:
+        text = path.read_text(encoding="utf-8")
+        if any(address in text for address in legacy_zero_addresses):
+            raise ValueError(f"production generated output contains removed zero-address rule: {path}")
     defaults = [item["default"] for item in egern.get("rules", []) if isinstance(item, dict) and isinstance(item.get("default"), dict)]
     if not defaults or defaults[-1].get("policy") != "🌍 国外流量":
         raise ValueError("production Egern default policy mismatch")

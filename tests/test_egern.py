@@ -31,15 +31,15 @@ class EgernExporterTest(unittest.TestCase):
             root = Path(tmp)
             export_egern(
                 {"rule-providers": {}, "rules": [
-                    "IP-CIDR,0.0.0.0/32,REJECT-DROP,no-resolve",
-                    "IP-CIDR6,::/128,REJECT-DROP,no-resolve",
+                    "IP-CIDR,192.0.2.0/32,REJECT-DROP,no-resolve",
+                    "IP-CIDR6,2001:db8::1/128,REJECT-DROP,no-resolve",
                     "MATCH,🌍 国外流量",
                 ]},
                 {}, root, "https://example.invalid",
             )
             rules = yaml.safe_load((root / "generated/egern-rules.yaml").read_text())["rules"]
-            self.assertEqual(rules[0]["ip_cidr"], {"match": "0.0.0.0/32", "policy": "REJECT-DROP", "no_resolve": True})
-            self.assertEqual(rules[1]["ip_cidr6"], {"match": "::/128", "policy": "REJECT-DROP", "no_resolve": True})
+            self.assertEqual(rules[0]["ip_cidr"], {"match": "192.0.2.0/32", "policy": "REJECT-DROP", "no_resolve": True})
+            self.assertEqual(rules[1]["ip_cidr6"], {"match": "2001:db8::1/128", "policy": "REJECT-DROP", "no_resolve": True})
 
     def test_domestic_policy_is_translated_at_all_egern_rule_entries(self):
         with tempfile.TemporaryDirectory() as tmp:
