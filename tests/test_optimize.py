@@ -60,6 +60,35 @@ class OptimizeTest(unittest.TestCase):
         self.assertEqual(rewritten[0], "RULE-SET,A-ip,Proxy,no-resolve")
         self.assertIn("RULE-SET,A-ip,Proxy", rewritten[1])
 
+    def test_ruleset_modifier_follows_domain_and_ip_behavior(self):
+        rules = ["RULE-SET,A,Proxy,no-resolve"]
+        self.assertEqual(rewrite_rules(rules, {"A": ["A-domain"]}, {"A-domain": "domain"}), ["RULE-SET,A-domain,Proxy"])
+        self.assertEqual(rewrite_rules(rules, {"A": ["A-ip"]}, {"A-ip": "ipcidr"}), ["RULE-SET,A-ip,Proxy,no-resolve"])
+
+    def test_classical_modifier_is_deferred_to_payload_semantics(self):
+        rules = ["RULE-SET,A,Proxy,no-resolve"]
+        self.assertEqual(rewrite_rules(rules, {"A": ["A-classical"]}, {"A-classical": "classical"}), ["RULE-SET,A-classical,Proxy"])
+
+    def test_split_provider_assigns_no_resolve_only_to_ip_variant(self):
+        rewritten = rewrite_rules(
+            ["RULE-SET,A,REJECT-DROP,no-resolve"],
+            {"A": ["A-domain", "A-ip"]},
+            {"A-domain": "domain", "A-ip": "ipcidr"},
+        )
+        self.assertEqual(rewritten, [
+            "RULE-SET,A-domain,REJECT-DROP",
+            "RULE-SET,A-ip,REJECT-DROP,no-resolve",
+        ])
+
+    def test_sub_rule_split_provider_normalizes_each_variant(self):
+        rules = ["SUB-RULE,(RULE-SET,A,no-resolve),AI-Routing"]
+        replacements = {"A": ["A-domain", "A-ip"]}
+        behaviors = {"A-domain": "domain", "A-ip": "ipcidr"}
+        self.assertEqual(rewrite_rules(rules, replacements, behaviors), [
+            "SUB-RULE,(RULE-SET,A-domain),AI-Routing",
+            "SUB-RULE,(RULE-SET,A-ip,no-resolve),AI-Routing",
+        ])
+
     def test_nested_reference_rename_does_not_add_no_resolve_to_domain(self):
         rewritten = rewrite_rules(["AND,((RULE-SET,A,Proxy),(NETWORK,tcp)),DIRECT"], {"A": ["A-domain"]}, {"A-domain": "domain"})
         self.assertEqual(rewritten, ["AND,((RULE-SET,A-domain,Proxy),(NETWORK,tcp)),DIRECT"])
@@ -71,9 +100,18 @@ class OptimizeTest(unittest.TestCase):
             "sub-rules": {"Example": ["RULE-SET,A,Proxy,no-resolve"]},
         }
         final, payloads, _ = optimize_config(config, {"A": ["a.example"]})
-        self.assertEqual(final["sub-rules"]["Example"], ["RULE-SET,A,Proxy,no-resolve"])
+        self.assertEqual(final["sub-rules"]["Example"], ["RULE-SET,A,Proxy"])
         self.assertIn("A", final["rule-providers"])
         self.assertEqual(payloads["A"], ["a.example"])
+
+    def test_sub_rule_domain_modifier_is_normalized(self):
+        config = {
+            "rule-providers": {"A": {"behavior": "domain"}},
+            "rules": ["MATCH,DIRECT"],
+            "sub-rules": {"Example": ["SUB-RULE,(RULE-SET,A,no-resolve),Proxy"]},
+        }
+        final, _, _ = optimize_config(config, {"A": ["a.example"]})
+        self.assertEqual(final["sub-rules"]["Example"], ["SUB-RULE,(RULE-SET,A),Proxy"])
 
     def test_sub_rule_reference_tracks_merged_provider_identity(self):
         config = {

@@ -8,9 +8,7 @@ from ..artifacts import convert_source_to_mrs, public_url, write_yaml_payload
 from ..rules import (
     _ruleset_parts_in_expression,
     parse_rule,
-    parse_ruleset_reference,
     find_ruleset_refs,
-    simple_ruleset_wrapper,
     split_top_level_commas,
     strip_balanced_outer_parentheses,
 )
@@ -26,43 +24,33 @@ def normalize_no_active_resolve(config: dict[str, Any], payloads: dict[str, list
     }
     rules: list[Any] = []
 
-    def add_nested_no_resolve(expression: str) -> str:
+    def normalize_ruleset_expression(expression: str) -> str:
         _, was_wrapped = strip_balanced_outer_parentheses(expression)
         direct = _ruleset_parts_in_expression(expression)
         if direct is not None:
-            if direct[1] not in target_providers or any(item.lower() == "no-resolve" for item in direct[2:]):
-                return expression.strip()
-            result = ",".join([*direct, "no-resolve"])
+            provider = direct[1]
+            modifiers = [item for item in direct[2:] if item.lower() != "no-resolve"]
+            if provider in target_providers:
+                modifiers.append("no-resolve")
+            result = ",".join([*direct[:2], *modifiers])
             return f"({result})" if was_wrapped else result
         inner, wrapped = strip_balanced_outer_parentheses(expression)
         parts = split_top_level_commas(inner if wrapped else expression)
         rewritten = []
         for part in parts:
             _, is_wrapped = strip_balanced_outer_parentheses(part)
-            rewritten.append(add_nested_no_resolve(part) if is_wrapped else part)
+            rewritten.append(normalize_ruleset_expression(part) if is_wrapped else part)
         result = ",".join(rewritten)
         return f"({result})" if wrapped else result
 
     def normalize_rule(raw: Any) -> Any:
         if not isinstance(raw, str):
             return raw
-        try:
-            reference = parse_ruleset_reference(raw)
-        except SystemExit:
-            reference = None
-        if reference and reference.provider in target_providers and "no-resolve" not in {item.lower() for item in reference.modifiers}:
-            wrapper = simple_ruleset_wrapper(raw)
-            if wrapper is not None and wrapper[1].upper() == "SUB-RULE":
-                parts, prefix, suffix = wrapper
-                nested = ",".join(["RULE-SET", parts[1], *parts[2:], "no-resolve"])
-                raw = ",".join(item for item in (prefix, f"({nested})", suffix) if item)
-            else:
-                raw = raw + ",no-resolve"
-        elif any(provider in target_providers for provider in find_ruleset_refs(raw)):
-            raw = add_nested_no_resolve(raw)
+        if find_ruleset_refs(raw):
+            raw = normalize_ruleset_expression(raw)
         parts = raw.split(",")
-        if is_target_ip_kind(parts[0]) and "no-resolve" not in {item.lower() for item in parts[2:]}:
-            raw = ",".join([*parts, "no-resolve"])
+        if is_target_ip_kind(parts[0]):
+            raw = ",".join([*parts[:2], *[item for item in parts[2:] if item.lower() != "no-resolve"], "no-resolve"])
         return raw
 
     rules = [normalize_rule(raw) for raw in config.get("rules", [])]

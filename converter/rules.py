@@ -23,8 +23,14 @@ def iter_all_rules(config: dict[str, Any]) -> Iterator[Any]:
 
 
 def ruleset_suffix_for_behavior(suffix: tuple[str, ...], behavior: str) -> list[str]:
+    """Normalize RULE-SET modifiers for the provider semantic behavior."""
     if behavior == "ipcidr":
-        return [modifier for modifier in suffix if modifier.lower() == "no-resolve"]
+        other = [modifier for modifier in suffix if modifier.lower() != "no-resolve"]
+        if any(modifier.lower() == "no-resolve" for modifier in suffix):
+            other.append("no-resolve")
+        return other
+    if behavior in {"domain", "classical"}:
+        return [modifier for modifier in suffix if modifier.lower() != "no-resolve"]
     return list(suffix)
 
 def split_top_level_commas(text: str) -> list[str]:
