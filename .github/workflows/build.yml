@@ -36,7 +36,7 @@ jobs:
         with: {python-version: "3.12"}
       - run: pip install -r requirements-ci.txt
       - name: Run tests
-        run: python -m pytest -n 2 --dist=loadfile
+        run: PYTHONPATH=. python -m pytest tests -n 2 --dist=loadfile
 
   build:
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-24.04' }}
