@@ -3,6 +3,13 @@ sub-rules:
   - NETWORK,UDP,REJECT
   - MATCH,🤖 AI
 rule-providers:
+  BlockHttpDNS:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/BlockHttpDNS/BlockHttpDNS.yaml
+    path: ./ruleset/BlockHttpDNS.yaml
+    interval: 172800
   me-China:
     type: http    
     behavior: classical
@@ -333,6 +340,7 @@ rule-providers:
     path: ./ruleset/ipcidr/ChinaMax-ip.yaml
     interval: 172800
 rules:
+- RULE-SET,BlockHttpDNS,REJECT-DROP,no-resolve
 - RULE-SET,Lan,🏠 国内流量
 - RULE-SET,private,🏠 国内流量
 - RULE-SET,me-China,🏠 国内流量
