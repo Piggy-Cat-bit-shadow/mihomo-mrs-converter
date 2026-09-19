@@ -64,7 +64,8 @@ jobs:
           path: .cache/geolite2
           key: geolite2-v2-${{ runner.os }}-${{ hashFiles('converter/data_sources.py') }}
       - name: Build and audit
-        env: {GITHUB_TOKEN: ${{ github.token }} }
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           python -m converter examples/my-rules.yaml --base-url "$BASE_URL" --mihomo ./mihomo --sing-box ./sing-box
           python -m converter.audit dist --mihomo ./mihomo --sing-box ./sing-box
