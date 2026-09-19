@@ -5,7 +5,6 @@ import re
 import shutil
 import tempfile
 import time
-from contextvars import copy_context
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
@@ -36,20 +35,26 @@ def _load_yaml(path: Path) -> dict[str, Any]:
     return value
 
 
-def _segment_mapping(root: Path) -> dict[str, Any]:
-    path = root / "segment-names.yaml"
-    if not path.exists():
+def _segment_mapping(path: Path | None) -> dict[str, str]:
+    if path is None:
         return {}
     value = yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict) or not isinstance(value.get("segments", {}), dict):
         raise SystemExit(f"{path}: expected a segments mapping")
     mapping = value["segments"]
-    for old, value in mapping.items():
-        if not isinstance(old, str) or not isinstance(value, dict):
-            raise SystemExit(f"{path}: each segment mapping must contain name and anchor")
-        if not isinstance(value.get("name"), str) or not isinstance(value.get("anchor"), str) or not value["anchor"]:
-            raise SystemExit(f"{path}: each segment mapping requires string name and non-empty anchor")
-    return mapping
+    result: dict[str, str] = {}
+    for anchor, value in mapping.items():
+        if not isinstance(anchor, str) or not anchor or not isinstance(value, dict):
+            raise SystemExit(f"{path}: each segment key must be a non-empty source/provider identity")
+        if anchor.startswith("merged-segment-"):
+            raise SystemExit(f"{path}: ordinal segment keys are not supported: {anchor}")
+        name = value.get("name")
+        if not isinstance(name, str) or not name:
+            raise SystemExit(f"{path}: each segment mapping requires a non-empty string name")
+        if anchor in result or name in result.values():
+            raise SystemExit(f"{path}: segment anchors and names must be unique")
+        result[anchor] = name
+    return result
 
 
 def build(config: BuildConfig) -> BuildResult:
@@ -101,7 +106,7 @@ def build(config: BuildConfig) -> BuildResult:
         "rules": rewritten,
         "sub-rules": rewritten_sub_rules,
     }
-    mapping = _segment_mapping(Path.cwd())
+    mapping = _segment_mapping(config.segment_names)
     with timing.phase("optimize config"):
         optimized, final_payloads, dedup_stats = optimize_config(semantic, payloads, mapping)
         optimized = normalize_no_active_resolve(optimized, final_payloads)
@@ -128,14 +133,25 @@ def build(config: BuildConfig) -> BuildResult:
                 "singbox-dns": ("Sing-box DNS export", export_singbox_dns, (final, final_payloads, publish_dist, config.base_url, config.sing_box_bin)),
                 "dns": ("DNS export", export_dns, (final, final_payloads, publish_dist, config.base_url, config.mihomo_bin)),
             }
-            def run_export(item: tuple[str, Any, tuple[Any, ...]]) -> tuple[str, Any]:
+            def run_export(item: tuple[str, Any, tuple[Any, ...]]) -> tuple[str, Any, BuildTiming]:
                 key, (_label, function, args) = item
                 started = time.perf_counter()
-                result = copy_context().run(function, *args, **({"segment_names": mapping} if key == "singbox" else {}))
-                timing.phases[exporter_calls[key][0]] = time.perf_counter() - started
-                return key, result
-            with ThreadPoolExecutor(max_workers=5, thread_name_prefix="export") as pool:
-                exporter_stats = dict(pool.map(run_export, exporter_calls.items()))
+                worker_timing = BuildTiming()
+                with activate(worker_timing):
+                    result = function(*args, **({"segment_names": mapping} if key == "singbox" else {}))
+                worker_timing.phases[exporter_calls[key][0]] = time.perf_counter() - started
+                return key, result, worker_timing
+            parallel_started = time.perf_counter()
+            worker_count = int(os.environ.get("CONVERTER_EXPORT_WORKERS", "5"))
+            if worker_count < 1:
+                raise ValueError("CONVERTER_EXPORT_WORKERS must be positive")
+            with ThreadPoolExecutor(max_workers=worker_count, thread_name_prefix="export") as pool:
+                completed = list(pool.map(run_export, exporter_calls.items()))
+            timing.phases["parallel exporter wall-clock"] = time.perf_counter() - parallel_started
+            exporter_stats = {}
+            for key, result, worker_timing in completed:
+                timing.merge(worker_timing)
+                exporter_stats[key] = result
             with timing.phase("write generated Mihomo"):
                 write_yaml_atomic(publish_dist / "generated" / "mihomo-rules.yaml", final)
             if config.complete_config:

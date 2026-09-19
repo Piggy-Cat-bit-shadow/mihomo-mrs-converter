@@ -23,6 +23,32 @@ def retry_after_seconds(value: str | None) -> float:
 MAX_PROVIDER_BYTES = 128 * 1024 * 1024
 
 
+def ssl_context() -> ssl.SSLContext:
+    return ssl.create_default_context(cafile=certifi.where()) if certifi else ssl.create_default_context()
+
+
+def read_capped_response(response: object, limit: int, context: str) -> bytes:
+    headers = getattr(response, "headers", None)
+    length = headers.get("Content-Length") if headers else None
+    if length and int(length) > limit:
+        raise RuntimeError(f"response exceeds {limit} byte limit: {context}")
+    data = bytearray()
+    while True:
+        try:
+            chunk = response.read(min(1024 * 1024, limit - len(data) + 1))  # type: ignore[attr-defined]
+        except TypeError:
+            chunk = response.read()  # type: ignore[attr-defined]
+            data.extend(chunk)
+            if len(data) > limit:
+                raise RuntimeError(f"response exceeds {limit} byte limit: {context}")
+            return bytes(data)
+        if not chunk:
+            return bytes(data)
+        data.extend(chunk)
+        if len(data) > limit:
+            raise RuntimeError(f"response exceeds {limit} byte limit: {context}")
+
+
 def validate_fetch_url(url: str) -> None:
     parsed = urlparse(url)
     if parsed.scheme.lower() not in {"http", "https"}:

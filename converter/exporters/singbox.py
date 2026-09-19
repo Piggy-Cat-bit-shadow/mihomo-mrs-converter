@@ -13,7 +13,6 @@ import json
 import os
 import re
 import shutil
-import ssl
 import subprocess
 import tempfile
 import time
@@ -22,10 +21,6 @@ import urllib.error
 import urllib.request
 from http.client import IncompleteRead
 
-try:
-    import certifi
-except ImportError:  # pragma: no cover
-    certifi = None
 from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import urlparse
@@ -33,17 +28,18 @@ from urllib.parse import urlparse
 from .dns import collect_dns_domain_payloads
 from ..rules import DNS_DOMAIN_KINDS, parse_rule, parse_ruleset_reference, simple_ruleset_wrapper, split_top_level_commas
 from ..model import parse_provider_identity
-from ..net import retry_after_seconds
+from ..net import read_capped_response as _read_capped, retry_after_seconds, ssl_context
 from ..data_sources import GEOLITE2_ASSETS, GEOLITE2_RELEASE
 from ..timing import current_timing, observe_external
+from .singbox_asn import ASN_INDEX_FILENAME, ASN_INDEX_VERSION
+from .singbox_asn import collect_required_asns as _collect_required_asns
+from .singbox_srs import canonicalize_decompiled_rules as _canonicalize_decompiled_rules
+from .singbox_srs import representatives as _representatives
+from .singbox_srs import semantic_matcher_equivalent as _semantic_matcher_equivalent
 
 
 class SingBoxExportError(RuntimeError):
     pass
-
-
-ASN_INDEX_VERSION = 2
-ASN_INDEX_FILENAME = "asn-index-v2.json"
 
 
 def _timed(name: str):
@@ -63,7 +59,7 @@ def _github_api_json(url: str) -> Any:
     if token and parsed.hostname == "api.github.com":
         headers["Authorization"] = f"Bearer {token}"
     request = urllib.request.Request(url, headers=headers)
-    context = ssl.create_default_context(cafile=certifi.where()) if certifi else ssl.create_default_context()
+    context = ssl_context()
     max_attempts = 4
     retryable_statuses = {408, 429, 500, 502, 503, 504}
     for attempt in range(max_attempts):
@@ -91,27 +87,6 @@ def _github_api_json(url: str) -> Any:
                 ) from exc
             time.sleep(2 ** attempt)
     raise SingBoxExportError("GitHub API request failed")
-
-
-def _read_capped(response: Any, limit: int, context: str) -> bytes:
-    length = response.headers.get("Content-Length") if getattr(response, "headers", None) else None
-    if length and int(length) > limit:
-        raise SingBoxExportError(f"response exceeds {limit} byte limit: {context}")
-    data = bytearray()
-    while True:
-        try:
-            chunk = response.read(min(1024 * 1024, limit - len(data) + 1))
-        except TypeError:  # small test doubles and simple file-like objects
-            chunk = response.read()
-            data.extend(chunk)
-            if len(data) > limit:
-                raise SingBoxExportError(f"response exceeds {limit} byte limit: {context}")
-            return bytes(data)
-        if not chunk:
-            return bytes(data)
-        data.extend(chunk)
-        if len(data) > limit:
-            raise SingBoxExportError(f"response exceeds {limit} byte limit: {context}")
 
 
 def _policy_action(policy: str) -> dict[str, Any]:
@@ -195,7 +170,7 @@ def _matcher(kind: str, value: str, context: str) -> tuple[str, Any]:
 
 def _default_asn_resolver(asns: set[str]) -> dict[str, list[str]]:
     """Resolve ASN to CIDRs only for this exporter; never mutates main IR."""
-    context = ssl.create_default_context(cafile=certifi.where()) if certifi else ssl.create_default_context()
+    context = ssl_context()
     timing = current_timing()
     result = {asn: [] for asn in asns}
     def download(url: str) -> bytes:
@@ -401,17 +376,6 @@ def _provider_matchers(name: str, behavior: str, payload: list[str], asn_resolve
     return result
 
 
-def _collect_required_asns(groups: list[dict[str, Any]], payloads: dict[str, list[str]]) -> set[str]:
-    required: set[str] = set()
-    for group in groups:
-        for provider in group["providers"]:
-            for raw in payloads.get(provider, []):
-                parsed = parse_rule(raw)
-                if parsed.kind in {"IP-ASN", "SRC-IP-ASN"} and len(parsed.parts) > 1:
-                    required.add(parsed.parts[1])
-    return required
-
-
 def _aggregate(matchers: list[dict[str, Any]]) -> list[dict[str, Any]]:
     # Only destination matcher families are OR-safe to combine.  Every other
     # matcher remains its own object, preventing accidental IP AND port rules.
@@ -546,92 +510,6 @@ def _route_rules(config: dict[str, Any], groups: list[dict[str, Any]], group_buc
             entry = {field: value if isinstance(value, list) else [value], **_policy_action(policy)}
             rules.append(entry)
     return rules, final
-
-
-def _representatives(source_rules: list[dict[str, Any]]) -> list[str]:
-    probes: list[str] = []
-    for rule in source_rules:
-        if "domain" in rule:
-            probes.append(rule["domain"][0])
-        elif "domain_suffix" in rule:
-            probes.append("audit." + rule["domain_suffix"][0])
-        elif "domain_keyword" in rule:
-            probes.append("audit-" + rule["domain_keyword"][0] + ".invalid")
-        elif "ip_cidr" in rule:
-            probes.append(str(ipaddress.ip_network(rule["ip_cidr"][0], strict=False).network_address))
-    return list(dict.fromkeys(probes))
-
-
-def _canonicalize_decompiled_rules(rules: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Match decompile's scalar shorthand to the source list representation."""
-    matcher_fields = {
-        "domain", "domain_suffix", "domain_keyword", "domain_regex", "ip_cidr", "source_ip_cidr",
-        "network", "process_name", "process_path", "process_path_regex", "port", "source_port",
-        "port_range", "source_port_range",
-    }
-    return [
-        {field: value if isinstance(value, list) else [value] if field in matcher_fields else value for field, value in rule.items()}
-        for rule in rules
-    ]
-
-
-def _collect_canonical_fields(rules: list[dict[str, Any]]) -> dict[str, set[Any]]:
-    """Collect canonical matcher values in one pass over a rule set."""
-    matcher_fields = {
-        "domain", "domain_suffix", "domain_keyword", "domain_regex", "ip_cidr", "source_ip_cidr",
-        "network", "process_name", "process_path", "process_path_regex", "port", "source_port",
-        "port_range", "source_port_range",
-    }
-    fields: dict[str, set[Any]] = {}
-    for rule in rules:
-        for field, value in rule.items():
-            normalized = value if isinstance(value, list) else [value] if field in matcher_fields else value
-            bucket = fields.setdefault(field, set())
-            if isinstance(normalized, list):
-                bucket.update(normalized)
-            else:
-                # Preserve the existing checker behavior for non-matcher
-                # iterable values while avoiding a second rule-tree scan.
-                bucket.update(normalized)
-    return fields
-
-
-def _semantic_matcher_equivalent(source: list[dict[str, Any]], decoded: list[dict[str, Any]]) -> bool:
-    """Compare matcher families without depending on rule order or scalar style."""
-    with _timed("Sing-box semantic equivalence"):
-        source_fields = _collect_canonical_fields(source)
-        decoded_fields = _collect_canonical_fields(decoded)
-        cidr_fields = {"ip_cidr", "source_ip_cidr"}
-        network_cache: dict[str, ipaddress._BaseNetwork] = {}
-
-        def parse_networks(values: set[Any]) -> list[ipaddress._BaseNetwork]:
-            networks: list[ipaddress._BaseNetwork] = []
-            for value in values:
-                if value not in network_cache:
-                    network_cache[value] = ipaddress.ip_network(value, strict=False)
-                networks.append(network_cache[value])
-            return networks
-
-        def collapsed(networks: list[ipaddress._BaseNetwork]) -> list[str]:
-            return sorted(
-                str(network)
-                for version in (4, 6)
-                for network in ipaddress.collapse_addresses([item for item in networks if item.version == version])
-            )
-
-        try:
-            for field in source_fields.keys() | decoded_fields.keys():
-                source_values = source_fields.get(field, set())
-                decoded_values = decoded_fields.get(field, set())
-                if field not in cidr_fields:
-                    if source_values != decoded_values:
-                        return False
-                    continue
-                if collapsed(parse_networks(source_values)) != collapsed(parse_networks(decoded_values)):
-                    return False
-        except (TypeError, ValueError):
-            return False
-        return True
 
 
 def export_singbox_dns(

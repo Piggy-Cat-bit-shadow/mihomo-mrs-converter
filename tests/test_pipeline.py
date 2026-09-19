@@ -89,7 +89,10 @@ class PipelineTest(unittest.TestCase):
             if not mihomo or not sing_box:
                 self.skipTest("real exporter binaries are required")
             with patch("converter.net.fetch_text", side_effect=lambda url, headers, cache: responses[url]):
-                result = build(BuildConfig(input_path, dist, "https://example.invalid/repo/main", mihomo, sing_box))
+                result = build(BuildConfig(
+                    input_path, dist, "https://example.invalid/repo/main", mihomo, sing_box,
+                    segment_names=Path(__file__).parents[1] / "segment-names.yaml",
+                ))
             self.assertEqual(len(result.final_config["rule-providers"]), 4)
             self.assertFalse(any(path.name.startswith("stage-") for path in dist.rglob("*")))
             self.assertTrue((dist / "loon/AI-udp.lsr").exists())

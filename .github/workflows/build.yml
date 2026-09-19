@@ -11,7 +11,7 @@ on:
     - cron: "25 3 1,6,11,16,21,26 * *"
   push:
     branches: ["main"]
-    paths-ignore: ["README.md", "LICENSE", "LICENSE.*", "dist/**", ".state/**"]
+    paths-ignore: ["README.md", "LICENSE", "LICENSE.*"]
 
 concurrency:
   group: build-${{ github.ref }}
@@ -34,26 +34,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with: {python-version: "3.12"}
-      - run: pip install -r requirements-ci.txt
-      - name: Download verified test binaries
-        run: |
-          set -euo pipefail
-          curl -fsSL "https://github.com/MetaCubeX/mihomo/releases/download/v1.19.30/mihomo-linux-amd64-v1.19.30.gz" -o mihomo.gz & p1=$!
-          curl -fsSL "https://github.com/SagerNet/sing-box/releases/download/v${SING_BOX_VERSION}/sing-box-${SING_BOX_VERSION}-linux-amd64.tar.gz" -o sing-box.tar.gz & p2=$!
-          wait "$p1" "$p2"
-          printf '%s  %s\n' "$MIHOMO_SHA256" mihomo.gz | sha256sum -c -
-          printf '%s  %s\n' "$SING_BOX_SHA256" sing-box.tar.gz | sha256sum -c -
-          gzip -d mihomo.gz
-          tar -xzf sing-box.tar.gz
-          install "sing-box-${SING_BOX_VERSION}-linux-amd64/sing-box" ./sing-box
-          chmod +x mihomo
-          echo "$GITHUB_WORKSPACE" >> "$GITHUB_PATH"
+      - run: pip install -r requirements-test.txt
+      - name: Install verified test binaries
+        run: scripts/install-ci-tools.sh "$GITHUB_WORKSPACE/.tools"
       - name: Run tests
         run: |
           set -o pipefail
           PYTHONPATH=. python -m pytest tests -n 2 --dist=loadfile 2>&1 | tee pytest.log
       - name: Upload test log
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: test-log-${{ github.sha }}
@@ -68,19 +57,9 @@ jobs:
         with: {persist-credentials: false}
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with: {python-version: "3.12"}
-      - run: pip install -r requirements-ci.txt
-      - name: Download verified binaries
-        run: |
-          set -euo pipefail
-          curl -fsSL "https://github.com/MetaCubeX/mihomo/releases/download/v1.19.30/mihomo-linux-amd64-v1.19.30.gz" -o mihomo.gz & p1=$!
-          curl -fsSL "https://github.com/SagerNet/sing-box/releases/download/v${SING_BOX_VERSION}/sing-box-${SING_BOX_VERSION}-linux-amd64.tar.gz" -o sing-box.tar.gz & p2=$!
-          wait "$p1" "$p2"
-          printf '%s  %s\n' "$MIHOMO_SHA256" mihomo.gz | sha256sum -c -
-          printf '%s  %s\n' "$SING_BOX_SHA256" sing-box.tar.gz | sha256sum -c -
-          gzip -d mihomo.gz
-          tar -xzf sing-box.tar.gz
-          install "sing-box-${SING_BOX_VERSION}-linux-amd64/sing-box" ./sing-box
-          chmod +x mihomo
+      - run: pip install -r requirements.txt
+      - name: Install verified binaries
+        run: scripts/install-ci-tools.sh "$GITHUB_WORKSPACE/.tools"
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .cache/geolite2
@@ -89,8 +68,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          python -m converter examples/my-rules.yaml --base-url "$BASE_URL" --mihomo ./mihomo --sing-box ./sing-box
-          python -m converter.audit dist --mihomo ./mihomo --sing-box ./sing-box
+          python -m converter config/rules.yaml --segment-names segment-names.yaml --base-url "$BASE_URL" --mihomo ./.tools/mihomo --sing-box ./.tools/sing-box
+          python -m converter.audit dist --mihomo ./.tools/mihomo --sing-box ./.tools/sing-box
           python -m compileall -q converter
           git diff --check
       - name: Upload verified generated artifacts
@@ -110,7 +89,7 @@ jobs:
     permissions: {contents: write}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with: {fetch-depth: 0}
+        with: {fetch-depth: 1}
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: verified-generated-${{ github.sha }}
@@ -120,10 +99,17 @@ jobs:
           set -euo pipefail
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          if git show-ref --verify --quiet refs/remotes/origin/rules; then
-            git switch --create rules --track origin/rules
+          if git ls-remote --exit-code --heads origin rules >/dev/null 2>&1; then
+            git fetch --depth=1 origin rules:refs/remotes/origin/rules
+            expected_rules_sha="$(git rev-parse refs/remotes/origin/rules)"
+            git switch --detach "$expected_rules_sha"
+            git switch --orphan rules-snapshot
+            git read-tree --empty
+            git branch -M rules
           else
+            expected_rules_sha=""
             git switch --orphan rules
+            git read-tree --empty
           fi
           rm -rf dist .state
           cp -a .verified-generated/dist dist
@@ -131,4 +117,8 @@ jobs:
           git add -A dist .state
           if git diff --cached --quiet; then exit 0; fi
           git commit -m "build: update generated rules"
-          git push origin rules
+          if [[ -n "$expected_rules_sha" ]]; then
+            git push --force-with-lease="refs/heads/rules:$expected_rules_sha" origin rules
+          else
+            git push --force-with-lease="refs/heads/rules:" origin rules
+          fi

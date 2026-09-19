@@ -151,6 +151,7 @@ def optimize_config(
     handled: set[str] = set()
     rename_map: dict[str, list[str]] = {}
     segment_index = 0
+    matched_anchors: set[str] = set()
 
     block_by_start = {start: (end, routing, wrapper, names) for start, end, routing, wrapper, names in iter_ruleset_blocks(rules, providers)}
     index = 0
@@ -164,19 +165,21 @@ def optimize_config(
         end, routing, wrapper_signature, names = block_by_start[index]
         segment_index += 1
         segment_key = f"merged-segment-{segment_index:02d}"
-        segment_spec = (segment_mapping or {}).get(segment_key)
-        if isinstance(segment_spec, dict):
-            anchor = segment_spec.get("anchor")
-            if not isinstance(anchor, str) or not anchor:
-                raise ValueError(f"{segment_key}: segment mapping requires an anchor")
-            anchored = any(
+        matches = [
+            (anchor, mapped_name)
+            for anchor, mapped_name in (segment_mapping or {}).items()
+            if any(
                 name == anchor
                 or name.startswith(anchor + "-")
                 or (parse_provider_identity(name) and parse_provider_identity(name).segment == anchor)
                 for name in names
             )
-            if not anchored:
-                raise ValueError(f"{segment_key}: configured anchor {anchor!r} does not match providers {names}")
+        ]
+        if len(matches) > 1:
+            raise ValueError(f"{segment_key}: multiple configured anchors match providers {names}")
+        mapped_segment_name = matches[0][1] if matches else None
+        if matches:
+            matched_anchors.add(matches[0][0])
         groups: dict[tuple[str, str], list[str]] = {}
         group_modifiers: dict[tuple[str, str], set[str]] = {}
         for offset, name in enumerate(names):
@@ -220,13 +223,8 @@ def optimize_config(
             handled.update(group)
         for name, policy, modifiers, source_names in output_names:
             mapped = name
-            for old, new in (segment_mapping or {}).items():
-                if isinstance(new, dict):
-                    new = new.get("name")
-                    if not isinstance(new, str):
-                        raise ValueError(f"{old}: segment mapping name must be a string")
-                if mapped.startswith(old + "-"):
-                    mapped = new + mapped[len(old):]
+            if mapped_segment_name is not None and mapped.startswith(segment_key + "-"):
+                mapped = mapped_segment_name + mapped[len(segment_key):]
             provider = final_providers.pop(name)
             payload = final_payloads.pop(name)
             if mapped in final_providers:
@@ -269,6 +267,9 @@ def optimize_config(
     }
     referenced = {name for rule in iter_all_rules(rewritten_config) for name in find_ruleset_refs(rule)}
     ordered = {name: final_providers[name] for name in final_providers if name in referenced or name in final_payloads}
+    unused_anchors = set(segment_mapping or {}) - matched_anchors
+    if unused_anchors:
+        raise ValueError(f"configured segment anchor(s) did not match any merged segment: {sorted(unused_anchors)}")
     return {**rewritten_config, "rule-providers": ordered}, {name: final_payloads[name] for name in ordered}, stats
 
 

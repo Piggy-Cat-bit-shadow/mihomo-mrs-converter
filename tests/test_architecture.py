@@ -1,4 +1,3 @@
-import ast
 import unittest
 from pathlib import Path
 
@@ -47,10 +46,12 @@ class ArchitectureTest(unittest.TestCase):
 
     def test_ci_locks_dependencies_and_binary_digests(self):
         root = Path(__file__).parents[1]
-        requirements = (root / "requirements-ci.txt").read_text(encoding="utf-8")
+        requirements = (root / "requirements.txt").read_text(encoding="utf-8")
+        test_requirements = (root / "requirements-test.txt").read_text(encoding="utf-8")
         workflow = (root / ".github/workflows/build.yml").read_text(encoding="utf-8")
         self.assertIn("PyYAML==", requirements)
         self.assertIn("certifi==", requirements)
+        self.assertIn("pytest==", test_requirements)
         self.assertRegex(workflow, r"MIHOMO_SHA256: \"[0-9a-f]{64}\"")
         self.assertRegex(workflow, r"SING_BOX_SHA256: \"[0-9a-f]{64}\"")
 

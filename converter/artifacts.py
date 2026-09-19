@@ -4,7 +4,6 @@ import os
 import subprocess
 import tempfile
 from pathlib import Path
-from urllib.parse import urlparse
 from typing import Any
 
 import yaml
@@ -44,11 +43,6 @@ def dist_relative_from_url(url: str) -> Path | None:
 def generated_artifact_path(dist: Path, provider: dict[str, Any]) -> Path | None:
     relative = dist_relative_from_url(str(provider.get("url", "")))
     return dist / relative if relative is not None else None
-
-
-def validate_http_url(name: str, url: str) -> None:
-    if urlparse(url).scheme.lower() not in {"http", "https"}:
-        raise SystemExit(f"{name}: unsupported provider URL scheme")
 
 
 def convert_source_to_mrs(mihomo: str, behavior: str, source: Path, output: Path) -> None:

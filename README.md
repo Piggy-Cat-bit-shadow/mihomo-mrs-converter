@@ -82,7 +82,7 @@ dist/
 .state/
 └── managed-state.yaml
 
-main 只保存转换器、测试、示例和源规则；生成物与 state 由 CI 发布到 `rules` 分支。
+main 只保存转换器、测试、配置和源规则；生成物与 state 由 CI 发布到 `rules` 分支。
 ```
 
 转换器先在内存中完成归一化、合并、安全去重和最终命名，最后一次性生成客户端 artifacts：
@@ -95,18 +95,17 @@ dist/generated/mihomo-rules.yaml
 
 ```text
 segments:
-  merged-segment-01:
-    name: China
-    anchor: China
-  merged-segment-02:
+  Lan:
+    name: Direct
+  me-pure:
     name: AI
-    anchor: AI
-  merged-segment-03:
+  Scholar-Foreign:
     name: Global
-    anchor: Global
+  apple:
+    name: China
 ```
 
-例如 `merged-segment-02-domain`、`-ip`、`-classical` 会分别变为 `AI-domain`、`AI-ip`、`AI-classical`；未配置的 segment 保持默认名字。`anchor` 必须匹配该 block 中的稳定 source/provider identity；如果前面插入 block 导致 ordinal 与 anchor 不一致，构建会 fail closed，不会静默错命名。命名会同步应用到 provider、artifact、URL、path 和所有 RULE-SET 引用。
+例如匹配 `me-pure` 的 segment 会分别生成 `AI-domain`、`AI-ip`、`AI-classical`；未配置的 segment 保持默认名字。每个 key 都是稳定的 source/provider identity，必须匹配对应 block 中的 provider；anchor 不匹配或一个 block 命中多个 anchor 时构建会 fail closed。命名会同步应用到 provider、artifact、URL、path 和所有 RULE-SET 引用。
 
 同一个 logical segment 内，行为类型相同且 policy、wrapper 和 provider metadata 兼容的 `RULE-SET` 会合并；`domain` / `ipcidr` 使用安全去重，classical 使用稳定顺序拼接。合并不会跨非 `RULE-SET` barrier、不同 policy、不同 wrapper 或不兼容 metadata。
 
@@ -115,7 +114,7 @@ segments:
 ## 从完整配置抽取输入
 
 ```bash
-python scripts/extract_rules_input.py "/Users/jie/Desktop/配置文件/我的🐷🐷（聚合版）.yaml" examples/my-rules.yaml
+python scripts/extract_rules_input.py "/Users/jie/Desktop/配置文件/我的🐷🐷（聚合版）.yaml" config/rules.yaml
 ```
 
 ## 本地构建
@@ -129,14 +128,16 @@ pip install -r requirements.txt
 如果本机已有 `mihomo`：
 
 ```bash
-python -m converter examples/my-rules.yaml \
+python -m converter config/rules.yaml \
+  --segment-names segment-names.yaml \
   --base-url "https://raw.githubusercontent.com/<owner>/<repo>/rules"
 ```
 
 如果要把本轮生成结果刷新进完整 Mihomo / Clash 配置，可以指定完整配置路径：
 
 ```bash
-python -m converter examples/my-rules.yaml \
+python -m converter config/rules.yaml \
+  --segment-names segment-names.yaml \
   --base-url "https://raw.githubusercontent.com/<owner>/<repo>/rules" \
   --complete-config "/path/to/full-config.yaml" \
   --complete-output "/path/to/full-config.generated.yaml"

@@ -16,7 +16,7 @@ class OptimizeTest(unittest.TestCase):
 
     def test_optimizer_is_filesystem_free_and_emits_final_identity(self):
         config = {"rule-providers": {"A": {"behavior": "domain"}, "B": {"behavior": "domain"}}, "rules": ["RULE-SET,A,Proxy", "RULE-SET,B,Proxy"]}
-        final, payloads, _ = optimize_config(config, {"A": ["a.example"], "B": ["b.example"]}, {"merged-segment-01": "AI"})
+        final, payloads, _ = optimize_config(config, {"A": ["a.example"], "B": ["b.example"]}, {"A": "AI"})
         self.assertIn("AI-domain", final["rule-providers"])
         self.assertEqual(payloads["AI-domain"], ["a.example", "b.example"])
         self.assertEqual(final["rules"], ["RULE-SET,AI-domain,Proxy"])
@@ -41,7 +41,7 @@ class OptimizeTest(unittest.TestCase):
             "RULE-SET,A,Proxy", "DOMAIN,barrier.example,DIRECT", "RULE-SET,B,Proxy"
         ]}
         final, _, _ = optimize_config(config, {"A": ["192.0.2.0/24"], "B": ["198.51.100.0/24"]}, {
-            "merged-segment-01": "Something", "merged-segment-02": "Something"
+            "A": "Something", "B": "Something"
         })
         self.assertIn("Something-ip", final["rule-providers"])
         self.assertIn("Something-ip-part-02", final["rule-providers"])
@@ -88,14 +88,14 @@ class OptimizeTest(unittest.TestCase):
         config = {"rule-providers": {"Inserted": {"behavior": "domain"}, "AI": {"behavior": "domain"}}, "rules": [
             "RULE-SET,Inserted,Proxy", "DOMAIN,barrier.example,DIRECT", "RULE-SET,AI,Proxy"
         ]}
-        mapping = {"merged-segment-01": {"name": "Direct", "anchor": "Direct"}}
+        mapping = {"Direct": "Direct"}
         with self.assertRaisesRegex(ValueError, "anchor"):
             optimize_config(config, {"Inserted": ["inserted.example"], "AI": ["ai.example"]}, mapping)
 
     def test_segment_anchor_maps_expected_provider(self):
         config = {"rule-providers": {"AI": {"behavior": "domain"}}, "rules": ["RULE-SET,AI,Proxy"]}
         final, _, _ = optimize_config(config, {"AI": ["ai.example"]}, {
-            "merged-segment-01": {"name": "AI", "anchor": "AI"}
+            "AI": "AI"
         })
         self.assertIn("AI-domain", final["rule-providers"])
 

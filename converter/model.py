@@ -90,6 +90,7 @@ class BuildConfig:
     sing_box_bin: str
     complete_config: Path | None = None
     complete_output: Path | None = None
+    segment_names: Path | None = None
 
 
 @dataclass
