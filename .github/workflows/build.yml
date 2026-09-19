@@ -35,6 +35,18 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with: {python-version: "3.12"}
       - run: pip install -r requirements-ci.txt
+      - name: Download verified test binaries
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://github.com/MetaCubeX/mihomo/releases/download/v1.19.30/mihomo-linux-amd64-v1.19.30.gz" -o mihomo.gz & p1=$!
+          curl -fsSL "https://github.com/SagerNet/sing-box/releases/download/v${SING_BOX_VERSION}/sing-box-${SING_BOX_VERSION}-linux-amd64.tar.gz" -o sing-box.tar.gz & p2=$!
+          wait "$p1" "$p2"
+          printf '%s  %s\n' "$MIHOMO_SHA256" mihomo.gz | sha256sum -c -
+          printf '%s  %s\n' "$SING_BOX_SHA256" sing-box.tar.gz | sha256sum -c -
+          gzip -d mihomo.gz
+          tar -xzf sing-box.tar.gz
+          install "sing-box-${SING_BOX_VERSION}-linux-amd64/sing-box" ./sing-box
+          chmod +x mihomo
       - name: Run tests
         run: PYTHONPATH=. python -m pytest tests -n 2 --dist=loadfile
 
