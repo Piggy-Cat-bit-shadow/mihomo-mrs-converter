@@ -1,0 +1,111 @@
+rule-providers:
+  HTTPDNS-domain:
+    behavior: domain
+    interval: 172800
+    type: http
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/rules/dist/domain/HTTPDNS-domain.mrs
+    path: ./ruleset/HTTPDNS-domain.mrs
+  HTTPDNS-ip:
+    behavior: ipcidr
+    interval: 172800
+    type: http
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/rules/dist/ipcidr/HTTPDNS-ip.mrs
+    path: ./ruleset/HTTPDNS-ip.mrs
+  Direct-domain:
+    behavior: domain
+    interval: 172800
+    type: http
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/rules/dist/domain/Direct-domain.mrs
+    path: ./ruleset/Direct-domain.mrs
+  Direct-classical:
+    behavior: classical
+    interval: 172800
+    type: http
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/rules/dist/classical/Direct-classical.yaml
+    path: ./ruleset/Direct-classical.yaml
+  AI-domain:
+    behavior: domain
+    interval: 172800
+    type: http
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/rules/dist/domain/AI-domain.mrs
+    path: ./ruleset/AI-domain.mrs
+  AI-classical:
+    behavior: classical
+    interval: 172800
+    type: http
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/rules/dist/classical/AI-classical.yaml
+    path: ./ruleset/AI-classical.yaml
+  AI-ip:
+    behavior: ipcidr
+    interval: 172800
+    type: http
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/rules/dist/ipcidr/AI-ip.mrs
+    path: ./ruleset/AI-ip.mrs
+  Global-domain:
+    behavior: domain
+    interval: 172800
+    type: http
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/rules/dist/domain/Global-domain.mrs
+    path: ./ruleset/Global-domain.mrs
+  Global-classical:
+    behavior: classical
+    interval: 172800
+    type: http
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/rules/dist/classical/Global-classical.yaml
+    path: ./ruleset/Global-classical.yaml
+  Global-ip:
+    behavior: ipcidr
+    interval: 172800
+    type: http
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/rules/dist/ipcidr/Global-ip.mrs
+    path: ./ruleset/Global-ip.mrs
+  China-domain:
+    behavior: domain
+    interval: 172800
+    type: http
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/rules/dist/domain/China-domain.mrs
+    path: ./ruleset/China-domain.mrs
+  China-classical:
+    behavior: classical
+    interval: 172800
+    type: http
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/rules/dist/classical/China-classical.yaml
+    path: ./ruleset/China-classical.yaml
+  China-ip:
+    behavior: ipcidr
+    interval: 172800
+    type: http
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/rules/dist/ipcidr/China-ip.mrs
+    path: ./ruleset/China-ip.mrs
+rules:
+- RULE-SET,HTTPDNS-domain,REJECT
+- RULE-SET,HTTPDNS-ip,REJECT,no-resolve
+- RULE-SET,Direct-domain,🏠 国内流量
+- RULE-SET,Direct-classical,🏠 国内流量,no-resolve
+- SUB-RULE,(RULE-SET,AI-domain),AI-Routing
+- SUB-RULE,(RULE-SET,AI-classical,no-resolve),AI-Routing
+- SUB-RULE,(RULE-SET,AI-ip,no-resolve),AI-Routing
+- RULE-SET,Global-domain,🌍 国外流量
+- RULE-SET,Global-classical,🌍 国外流量,no-resolve
+- RULE-SET,Global-ip,🌍 国外流量,no-resolve
+- RULE-SET,China-domain,🏠 国内流量
+- RULE-SET,China-classical,🏠 国内流量,no-resolve
+- RULE-SET,China-ip,🏠 国内流量,no-resolve
+- MATCH,🌍 国外流量
+sub-rules:
+  AI-Routing:
+  - NETWORK,UDP,REJECT
+  - MATCH,🤖 AI
