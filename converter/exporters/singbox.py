@@ -514,12 +514,12 @@ def _route_rules(config: dict[str, Any], groups: list[dict[str, Any]], group_buc
 
 def export_singbox_dns(
     config: dict[str, Any], final_payloads: dict[str, list[str]], output_dist: Path,
-    base_url: str, sing_box: str | None,
+    base_url: str, sing_box: str | None, segment_roles: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Compile the shared normalized DNS domain view into two pure SRS files."""
     if not sing_box:
         raise SingBoxExportError("sing-box binary not found; DNS SRS output requires sing-box")
-    dns_payloads = collect_dns_domain_payloads(config, final_payloads, DNS_DOMAIN_KINDS)
+    dns_payloads = collect_dns_domain_payloads(config, final_payloads, DNS_DOMAIN_KINDS, segment_roles)
     stage = Path(tempfile.mkdtemp(prefix="singbox-dns-export-", dir=output_dist.parent))
     try:
         source_dir, binary_dir = stage / "source", stage / "dns"

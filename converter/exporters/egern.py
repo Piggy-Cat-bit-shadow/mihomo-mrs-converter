@@ -6,6 +6,7 @@ from contextlib import nullcontext
 from time import perf_counter
 from typing import Any
 import ipaddress
+import re
 
 from ..artifacts import public_url, write_yaml_atomic
 from ..model import provider_segment
@@ -43,14 +44,12 @@ EGERN_FIELD_BY_KIND = {
 
 
 def validate_provider_name(name: str) -> None:
-    if not name or any(token in name for token in ("/", "\\", "..", "\x00")):
+    if not re.fullmatch(r"[A-Za-z0-9._-]+", name):
         raise ValueError(f"invalid provider name: {name!r}")
 
 
-def egern_policy(policy: str) -> str:
-    if policy == "🏠 国内流量":
-        return "DIRECT"
-    return policy
+def egern_policy(policy: str, policy_map: dict[str, str] | None = None) -> str:
+    return (policy_map or {}).get(policy, policy)
 
 
 def egern_segment_name(provider_name: str) -> str:
@@ -133,7 +132,8 @@ def optimize_egern_rule_set(fields: dict[str, Any]) -> tuple[dict[str, Any], Cou
 
 
 def export_egern(
-    config: dict[str, Any], final_payloads: dict[str, list[str]], output_dist: Path, base_url: str
+    config: dict[str, Any], final_payloads: dict[str, list[str]], output_dist: Path, base_url: str,
+    policy_map: dict[str, str] | None = None,
 ) -> dict[str, int]:
     """Serialize the already-final Mihomo config into compact Egern rule sets."""
     egern_started = perf_counter()
@@ -219,7 +219,7 @@ def export_egern(
         emitted_keys.add(key)
         egern_rules.append({"rule_set": {
             "match": public_url(base_url, "dist", "egern", f"{target}.yaml"),
-            "policy": egern_policy(policy),
+            "policy": egern_policy(policy, policy_map),
             "update_interval": 172800,
         }})
 
@@ -238,7 +238,7 @@ def export_egern(
                     }},
                     {"protocol": {"match": protocol}},
                 ],
-                "policy": egern_policy(policy),
+                "policy": egern_policy(policy, policy_map),
             }})
 
     def emit_protocol(protocol: str, policy: str) -> None:
@@ -246,13 +246,13 @@ def export_egern(
         if key in emitted_keys:
             return
         emitted_keys.add(key)
-        egern_rules.append({"protocol": {"match": protocol, "policy": egern_policy(policy)}})
+        egern_rules.append({"protocol": {"match": protocol, "policy": egern_policy(policy, policy_map)}})
 
     def emit_native_ip(kind: str, match: str, policy: str) -> None:
         native_kind = {"IP-CIDR": "ip_cidr", "IP-CIDR6": "ip_cidr6", "IP-ASN": "asn", "GEOIP": "geoip"}[kind]
         egern_rules.append({native_kind: {
             "match": match,
-            "policy": egern_policy(policy),
+            "policy": egern_policy(policy, policy_map),
             "no_resolve": True,
         }})
 
@@ -262,7 +262,7 @@ def export_egern(
                 continue
             parsed = parse_rule(rule)
             if parsed.kind == "MATCH" and len(parsed.parts) >= 2:
-                egern_rules.append({"default": {"policy": egern_policy(parsed.parts[1])}})
+                egern_rules.append({"default": {"policy": egern_policy(parsed.parts[1], policy_map)}})
                 continue
             if parsed.kind in {"IP-CIDR", "IP-CIDR6", "IP-ASN", "GEOIP"}:
                 if len(parsed.parts) < 3 or any(item.lower() != "no-resolve" for item in parsed.parts[3:]):

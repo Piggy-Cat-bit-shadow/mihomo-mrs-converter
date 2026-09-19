@@ -1,9 +1,13 @@
 segments:
   Lan:
     name: Direct
+    role: direct
   me-pure:
     name: AI
+    role: ai
   Scholar-Foreign:
     name: Global
+    role: global
   apple:
     name: China
+    role: china

@@ -71,6 +71,8 @@ def main() -> None:
         "rule-providers": data.get("rule-providers", {}),
         "rules": data.get("rules", []),
     }
+    if "sub-rules" in data:
+        extracted["sub-rules"] = data["sub-rules"]
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
         yaml.safe_dump(extracted, allow_unicode=True, sort_keys=False),

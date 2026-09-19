@@ -2,7 +2,7 @@
 
 import json
 import subprocess
-import sys
+import argparse
 import tempfile
 from pathlib import Path
 
@@ -57,46 +57,6 @@ def audit_dist(root: Path, mihomo: str | None = None, sing_box: str | None = Non
             raise ValueError(f"Egern: {path}: target-IP set lacks no_resolve:true")
     egern_config = yaml.safe_load((root / "generated/egern-rules.yaml").read_text(encoding="utf-8")) or {}
     egern_rules = egern_config.get("rules", [])
-    egern_rule_set_policies = {
-        Path(str(item["rule_set"]["match"])).name: item["rule_set"].get("policy")
-        for item in egern_rules
-        if isinstance(item, dict) and isinstance(item.get("rule_set"), dict)
-    }
-    expected_egern_policies = {
-        "Direct.yaml": "DIRECT",
-        "AI.yaml": "🤖 AI",
-        "Global.yaml": "🌍 国外流量",
-        "China.yaml": "DIRECT",
-    }
-    for resource, policy in expected_egern_policies.items():
-        if egern_rule_set_policies.get(resource) != policy:
-            raise ValueError(f"Egern: {resource} policy must be {policy!r}")
-    udp_rules = [item for item in egern_rules if isinstance(item, dict) and isinstance(item.get("and"), dict)]
-    if not any(
-        item["and"].get("policy") == "REJECT"
-        and any(
-            isinstance(match, dict)
-            and isinstance(match.get("protocol"), dict)
-            and match["protocol"].get("match") == "udp"
-            for match in item["and"].get("match", [])
-        )
-        for item in udp_rules
-    ):
-        raise ValueError("Egern: AI UDP rule must use REJECT")
-    native_ip = {
-        key: value
-        for item in egern_rules
-        if isinstance(item, dict)
-        for key, value in item.items()
-        if key in {"ip_cidr", "ip_cidr6"} and isinstance(value, dict)
-    }
-    for key, match in (("ip_cidr6", "::/128"), ("ip_cidr", "0.0.0.0/32")):
-        rule = native_ip.get(key)
-        if not rule or rule.get("match") != match or rule.get("policy") != "REJECT-DROP" or rule.get("no_resolve") is not True:
-            raise ValueError(f"Egern: missing or invalid {key} rule for {match}")
-    defaults = [item["default"] for item in egern_rules if isinstance(item, dict) and isinstance(item.get("default"), dict)]
-    if not defaults or defaults[-1].get("policy") != "🌍 国外流量":
-        raise ValueError("Egern: default policy must be 🌍 国外流量")
     egern_refs = {
         Path(str(item["rule_set"]["match"])).name
         for item in egern_config.get("rules", [])
@@ -125,22 +85,12 @@ def audit_dist(root: Path, mihomo: str | None = None, sing_box: str | None = Non
         raise ValueError("Loon: generated/loon-rules.conf contains duplicate remote resources")
     if set(remote_names) != {path.name for path in loon_files}:
         raise ValueError(f"Loon: remote resources {sorted(remote_names)} != artifacts {sorted(path.name for path in loon_files)}")
-    if "AI-udp.lsr" in remote_names and "AI.lsr" in remote_names:
-        if remote_names.index("AI-udp.lsr") > remote_names.index("AI.lsr"):
-            raise ValueError("Loon: AI-udp.lsr must precede AI.lsr")
-        udp = next(line for line in remote_lines if line.startswith("http") and "/AI-udp.lsr," in line)
-        fallback = next(line for line in remote_lines if line.startswith("http") and "/AI.lsr," in line)
-        if "policy=REJECT" not in udp or "policy=🤖 AI" not in fallback:
-            raise ValueError("Loon: AI UDP/fallback policies are incorrect")
-
     singbox = json.loads((root / "generated/singbox-rules.json").read_text(encoding="utf-8"))
     route = singbox.get("route", {})
     route_sets = route.get("rule_set", [])
     tags = [item.get("tag") for item in route_sets if isinstance(item, dict)]
     if len(tags) != len(set(tags)):
         raise ValueError("Sing-box: generated route contains duplicate rule-set tags")
-    if len(tags) != 4:
-        raise ValueError(f"Sing-box: expected 4 route SRS, found {len(tags)}")
     if any(rule.get("action") == "resolve" for rule in route.get("rules", []) if isinstance(rule, dict)):
         raise ValueError("Sing-box: route contains action: resolve")
     srs_dir = root / "singbox"
@@ -156,8 +106,8 @@ def audit_dist(root: Path, mihomo: str | None = None, sing_box: str | None = Non
             raise ValueError(f"Sing-box: missing artifact for tag {item.get('tag')}: {artifact}")
     dns_dir = root / "dns/singbox"
     dns_files = sorted(dns_dir.glob("*.srs"))
-    if {path.name for path in dns_files} != {"China-domain.srs", "Global-domain.srs"}:
-        raise ValueError(f"DNS: expected China-domain.srs and Global-domain.srs, found {[path.name for path in dns_files]}")
+    if not dns_files:
+        raise ValueError(f"DNS: {dns_dir} contains no SRS artifacts")
     if sing_box:
         with tempfile.TemporaryDirectory(prefix="converter-srs-audit-") as tmp:
             temporary = Path(tmp)
@@ -171,11 +121,12 @@ def audit_dist(root: Path, mihomo: str | None = None, sing_box: str | None = Non
 
 
 def main(argv: list[str] | None = None) -> None:
-    args = argv if argv is not None else sys.argv[1:]
-    root = Path(args[0] if args and not args[0].startswith("--") else "dist")
-    mihomo = args[args.index("--mihomo") + 1] if "--mihomo" in args else None
-    sing_box = args[args.index("--sing-box") + 1] if "--sing-box" in args else None
-    audit_dist(root, mihomo, sing_box)
+    parser = argparse.ArgumentParser(description="Audit generated artifacts without production-specific policy assumptions.")
+    parser.add_argument("root", nargs="?", type=Path, default=Path("dist"))
+    parser.add_argument("--mihomo")
+    parser.add_argument("--sing-box")
+    args = parser.parse_args(argv)
+    audit_dist(args.root, args.mihomo, args.sing_box)
 
 
 if __name__ == "__main__":

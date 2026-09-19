@@ -20,6 +20,14 @@ def main() -> None:
     parser.add_argument("--complete-output", type=Path)
     parser.add_argument("--segment-names", type=Path)
     args = parser.parse_args()
+    if args.complete_output and not args.complete_config:
+        parser.error("--complete-output requires --complete-config")
+    input_path = args.input.resolve()
+    dist_path = args.dist.resolve()
+    home = Path.home().resolve()
+    repository = Path(__file__).resolve().parents[1]
+    if dist_path in {Path("/"), home, repository, input_path, input_path.parent}:
+        parser.error("--dist points to a protected path")
     if not args.mihomo:
         raise SystemExit("mihomo binary not found; install Mihomo and retry")
     if not args.sing_box:

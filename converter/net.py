@@ -2,6 +2,8 @@
 
 import ssl
 import time
+from email.utils import parsedate_to_datetime
+from datetime import datetime, timezone
 import urllib.error
 import urllib.request
 import ipaddress
@@ -16,8 +18,14 @@ except ImportError:  # pragma: no cover
 def retry_after_seconds(value: str | None) -> float:
     try:
         return max(0.0, float(value or 0))
-    except ValueError:
-        return 0.0
+    except (TypeError, ValueError):
+        try:
+            target = parsedate_to_datetime(value or "")
+            if target.tzinfo is None:
+                target = target.replace(tzinfo=timezone.utc)
+            return max(0.0, (target - datetime.now(timezone.utc)).total_seconds())
+        except (TypeError, ValueError, OverflowError):
+            return 0.0
 
 
 MAX_PROVIDER_BYTES = 128 * 1024 * 1024

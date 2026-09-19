@@ -35,6 +35,18 @@ def _load_yaml(path: Path) -> dict[str, Any]:
     return value
 
 
+def _export_policy_map(input_path: Path) -> dict[str, str]:
+    path = input_path.parent / "export.yaml"
+    if not path.exists():
+        return {}
+    value = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    egern = value.get("egern", {}) if isinstance(value, dict) else {}
+    mapping = egern.get("policy-map", {}) if isinstance(egern, dict) else {}
+    if not isinstance(mapping, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in mapping.items()):
+        raise SystemExit(f"{path}: egern.policy-map must be a string mapping")
+    return mapping
+
+
 def _segment_mapping(path: Path | None) -> dict[str, str]:
     if path is None:
         return {}
@@ -55,6 +67,17 @@ def _segment_mapping(path: Path | None) -> dict[str, str]:
             raise SystemExit(f"{path}: segment anchors and names must be unique")
         result[anchor] = name
     return result
+
+
+def _segment_roles(path: Path | None) -> dict[str, str]:
+    if path is None or not path.exists():
+        return {}
+    value = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    roles: dict[str, str] = {}
+    for anchor, spec in (value.get("segments", {}) if isinstance(value, dict) else {}).items():
+        if isinstance(spec, dict) and isinstance(spec.get("name"), str) and isinstance(spec.get("role"), str):
+            roles[spec["name"]] = spec["role"]
+    return roles
 
 
 def build(config: BuildConfig) -> BuildResult:
@@ -107,6 +130,8 @@ def build(config: BuildConfig) -> BuildResult:
         "sub-rules": rewritten_sub_rules,
     }
     mapping = _segment_mapping(config.segment_names)
+    segment_roles = _segment_roles(config.segment_names)
+    policy_map = _export_policy_map(config.input)
     with timing.phase("optimize config"):
         optimized, final_payloads, dedup_stats = optimize_config(semantic, payloads, mapping)
         optimized = normalize_no_active_resolve(optimized, final_payloads)
@@ -127,11 +152,11 @@ def build(config: BuildConfig) -> BuildResult:
             with timing.phase("validate final config"):
                 validate_final_config(publish_dist, final)
             exporter_calls = {
-                "egern": ("Egern export", export_egern, (final, final_payloads, publish_dist, config.base_url)),
+                "egern": ("Egern export", export_egern, (final, final_payloads, publish_dist, config.base_url, policy_map)),
                 "loon": ("Loon export", export_loon, (final, final_payloads, publish_dist, config.base_url)),
                 "singbox": ("Sing-box route export", export_singbox, (final, final_payloads, publish_dist, config.base_url, config.sing_box_bin)),
-                "singbox-dns": ("Sing-box DNS export", export_singbox_dns, (final, final_payloads, publish_dist, config.base_url, config.sing_box_bin)),
-                "dns": ("DNS export", export_dns, (final, final_payloads, publish_dist, config.base_url, config.mihomo_bin)),
+                "singbox-dns": ("Sing-box DNS export", export_singbox_dns, (final, final_payloads, publish_dist, config.base_url, config.sing_box_bin, segment_roles)),
+                "dns": ("DNS export", export_dns, (final, final_payloads, publish_dist, config.base_url, config.mihomo_bin, segment_roles)),
             }
             def run_export(item: tuple[str, Any, tuple[Any, ...]]) -> tuple[str, Any, BuildTiming]:
                 key, (_label, function, args) = item

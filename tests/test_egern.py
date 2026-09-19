@@ -48,6 +48,7 @@ class EgernExporterTest(unittest.TestCase):
                 {"rule-providers": {"Direct-domain": {"behavior": "domain"}, "China-domain": {"behavior": "domain"}},
                  "rules": ["RULE-SET,Direct-domain,🏠 国内流量", "RULE-SET,China-domain,🏠 国内流量", "MATCH,🏠 国内流量"]},
                 {"Direct-domain": ["direct.example"], "China-domain": ["china.example"]}, root, "https://example.invalid",
+                {"🏠 国内流量": "DIRECT"},
             )
             rules = yaml.safe_load((root / "generated/egern-rules.yaml").read_text())["rules"]
             self.assertEqual([item["rule_set"]["policy"] for item in rules[:2]], ["DIRECT", "DIRECT"])

@@ -1,0 +1,3 @@
+egern:
+  policy-map:
+    "🏠 国内流量": DIRECT

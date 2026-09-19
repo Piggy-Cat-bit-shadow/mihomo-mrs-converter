@@ -2,12 +2,14 @@
 
 专门用于 Mihomo / Clash `rule-provider` 的无损 MRS 化，并生成 Sing-box 规则集。
 
-这个项目只处理两个顶级字段：
+这个项目主要处理三个顶级字段：
 
 ```yaml
 rule-providers:
   ...
 rules:
+  ...
+sub-rules:
   ...
 ```
 
@@ -97,15 +99,19 @@ dist/generated/mihomo-rules.yaml
 segments:
   Lan:
     name: Direct
+    role: direct
   me-pure:
     name: AI
+    role: ai
   Scholar-Foreign:
     name: Global
+    role: global
   apple:
     name: China
+    role: china
 ```
 
-例如匹配 `me-pure` 的 segment 会分别生成 `AI-domain`、`AI-ip`、`AI-classical`；未配置的 segment 保持默认名字。每个 key 都是稳定的 source/provider identity，必须匹配对应 block 中的 provider；anchor 不匹配或一个 block 命中多个 anchor 时构建会 fail closed。命名会同步应用到 provider、artifact、URL、path 和所有 RULE-SET 引用。
+例如匹配 `me-pure` 的 segment 会分别生成 `AI-domain`、`AI-ip`、`AI-classical`；未配置的 segment 保持默认名字。每个 key 都是稳定的 source/provider identity，必须匹配对应 block 中的 provider；anchor 不匹配或一个 block 命中多个 anchor 时构建会 fail closed。`role` 用于稳定的 DNS 分组，和可自定义的 display name 解耦。命名会同步应用到 provider、artifact、URL、path 和所有 RULE-SET 引用。
 
 同一个 logical segment 内，行为类型相同且 policy、wrapper 和 provider metadata 兼容的 `RULE-SET` 会合并；`domain` / `ipcidr` 使用安全去重，classical 使用稳定顺序拼接。合并不会跨非 `RULE-SET` barrier、不同 policy、不同 wrapper 或不兼容 metadata。
 
@@ -114,7 +120,7 @@ segments:
 ## 从完整配置抽取输入
 
 ```bash
-python scripts/extract_rules_input.py "/Users/jie/Desktop/配置文件/我的🐷🐷（聚合版）.yaml" config/rules.yaml
+python scripts/extract_rules_input.py "/path/to/full-config.yaml" config/rules.yaml
 ```
 
 ## 本地构建

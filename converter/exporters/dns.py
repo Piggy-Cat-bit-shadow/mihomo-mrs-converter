@@ -13,23 +13,24 @@ from .egern import classify_egern_classical, optimize_egern_rule_set
 
 DNS_CLASSICAL_KINDS = {"DOMAIN-KEYWORD", "DOMAIN-WILDCARD", "DOMAIN-REGEX"}
 from ..rules import DNS_DOMAIN_KINDS
-DNS_SEGMENT_GROUPS = {
-    "China": {"Direct", "China"},
-    "Global": {"AI", "Global"},
+DNS_ROLE_GROUPS = {
+    "China": {"direct", "china"},
+    "Global": {"ai", "global"},
 }
 
 
 def collect_dns_domain_payloads(
     config: dict[str, Any], payloads: dict[str, list[str]] | None = None,
-    classical_kinds: set[str] | None = None,
+    classical_kinds: set[str] | None = None, segment_roles: dict[str, str] | None = None,
 ) -> dict[str, tuple[list[str], list[str]]]:
     """Return the shared normalized domain/classical DNS view for each group."""
-    domain_rules: dict[str, list[str]] = {group: [] for group in DNS_SEGMENT_GROUPS}
-    classical_rules: dict[str, list[str]] = {group: [] for group in DNS_SEGMENT_GROUPS}
+    domain_rules: dict[str, list[str]] = {group: [] for group in DNS_ROLE_GROUPS}
+    classical_rules: dict[str, list[str]] = {group: [] for group in DNS_ROLE_GROUPS}
     classical_kinds = classical_kinds or DNS_CLASSICAL_KINDS
     for name, provider in config["rule-providers"].items():
         segment = provider_segment(name)
-        group = next((group for group, members in DNS_SEGMENT_GROUPS.items() if segment in members), None)
+        role = (segment_roles or {}).get(segment, segment.lower())
+        group = next((group for group, roles in DNS_ROLE_GROUPS.items() if role in roles), None)
         if group is None:
             continue
         if payloads is None or name not in payloads:
@@ -43,25 +44,26 @@ def collect_dns_domain_payloads(
 )
     return {
         group: (dedup_domain_payload(domain_rules[group])[0], dedup_exact_rules(classical_rules[group])[0])
-        for group in DNS_SEGMENT_GROUPS
+        for group in DNS_ROLE_GROUPS
     }
 
 
 def export_dns(
     config: dict[str, Any], final_payloads: dict[str, list[str]], output_dist: Path, base_url: str, mihomo: str | None,
+    segment_roles: dict[str, str] | None = None,
 ) -> dict[str, int]:
     """Export DNS-only views from the already-final, deduplicated providers."""
     if not mihomo:
         raise SystemExit("DNS domain MRS output requires a mihomo binary")
 
-    dns_payloads = collect_dns_domain_payloads(config, final_payloads)
+    dns_payloads = collect_dns_domain_payloads(config, final_payloads, segment_roles=segment_roles)
 
     present_segments = {
-        provider_segment(name)
+        (segment_roles or {}).get(provider_segment(name), provider_segment(name).lower())
         for name in config["rule-providers"]
-        if provider_segment(name) in {"Direct", "China", "AI", "Global"}
+        if (segment_roles or {}).get(provider_segment(name), provider_segment(name).lower()) in {"direct", "china", "ai", "global"}
     }
-    missing = sorted({"Direct", "China", "AI", "Global"} - present_segments)
+    missing = sorted({"direct", "china", "ai", "global"} - present_segments)
     if missing:
         raise SystemExit("DNS export requires missing segment(s): " + ", ".join(missing))
 
@@ -69,7 +71,7 @@ def export_dns(
     counts: Counter[str] = Counter()
     with tempfile.TemporaryDirectory(prefix="mihomo-mrs-dns-") as scratch:
         scratch_root = Path(scratch)
-        for group in DNS_SEGMENT_GROUPS:
+        for group in DNS_ROLE_GROUPS:
             optimized_domains, optimized_classical = dns_payloads[group]
             source_path = scratch_root / f"{group}-domain.yaml"
             write_yaml_payload(source_path, optimized_domains)
@@ -98,7 +100,7 @@ def export_dns(
             )
 
     print("DNS outputs:")
-    for group in DNS_SEGMENT_GROUPS:
+    for group in DNS_ROLE_GROUPS:
         print(f"  Mihomo {group}: domain={counts[f'{group}-domain']}, classical-domain={counts[f'{group}-classical']}")
         print(f"  Egern {group}: domain entries={counts[f'{group}-egern']}")
     return dict(counts)

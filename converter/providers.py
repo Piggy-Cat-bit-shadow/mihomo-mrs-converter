@@ -20,8 +20,8 @@ ALLOWED_PROVIDER_FIELDS = {"type", "behavior", "format", "url", "path", "interva
 def validate_provider_name(name: str) -> None:
     if not isinstance(name, str) or not name:
         raise SystemExit("provider name must be a non-empty string")
-    if "\x00" in name or "/" in name or "\\" in name or ".." in name:
-        raise SystemExit(f"{name}: provider name contains unsupported path content")
+    if not re.fullmatch(r"[A-Za-z0-9._-]+", name):
+        raise SystemExit(f"{name}: provider name contains unsupported artifact characters")
 
 
 def validate_http_url(name: str, url: str) -> None:
