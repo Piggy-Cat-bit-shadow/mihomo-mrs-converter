@@ -74,8 +74,10 @@ dist/
 │   ├── egern/
 │   └── singbox/
 └── generated/
+    ├── mihomo-rules.yaml
     ├── egern-rules.yaml
-    └── mihomo-rules.yaml
+    ├── loon-rules.conf
+    └── singbox-rules.json
 
 .state/
 └── managed-state.yaml
