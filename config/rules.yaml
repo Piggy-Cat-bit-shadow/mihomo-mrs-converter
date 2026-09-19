@@ -392,6 +392,4 @@ rules:
 - RULE-SET,ChinaMax-domain,🏠 国内流量
 - RULE-SET,ChinaMax-classical,🏠 国内流量
 - RULE-SET,ChinaMax-ip,🏠 国内流量,no-resolve
-- IP-CIDR6,::/128,REJECT-DROP
-- IP-CIDR,0.0.0.0/32,REJECT-DROP
 - MATCH,🌍 国外流量
