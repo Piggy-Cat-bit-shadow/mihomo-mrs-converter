@@ -340,7 +340,7 @@ rule-providers:
     path: ./ruleset/ipcidr/ChinaMax-ip.yaml
     interval: 172800
 rules:
-- RULE-SET,BlockHttpDNS,REJECT-DROP,no-resolve
+- RULE-SET,BlockHttpDNS,no-resolve
 - RULE-SET,Lan,🏠 国内流量
 - RULE-SET,private,🏠 国内流量
 - RULE-SET,me-China,🏠 国内流量
