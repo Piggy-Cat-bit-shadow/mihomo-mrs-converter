@@ -129,10 +129,15 @@ def format_provider_name(identity: ProviderIdentity) -> str:
     return base if identity.part == 1 else f"{base}-part-{identity.part:02d}"
 
 
-def parse_legacy_provider_name(name: str) -> ProviderIdentity | None:
+def parse_provider_identity(name: str) -> ProviderIdentity | None:
     import re
     match = re.fullmatch(r"(.+?)-(domain|classical|ip)(?:-part-(\d+))?", name)
     if not match:
         return None
     behavior = {"domain": Behavior.DOMAIN, "classical": Behavior.CLASSICAL, "ip": Behavior.IPCIDR}[match.group(2)]
     return ProviderIdentity(match.group(1), behavior, int(match.group(3) or 1))
+
+
+def provider_segment(name: str) -> str:
+    identity = parse_provider_identity(name)
+    return identity.segment if identity else name

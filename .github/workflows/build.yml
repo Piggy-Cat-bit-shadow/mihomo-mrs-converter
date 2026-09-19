@@ -2,17 +2,16 @@ name: Build rules
 
 on:
   workflow_dispatch:
+    inputs:
+      full_tests:
+        description: Run the full test suite
+        type: boolean
+        default: true
   schedule:
     - cron: "25 3 1,6,11,16,21,26 * *"
   push:
     branches: ["main"]
-    paths-ignore:
-      - "README.md"
-      - "LICENSE"
-      - "LICENSE.*"
-      - "docs/**"
-      - "dist/**"
-      - ".state/**"
+    paths-ignore: ["README.md", "LICENSE", "LICENSE.*", "dist/**", ".state/**"]
 
 concurrency:
   group: build-${{ github.ref }}
@@ -22,69 +21,56 @@ env:
   SING_BOX_VERSION: "1.14.0"
   MIHOMO_SHA256: "cf06ce2c7d1421bdbda14ee4a5b6046672dc35ebf8eecd8e77504ec3c0ed9a84"
   SING_BOX_SHA256: "2375de6999f4f56ab46b4fc5ddf26a6aba1d3e61a0f4e7ddec2f4690457d5f63"
+  BASE_URL: https://raw.githubusercontent.com/${{ github.repository }}/rules
 
 permissions:
   contents: read
 
 jobs:
-  verify:
-    runs-on: ubuntu-latest
-    outputs:
-      changed: ${{ steps.generated_changes.outputs.changed }}
-    permissions:
-      contents: read
+  test:
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.full_tests)
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-24.04' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: requirements-ci.txt
-      - name: Install Python dependencies
-        run: pip install -r requirements-ci.txt
-      - name: Install mihomo
+        with: {python-version: "3.12"}
+      - run: pip install -r requirements-ci.txt
+      - name: Run tests
+        run: python -m pytest -n 2 --dist=loadfile
+
+  build:
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-24.04' }}
+    permissions: {contents: read}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with: {persist-credentials: false}
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with: {python-version: "3.12"}
+      - run: pip install -r requirements-ci.txt
+      - name: Download verified binaries
         run: |
           set -euo pipefail
-          curl -fsSL "https://github.com/MetaCubeX/mihomo/releases/download/v1.19.30/mihomo-linux-amd64-v1.19.30.gz" -o mihomo.gz
+          curl -fsSL "https://github.com/MetaCubeX/mihomo/releases/download/v1.19.30/mihomo-linux-amd64-v1.19.30.gz" -o mihomo.gz & p1=$!
+          curl -fsSL "https://github.com/SagerNet/sing-box/releases/download/v${SING_BOX_VERSION}/sing-box-${SING_BOX_VERSION}-linux-amd64.tar.gz" -o sing-box.tar.gz & p2=$!
+          wait "$p1" "$p2"
           printf '%s  %s\n' "$MIHOMO_SHA256" mihomo.gz | sha256sum -c -
-          gzip -d mihomo.gz
-          chmod +x mihomo
-      - name: Install sing-box
-        run: |
-          set -euo pipefail
-          curl -fsSL "https://github.com/SagerNet/sing-box/releases/download/v${SING_BOX_VERSION}/sing-box-${SING_BOX_VERSION}-linux-amd64.tar.gz" -o sing-box.tar.gz
           printf '%s  %s\n' "$SING_BOX_SHA256" sing-box.tar.gz | sha256sum -c -
+          gzip -d mihomo.gz
           tar -xzf sing-box.tar.gz
           install "sing-box-${SING_BOX_VERSION}-linux-amd64/sing-box" ./sing-box
-          echo "$GITHUB_WORKSPACE" >> "$GITHUB_PATH"
-      - name: Restore GeoLite2 cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+          chmod +x mihomo
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .cache/geolite2
           key: geolite2-v2-${{ runner.os }}-${{ hashFiles('converter/data_sources.py') }}
-      - name: Run tests
-        run: python -m unittest discover -s tests
-      - name: Build generated rules
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: python scripts/convert.py examples/my-rules.yaml --base-url "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}" --mihomo ./mihomo --sing-box ./sing-box
-      - name: Audit generated artifacts
-        run: python -m converter.audit dist --mihomo ./mihomo --sing-box ./sing-box
-      - name: Check diff
-        run: git diff --check
-      - name: Detect generated changes
-        id: generated_changes
-        shell: bash
+      - name: Build and audit
+        env: {GITHUB_TOKEN: ${{ github.token }} }
         run: |
-          if git diff --quiet -- dist .state/managed-state.yaml; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          fi
+          python -m converter examples/my-rules.yaml --base-url "$BASE_URL" --mihomo ./mihomo --sing-box ./sing-box
+          python -m converter.audit dist --mihomo ./mihomo --sing-box ./sing-box
+          python -m compileall -q converter
+          git diff --check
       - name: Upload verified generated artifacts
-        if: steps.generated_changes.outputs.changed == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: verified-generated-${{ github.sha }}
@@ -92,32 +78,33 @@ jobs:
             dist
             .state/managed-state.yaml
           include-hidden-files: true
+          compression-level: 0
 
   publish:
-    needs: verify
-    if: ${{ needs.verify.result == 'success' && needs.verify.outputs.changed == 'true' }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    needs: [test, build]
+    if: always() && needs.build.result == 'success' && (needs.test.result == 'success' || needs.test.result == 'skipped')
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-24.04' }}
+    permissions: {contents: write}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - name: Download verified generated artifacts
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: verified-generated-${{ github.sha }}
-          path: .verified-generated
-      - name: Install verified generated artifacts
+        with: {fetch-depth: 0}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with: {name: verified-generated-${{ github.sha }}, path: .verified-generated}
+      - name: Publish rules branch
         run: |
           set -euo pipefail
-          test -d .verified-generated/dist
-          test -f .verified-generated/.state/managed-state.yaml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          if git show-ref --verify --quiet refs/remotes/origin/rules; then
+            git switch --create rules --track origin/rules
+          else
+            git switch --orphan rules
+            git rm -rf .
+          fi
           rm -rf dist .state
           cp -a .verified-generated/dist dist
           cp -a .verified-generated/.state .state
-      - name: Check diff
-        run: git diff --check
-      - name: Commit generated dist
-        uses: stefanzweifel/git-auto-commit-action@4a55954c782fc1ea30b9056cd3e7a2b40ca8887d # v7
-        with:
-          commit_message: "build: update generated rules"
-          file_pattern: dist .state/managed-state.yaml
+          git add -A dist .state
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "build: update generated rules"
+          git push origin rules

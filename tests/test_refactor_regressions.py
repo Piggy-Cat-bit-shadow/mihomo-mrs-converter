@@ -10,16 +10,16 @@ import yaml
 
 from converter import Behavior, ProviderIdentity
 from converter.cli import main as cli_main
-from converter.model import format_provider_name, parse_legacy_provider_name
+from converter.model import format_provider_name, parse_provider_identity
 from converter.exporters.loon import export_loon
 
 
 class RefactorRegressionTest(unittest.TestCase):
-    def test_identity_serialization_and_legacy_compatibility(self) -> None:
+    def test_identity_serialization(self) -> None:
         identity = ProviderIdentity("Global", Behavior.IPCIDR)
         self.assertEqual(format_provider_name(identity), "Global-ip")
         self.assertEqual(format_provider_name(ProviderIdentity("Global", Behavior.IPCIDR, 2)), "Global-ip-part-02")
-        self.assertEqual(parse_legacy_provider_name("Global-ip-part-02"), ProviderIdentity("Global", Behavior.IPCIDR, 2))
+        self.assertEqual(parse_provider_identity("Global-ip-part-02"), ProviderIdentity("Global", Behavior.IPCIDR, 2))
 
     def test_complete_suite_is_removed_from_cli(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

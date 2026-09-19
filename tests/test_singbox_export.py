@@ -12,7 +12,7 @@ from email.message import Message
 from pathlib import Path
 from unittest.mock import patch
 
-from converter.exporters.singbox import LEGACY_ROUTE_ALIASES, SingBoxExportError, _aggregate_buckets, _collect_required_asns, _default_asn_resolver, _github_api_json, _groups, _provider_matchers, _semantic_matcher_equivalent, export_singbox, export_singbox_dns
+from converter.exporters.singbox import SingBoxExportError, _aggregate_buckets, _collect_required_asns, _default_asn_resolver, _github_api_json, _groups, _provider_matchers, _semantic_matcher_equivalent, export_singbox, export_singbox_dns
 
 
 SING_BOX = shutil.which("sing-box") or "sing-box"
@@ -175,19 +175,6 @@ class SingBoxExportTest(unittest.TestCase):
             self.assertEqual(saved["asns"]["100"], ["192.0.2.0/24"])
             self.assertEqual(saved["asns"]["999"], ["also-not-a-cidr"])
 
-    def test_v1_index_is_ignored_and_removed_after_v2_write(self):
-        payload = b"network,autonomous_system_number\n192.0.2.0/24,100\n"
-        asset = {"name": "GeoLite2-ASN-Blocks-IPv4.csv", "url": "https://github.com/example/asset", "sha256": hashlib.sha256(payload).hexdigest()}
-        with tempfile.TemporaryDirectory() as tmp:
-            cache = Path(tmp) / "geolite2" / "release"
-            cache.mkdir(parents=True)
-            legacy = cache / "asn-index-v1.json"
-            legacy.write_text("not loaded", encoding="utf-8")
-            with patch.dict(os.environ, {"GEOLITE2_CACHE_DIR": str(Path(tmp) / "geolite2")}), patch("converter.exporters.singbox.GEOLITE2_RELEASE", "release"), patch("converter.exporters.singbox.GEOLITE2_ASSETS", (asset,)), patch("converter.exporters.singbox.urllib.request.urlopen", return_value=Response(payload)):
-                self.assertEqual(_default_asn_resolver({"100"}), {"100": ["192.0.2.0/24"]})
-            self.assertFalse(legacy.exists())
-            self.assertTrue((cache / "asn-index-v2.json").exists())
-
     def test_only_requested_rows_are_normalized(self):
         rows = [f"192.0.2.{index % 256}/32,other" for index in range(1000)]
         rows += ["198.51.100.0/24,100", "2001:db8::/32,100"]
@@ -283,15 +270,7 @@ class SingBoxExportTest(unittest.TestCase):
         groups = _groups(config)
         self.assertEqual([group["tag"] for group in groups], ["China"])
 
-    def test_committed_example_artifacts_use_canonical_tags(self):
-        route = json.loads(Path("dist/generated/singbox-rules.json").read_text(encoding="utf-8"))["route"]
-        tags = [item["tag"] for item in route["rule_set"]]
-        self.assertEqual(tags, ["Direct", "AI", "Global", "China"])
-        self.assertFalse(any(tag.startswith("segment-") or tag == "China-2" for tag in tags))
-        self.assertFalse(any(tag.endswith("-ip") or tag.endswith("-no-resolve") for tag in tags))
-        self.assertFalse(any(rule.get("action") == "resolve" for rule in route["rules"]))
-
-    def test_legacy_route_artifacts_are_mechanical_aliases_and_not_in_route(self):
+    def test_route_artifacts_are_canonical_only(self):
         config = {
             "rule-providers": {"Direct-domain": {"behavior": "domain"}, "AI-domain": {"behavior": "domain"}},
             "rules": ["RULE-SET,Direct-domain,DIRECT", "RULE-SET,AI-domain,🤖 AI", "MATCH,DIRECT"],
@@ -301,12 +280,7 @@ class SingBoxExportTest(unittest.TestCase):
             result = export_singbox(config, {"Direct-domain": ["direct.example"], "AI-domain": ["ai.example"]}, root, "https://x", SING_BOX)
             route_tags = [item["tag"] for item in result["route"]["route"]["rule_set"]]
             self.assertEqual(route_tags, ["Direct", "AI"])
-            for canonical, aliases in LEGACY_ROUTE_ALIASES.items():
-                if canonical in route_tags:
-                    canonical_bytes = (root / "singbox" / f"{canonical}.srs").read_bytes()
-                    for alias in aliases:
-                        self.assertEqual((root / "singbox" / f"{alias}.srs").read_bytes(), canonical_bytes)
-            self.assertFalse(set(result["compatibility_srs"]) & {f"{tag}.srs" for tag in route_tags})
+            self.assertEqual({path.stem for path in (root / "singbox").glob("*.srs")}, set(route_tags))
 
     def test_each_artifact_gets_its_own_decompile_identity(self):
         config = {

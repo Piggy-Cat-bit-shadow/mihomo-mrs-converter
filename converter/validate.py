@@ -30,8 +30,3 @@ def _validate(dist: Path, config: dict[str, Any], require_no_orphans: bool) -> N
 
 def validate_final_config(dist: Path, config: dict[str, Any]) -> None:
     _validate(dist, config, True)
-
-
-def validate_config(dist: Path, config: dict[str, Any], require_no_orphans: bool = True) -> None:
-    """Compatibility entry point for low-level tests; production uses fixed final validation."""
-    _validate(dist, config, require_no_orphans)

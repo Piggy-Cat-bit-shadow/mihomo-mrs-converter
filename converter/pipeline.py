@@ -5,7 +5,8 @@ import re
 import shutil
 import tempfile
 import time
-from collections import Counter
+from contextvars import copy_context
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -120,17 +121,21 @@ def build(config: BuildConfig) -> BuildResult:
                 final = materialize_final_config(optimized, final_payloads, publish_dist, config.base_url, config.mihomo_bin)
             with timing.phase("validate final config"):
                 validate_final_config(publish_dist, final)
-            exporter_stats: dict[str, Any] = {}
-            with timing.phase("Egern export"):
-                exporter_stats["egern"] = export_egern(final, final_payloads, publish_dist, config.base_url)
-            with timing.phase("Loon export"):
-                exporter_stats["loon"] = export_loon(final, final_payloads, publish_dist, config.base_url)
-            with timing.phase("Sing-box route export"):
-                exporter_stats["singbox"] = export_singbox(final, final_payloads, publish_dist, config.base_url, config.sing_box_bin, segment_names=mapping)
-            with timing.phase("Sing-box DNS export"):
-                exporter_stats["singbox-dns"] = export_singbox_dns(final, final_payloads, publish_dist, config.base_url, config.sing_box_bin)
-            with timing.phase("DNS export"):
-                exporter_stats["dns"] = export_dns(final, final_payloads, publish_dist, config.base_url, config.mihomo_bin)
+            exporter_calls = {
+                "egern": ("Egern export", export_egern, (final, final_payloads, publish_dist, config.base_url)),
+                "loon": ("Loon export", export_loon, (final, final_payloads, publish_dist, config.base_url)),
+                "singbox": ("Sing-box route export", export_singbox, (final, final_payloads, publish_dist, config.base_url, config.sing_box_bin)),
+                "singbox-dns": ("Sing-box DNS export", export_singbox_dns, (final, final_payloads, publish_dist, config.base_url, config.sing_box_bin)),
+                "dns": ("DNS export", export_dns, (final, final_payloads, publish_dist, config.base_url, config.mihomo_bin)),
+            }
+            def run_export(item: tuple[str, Any, tuple[Any, ...]]) -> tuple[str, Any]:
+                key, (_label, function, args) = item
+                started = time.perf_counter()
+                result = copy_context().run(function, *args, **({"segment_names": mapping} if key == "singbox" else {}))
+                timing.phases[exporter_calls[key][0]] = time.perf_counter() - started
+                return key, result
+            with ThreadPoolExecutor(max_workers=5, thread_name_prefix="export") as pool:
+                exporter_stats = dict(pool.map(run_export, exporter_calls.items()))
             with timing.phase("write generated Mihomo"):
                 write_yaml_atomic(publish_dist / "generated" / "mihomo-rules.yaml", final)
             if config.complete_config:
@@ -173,45 +178,5 @@ def build(config: BuildConfig) -> BuildResult:
 
     timing.phases["total export/publish"] = time.perf_counter() - export_started
     timing.phases["total build"] = time.perf_counter() - build_started
-    print("========== Build Timing ==========")
-    timing_labels = [
-        "provider prefetch", "provider processing", "optimize config", "materialize Mihomo",
-        "validate final config", "Egern export", "Loon export", "Sing-box route export",
-        "Sing-box DNS export", "DNS export", "write generated Mihomo", "refresh complete config",
-        "atomic dist publish", "managed-state write", "write complete config",
-    ]
-    for label in timing_labels:
-        value = timing.phases.get(label, 0.0)
-        suffix = " / skipped" if label in timing.skipped else ""
-        print(f"{label + ':':<28}{value:>8.2f}s{suffix}")
-    for label in ("Egern collect", "Egern optimize", "Egern write YAML", "Egern top-level", "Egern total"):
-        print(f"{label + ':':<28}{timing.phases.get(label, 0.0):>8.2f}s")
-    for label in (
-        "Sing-box group discovery", "Sing-box matcher conversion", "Sing-box ASN discovery",
-        "Sing-box ASN cache/index lookup", "Sing-box ASN payload expansion", "Sing-box ASN index load",
-        "Sing-box ASN cache file read", "Sing-box ASN cache JSON parse",
-        "Sing-box ASN requested-entry validation", "Sing-box ASN cache write",
-        "Sing-box aggregation", "Sing-box route generation", "Sing-box source JSON write",
-        "Sing-box compile", "Sing-box decompile", "Sing-box decoded JSON parse",
-        "Sing-box semantic equivalence", "Sing-box representative probes",
-        "Sing-box canonical SRS copy", "Sing-box legacy aliases copy", "Sing-box route total",
-    ):
-        print(f"{label + ':':<36}{timing.phases.get(label, 0.0):>8.2f}s")
-    for label in sorted(name for name in timing.phases if name.startswith("Sing-box artifact ")):
-        print(f"{label + ':':<36}{timing.phases[label]:>8.2f}s")
-    for label in sorted(name for name in timing.phases if name.startswith("Sing-box ASN asset ") or name.startswith("Sing-box ASN checksum ") or name.startswith("Sing-box ASN CSV ") or name == "Sing-box ASN matched CIDR parse"):
-        print(f"{label + ':':<60}{timing.phases[label]:>8.2f}s")
-    for label, value in timing.notes.items():
-        print(f"{label + ':':<36}{value}")
-    for kind in ("mihomo", "sing-box"):
-        stats = timing.external.get(kind)
-        if stats is None:
-            print(f"external {kind} calls:       0 calls, 0.00s")
-        else:
-            print(f"external {kind} calls:       {stats.calls} calls, {stats.seconds:.2f}s")
-            print(f"slowest {kind} call:         {stats.slowest_label} ({stats.slowest_seconds:.2f}s)")
-    print("----------------------------------")
-    print(f"export and publish:          {timing.phases['total export/publish']:.2f}s")
-    print(f"total build:                 {timing.phases['total build']:.2f}s")
-    print("==================================")
+    timing.print_report()
     return BuildResult(final, final_payloads, dedup_stats, exporter_stats)

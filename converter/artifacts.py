@@ -1,7 +1,6 @@
 """Artifact paths, payload serialization and atomic publication primitives."""
 
 import os
-import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -18,14 +17,6 @@ def write_yaml_payload(path: Path, rules: list[str]) -> None:
     path.write_text(yaml.safe_dump({"payload": rules}, allow_unicode=True, sort_keys=False), encoding="utf-8")
 
 
-def read_yaml_payload(path: Path) -> list[str]:
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    values = data.get("payload") if isinstance(data, dict) else data
-    if not isinstance(values, list):
-        raise ValueError(f"{path}: expected YAML payload list")
-    return [str(item) for item in values]
-
-
 def write_yaml_atomic(path: Path, data: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False) as handle:
@@ -40,23 +31,6 @@ def write_text_atomic(path: Path, data: str) -> None:
         handle.write(data)
         temporary = Path(handle.name)
     os.replace(temporary, path)
-
-
-def write_text_payload(path: Path, rules: list[str]) -> None:
-    write_text_atomic(path, "\n".join(rules) + "\n")
-
-
-def copy_file(source: Path, destination: Path) -> None:
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(source, destination)
-
-
-def copy_tree_contents(source: Path, destination: Path) -> None:
-    if not source.exists():
-        return
-    for path in source.rglob("*"):
-        if path.is_file():
-            copy_file(path, destination / path.relative_to(source))
 
 
 def public_url(base_url: str, *parts: str) -> str:

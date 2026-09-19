@@ -8,14 +8,14 @@ from typing import Any
 import ipaddress
 
 from ..artifacts import public_url, write_yaml_atomic
-from ..model import parse_legacy_provider_name
+from ..model import provider_segment
 from ..rules import (
     egern_udp_and_ruleset, find_ruleset_refs, parse_egern_network_rule,
     parse_egern_sub_rule_members, parse_rule, parse_ruleset_reference,
     simple_ruleset_wrapper,
 )
 from ..semantics import is_target_ip_kind, parse_ip_network
-from ..optimize import _domain_covered as domain_covered_by_suffix, _suffix_covered as suffix_covered_by_parent_suffix
+from ..optimize import domain_covered_by_suffix, suffix_covered_by_parent_suffix
 from ..timing import current_timing
 
 
@@ -54,8 +54,7 @@ def egern_policy(policy: str) -> str:
 
 
 def egern_segment_name(provider_name: str) -> str:
-    identity = parse_legacy_provider_name(provider_name)
-    return identity.segment if identity else provider_name
+    return provider_segment(provider_name)
 
 
 def classify_egern_classical(rule: str) -> tuple[str, str, bool] | None:

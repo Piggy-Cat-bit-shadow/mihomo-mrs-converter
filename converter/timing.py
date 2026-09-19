@@ -49,6 +49,17 @@ class BuildTiming:
                 stats.slowest_seconds = elapsed
                 stats.slowest_label = label
 
+    def print_report(self) -> None:
+        print("========== Build Timing ==========")
+        for label in ("provider prefetch", "provider processing", "optimize config", "materialize Mihomo", "validate final config", "Egern export", "Loon export", "Sing-box route export", "Sing-box DNS export", "DNS export", "audit", "total build"):
+            suffix = " / skipped" if label in self.skipped else ""
+            print(f"{label + ':':<28}{self.phases.get(label, 0.0):>8.2f}s{suffix}")
+        for label, value in sorted(self.notes.items()):
+            print(f"{label + ':':<28}{value}")
+        for kind, stats in sorted(self.external.items()):
+            print(f"external {kind} calls:       {stats.calls} calls, {stats.seconds:.2f}s")
+        print("==================================")
+
 
 _ACTIVE_TIMING: ContextVar[BuildTiming | None] = ContextVar("active_build_timing", default=None)
 

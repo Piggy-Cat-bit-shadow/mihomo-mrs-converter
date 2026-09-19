@@ -13,13 +13,14 @@ class StateTest(unittest.TestCase):
         self.assertEqual(manifest["version"], 2)
         self.assertNotIn("suite", manifest)
 
-    def test_v1_suite_is_ignored_on_read(self):
+    def test_invalid_v1_state_fails_closed(self):
         with tempfile.TemporaryDirectory() as tmp:
             dist = Path(tmp) / "dist"
             state = Path(tmp) / ".state"
             state.mkdir()
             (state / "managed-state.yaml").write_text("version: 1\nsuite: stage-final\nproviders: {}\n")
-            self.assertEqual(read_managed_manifest(dist)["version"], 1)
+            with self.assertRaises(SystemExit):
+                read_managed_manifest(dist)
 
     def _provider(self, name, marker=None):
         marker = marker or name.lower()
@@ -101,29 +102,6 @@ class StateTest(unittest.TestCase):
         ]}
         with self.assertRaisesRegex(SystemExit, "not contiguous"):
             refresh_complete_config(noncontiguous, final, self._manifest({"A": a, "B": b}), self.BASE_URL)
-
-    def test_refresh_v1_manifest_has_same_semantics(self):
-        old = self._provider("A")
-        manifest = self._manifest({"A": old})
-        manifest.update({"version": 1, "suite": "merged-dedup"})
-        refreshed = refresh_complete_config(
-            {"rule-providers": {"A": old}, "rules": ["RULE-SET,A,DIRECT"]},
-            {"rule-providers": {"A": self._provider("A", "new")}, "rules": ["RULE-SET,A,DIRECT"]},
-            manifest, self.BASE_URL,
-        )
-        self.assertEqual(refreshed["rule-providers"]["A"]["url"], "https://example.invalid/new.mrs")
-
-    def test_refresh_without_manifest_uses_conservative_provider_fallback(self):
-        managed = self._provider("A")
-        managed["url"] = f"{self.BASE_URL}/dist/domain/A.mrs"
-        unmanaged = {"behavior": "domain", "url": f"{self.BASE_URL}/other/A.mrs", "path": "./ruleset/A.mrs"}
-        final = {"rule-providers": {"B": self._provider("B")}, "rules": ["RULE-SET,B,DIRECT"]}
-        refreshed = refresh_complete_config(
-            {"rule-providers": {"A": managed, "Other": unmanaged}, "rules": ["RULE-SET,A,DIRECT"]},
-            final, None, self.BASE_URL,
-        )
-        self.assertNotIn("A", refreshed["rule-providers"])
-        self.assertIn("Other", refreshed["rule-providers"])
 
 
 if __name__ == "__main__":

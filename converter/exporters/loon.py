@@ -6,7 +6,7 @@ from typing import Any
 import ipaddress
 
 from ..artifacts import public_url, write_text_atomic, write_yaml_atomic
-from ..model import parse_legacy_provider_name
+from ..model import provider_segment
 from ..rules import find_ruleset_refs, parse_egern_sub_rule_members, parse_rule, parse_ruleset_reference, simple_ruleset_wrapper, split_top_level_commas
 from ..semantics import is_target_ip_kind, parse_ip_network
 
@@ -41,9 +41,7 @@ LOON_CLASSICAL_KINDS = {
 
 
 def loon_segment_name(provider_name: str) -> str:
-    """Return the logical segment through the shared legacy identity parser."""
-    identity = parse_legacy_provider_name(provider_name)
-    return identity.segment if identity else provider_name
+    return provider_segment(provider_name)
 
 
 def loon_rule_from_provider(

@@ -32,7 +32,8 @@ from urllib.parse import urlparse
 
 from .dns import collect_dns_domain_payloads
 from ..rules import DNS_DOMAIN_KINDS, parse_rule, parse_ruleset_reference, simple_ruleset_wrapper, split_top_level_commas
-from ..model import parse_legacy_provider_name
+from ..model import parse_provider_identity
+from ..net import retry_after_seconds
 from ..data_sources import GEOLITE2_ASSETS, GEOLITE2_RELEASE
 from ..timing import current_timing, observe_external
 
@@ -43,29 +44,11 @@ class SingBoxExportError(RuntimeError):
 
 ASN_INDEX_VERSION = 2
 ASN_INDEX_FILENAME = "asn-index-v2.json"
-LEGACY_ASN_INDEX_FILENAME = "asn-index-v1.json"
 
 
 def _timed(name: str):
     timing = current_timing()
     return timing.phase(name) if timing is not None else nullcontext()
-
-
-LEGACY_ROUTE_ALIASES = {
-    "Direct": ("Direct-no-resolve",),
-    "AI": ("AI-ip",),
-    "Global": ("Global-ip", "Global-no-resolve"),
-    "China": ("China-ip", "China-no-resolve"),
-}
-
-
-def _retry_after_seconds(value: str | None) -> float:
-    if not value:
-        return 0.0
-    try:
-        return max(0.0, float(value))
-    except ValueError:
-        return 0.0
 
 
 def _github_api_json(url: str) -> Any:
@@ -99,7 +82,7 @@ def _github_api_json(url: str) -> Any:
                     f"GitHub API request failed: HTTP {exc.code} on attempt {attempt + 1}/{max_attempts}"
                 ) from exc
             retry_after = exc.headers.get("Retry-After") if exc.headers else None
-            delay = min(_retry_after_seconds(retry_after), 8.0) if retry_after else 2 ** attempt
+            delay = min(retry_after_seconds(retry_after), 8.0) if retry_after else 2 ** attempt
             time.sleep(delay)
         except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
             if attempt == max_attempts - 1:
@@ -234,7 +217,7 @@ def _default_asn_resolver(asns: set[str]) -> dict[str, list[str]]:
                 if exc.code not in {408, 429, 500, 502, 503, 504} or attempt == 3:
                     raise SingBoxExportError(f"ASN database download failed: HTTP {exc.code}") from exc
                 retry_after = exc.headers.get("Retry-After") if exc.headers else None
-                delay = min(_retry_after_seconds(retry_after), 8.0) if retry_after else 2 ** attempt
+                delay = min(retry_after_seconds(retry_after), 8.0) if retry_after else 2 ** attempt
                 time.sleep(delay)
             except (urllib.error.URLError, TimeoutError, ConnectionError):
                 if attempt == 3:
@@ -374,7 +357,6 @@ def _default_asn_resolver(asns: set[str]) -> dict[str, list[str]]:
             os.replace(temporary, index_path)
         finally:
             temporary.unlink(missing_ok=True)
-    (cache_root / LEGACY_ASN_INDEX_FILENAME).unlink(missing_ok=True)
     if timing is not None:
         timing.notes["GeoLite2 assets"] = f"{cache_hits} cache hits / {downloads} downloads"
         timing.notes["ASN index"] = f"sparse cache, {index_path.stat().st_size} bytes"
@@ -387,7 +369,7 @@ def _default_asn_resolver(asns: set[str]) -> dict[str, list[str]]:
     return result
 
 
-def _provider_matchers(name: str, behavior: str, payload: list[str], asn_resolver: Callable[[set[str]], dict[str, list[str]]], provider_no_resolve: bool = False) -> list[tuple[str, dict[str, Any]]]:
+def _provider_matchers(name: str, behavior: str, payload: list[str], asn_resolver: Callable[[set[str]], dict[str, list[str]]]) -> list[tuple[str, dict[str, Any]]]:
     result: list[tuple[str, dict[str, Any]]] = []
     for number, raw in enumerate(payload):
         context = f"provider {name} payload[{number}] raw={raw!r}"
@@ -406,11 +388,8 @@ def _provider_matchers(name: str, behavior: str, payload: list[str], asn_resolve
             if rule.kind in {"IP-ASN", "SRC-IP-ASN"}:
                 raise SingBoxExportError(f"{context}: ASN expansion must be performed before serialization")
             parsed = _matcher(rule.kind, rule.parts[1], context)
-            no_resolve = provider_no_resolve or any(item.lower() == "no-resolve" for item in rule.parts[2:])
             # Sing-box does not actively resolve domains for destination-IP
-            # matching.  Keep IP matchers in the same logical artifact as
-            # domain/classical matchers; no-resolve remains parser-compatible
-            # but has no separate Sing-box output semantics.
+            # matching. Keep all matchers in the same logical artifact.
             bucket = "base"
             if isinstance(parsed, list):
                 for field, value in parsed: result.append((bucket, {field: value}))
@@ -478,7 +457,7 @@ def _groups(config: dict[str, Any], segment_names: dict[str, str] | None = None)
             # merged and applied segment-names.yaml (e.g. China-ip-part-02).
             # Do not derive identity from policy occurrence: Direct and China
             # may both route DIRECT while remaining distinct logical segments.
-            identity = parse_legacy_provider_name(provider)
+            identity = parse_provider_identity(provider)
             base = identity.segment if identity else None
             if base in (segment_names or {}):
                 base = segment_names[base]
@@ -488,7 +467,7 @@ def _groups(config: dict[str, Any], segment_names: dict[str, str] | None = None)
                 tag = base
             else:
                 tag = f"segment-{len(groups) + 1:02d}-{ordinal:02d}"
-            current = {"id": f"group-{len(groups) + 1:02d}", "key": key, "tag": tag, "policy": reference.policy, "modifiers": list(reference.modifiers), "wrapper": reference.wrapper_kind, "providers": [], "indexes": []}
+            current = {"id": f"group-{len(groups) + 1:02d}", "key": key, "tag": tag, "policy": reference.policy, "wrapper": reference.wrapper_kind, "providers": [], "indexes": []}
             groups.append(current)
         current["providers"].append(provider)
         current["indexes"].append(index)
@@ -547,16 +526,10 @@ def _route_rules(config: dict[str, Any], groups: list[dict[str, Any]], group_buc
             raise SingBoxExportError(f"rules[{index}]: malformed top-level rule {raw!r}")
         policy_index = len(parts) - 1
         modifiers: list[str] = []
-        # Mihomo writes top-level modifiers after the policy.  Keep accepting
-        # the historical pre-policy form too, since both occur in existing
-        # source configurations.
+        # Current project format places modifiers after the policy.
         while policy_index > 1 and parts[policy_index].lower() in {"no-resolve", "src"}:
             modifiers.insert(0, parts[policy_index])
             policy_index -= 1
-        if not modifiers:
-            while policy_index > 1 and parts[policy_index - 1].lower() in {"no-resolve", "src"}:
-                modifiers.insert(0, parts[policy_index - 1])
-                policy_index -= 1
         policy = parts[policy_index]
         if any(item.lower() not in {"no-resolve", "src"} for item in modifiers):
             raise SingBoxExportError(f"rules[{index}]: unsupported modifier in {raw!r}")
@@ -573,15 +546,6 @@ def _route_rules(config: dict[str, Any], groups: list[dict[str, Any]], group_buc
             entry = {field: value if isinstance(value, list) else [value], **_policy_action(policy)}
             rules.append(entry)
     return rules, final
-
-
-def _representative(source_rules: list[dict[str, Any]]) -> str | None:
-    for rule in source_rules:
-        if "domain" in rule: return rule["domain"][0]
-        if "domain_suffix" in rule: return "audit." + rule["domain_suffix"][0]
-        if "ip_cidr" in rule: return str(ipaddress.ip_network(rule["ip_cidr"][0]).network_address)
-        if "domain_keyword" in rule: return "audit-" + rule["domain_keyword"][0] + ".invalid"
-    return None
 
 
 def _representatives(source_rules: list[dict[str, Any]]) -> list[str]:
@@ -630,17 +594,6 @@ def _collect_canonical_fields(rules: list[dict[str, Any]]) -> dict[str, set[Any]
                 # iterable values while avoiding a second rule-tree scan.
                 bucket.update(normalized)
     return fields
-
-
-def _canonical_rule_set(rules: list[dict[str, Any]]) -> list[str]:
-    normalized = []
-    for rule in _canonicalize_decompiled_rules(rules):
-        value = {
-            field: sorted(values) if isinstance(values, list) else values
-            for field, values in rule.items()
-        }
-        normalized.append(json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
-    return sorted(normalized)
 
 
 def _semantic_matcher_equivalent(source: list[dict[str, Any]], decoded: list[dict[str, Any]]) -> bool:
@@ -791,7 +744,7 @@ def export_singbox(config: dict[str, Any], final_payloads: dict[str, list[str]],
                                 expanded_payload.append(raw)
                         payload = expanded_payload
                 with _timed("Sing-box matcher conversion"):
-                    matchers.extend(_provider_matchers(provider, behavior, payload, asn_resolver, "no-resolve" in group["modifiers"]))
+                        matchers.extend(_provider_matchers(provider, behavior, payload, asn_resolver))
             with _timed("Sing-box aggregation"):
                 buckets = _aggregate_buckets(matchers)
             group_buckets[group["id"]] = {}
@@ -848,10 +801,6 @@ def export_singbox(config: dict[str, Any], final_payloads: dict[str, list[str]],
             binaries = list(binary_dir.glob("*.srs"))
             for binary in binaries:
                 shutil.copy2(binary, target_dir / binary.name)
-        with _timed("Sing-box legacy aliases copy"):
-            for binary in binaries:
-                for alias in LEGACY_ROUTE_ALIASES.get(binary.stem, ()):
-                    shutil.copy2(binary, target_dir / f"{alias}.srs")
         (output_dist / "generated").mkdir(parents=True, exist_ok=True)
         shutil.copy2(route_path, output_dist / "generated/singbox-rules.json")
         timing = current_timing()
@@ -862,7 +811,6 @@ def export_singbox(config: dict[str, Any], final_payloads: dict[str, list[str]],
         return {
             "segments": len(groups),
             "srs": [tag + ".srs" for tag, _source_rules in artifacts],
-            "compatibility_srs": [alias + ".srs" for tag, aliases in LEGACY_ROUTE_ALIASES.items() if any(item[0] == tag for item in artifacts) for alias in aliases],
             "route": route,
         }
     finally:

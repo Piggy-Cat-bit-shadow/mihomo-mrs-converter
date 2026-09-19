@@ -23,12 +23,12 @@ class ArchitectureTest(unittest.TestCase):
         workflow = (root / ".github/workflows/build.yml").read_text(encoding="utf-8")
         self.assertIn("contents: read", workflow)
         self.assertIn("contents: write", workflow)
-        self.assertIn("jobs:\n  verify:", workflow)
+        self.assertIn("jobs:\n  test:", workflow)
+        self.assertIn("\n  build:\n", workflow)
         self.assertIn("\n  publish:\n", workflow)
-        self.assertIn("outputs:\n      changed:", workflow)
         self.assertIn("actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0", workflow)
         self.assertIn('paths-ignore:', workflow)
-        self.assertIn("needs.verify.outputs.changed == 'true'", workflow)
+        self.assertIn("needs.build.result == 'success'", workflow)
         self.assertNotIn("Validate Sing-box rule sets", workflow)
         for line in workflow.splitlines():
             if "uses:" in line:
@@ -41,7 +41,7 @@ class ArchitectureTest(unittest.TestCase):
     def test_workflow_keeps_provider_refresh_uncached(self):
         root = Path(__file__).parents[1]
         workflow = (root / ".github/workflows/build.yml").read_text(encoding="utf-8")
-        self.assertIn("python scripts/convert.py", workflow)
+        self.assertIn("python -m converter ", workflow)
         self.assertIn("path: .cache/geolite2", workflow)
         self.assertNotIn("cache hit", workflow.lower())
 

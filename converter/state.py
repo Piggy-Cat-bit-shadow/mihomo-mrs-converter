@@ -38,9 +38,16 @@ def read_managed_manifest(dist: Path) -> dict[str, Any] | None:
     if not path.exists():
         return None
     manifest = yaml.safe_load(path.read_text(encoding="utf-8"))
-    if not isinstance(manifest, dict) or not isinstance(manifest.get("providers"), dict):
-        raise SystemExit(f"{path}: managed state missing providers mapping")
-    # v1 suite fields are deliberately ignored during migration.
+    if (
+        not isinstance(manifest, dict)
+        or manifest.get("version") != 2
+        or not isinstance(manifest.get("base_url"), str)
+        or not isinstance(manifest.get("providers"), dict)
+    ):
+        raise SystemExit(f"{path}: invalid managed state schema")
+    for name, state in manifest["providers"].items():
+        if not isinstance(name, str) or not isinstance(state, dict) or not isinstance(state.get("fingerprint"), str):
+            raise SystemExit(f"{path}: invalid managed provider state")
     return manifest
 
 
@@ -90,15 +97,7 @@ def refresh_complete_config(
                 )
             managed_old_names.add(name)
     else:
-        managed_url_prefix = public_url(base_url, "dist") + "/"
-        managed_old_names = {
-            name for name, provider in old_providers.items()
-            if isinstance(provider, dict)
-            and isinstance(provider.get("url"), str)
-            and provider["url"].startswith(managed_url_prefix)
-            and isinstance(provider.get("path"), str)
-            and provider["path"].startswith("./ruleset/")
-        }
+        managed_old_names = set()
 
     collisions = sorted((set(new_providers) & set(old_providers)) - managed_old_names)
     if collisions:

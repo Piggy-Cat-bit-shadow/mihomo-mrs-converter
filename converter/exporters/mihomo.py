@@ -1,6 +1,7 @@
 """Mihomo final-config normalization and publication."""
 
 from pathlib import Path
+import tempfile
 from typing import Any
 
 from ..artifacts import convert_source_to_mrs, public_url, write_yaml_payload
@@ -84,13 +85,14 @@ def materialize_final_config(
         payload = payloads.get(name, [])
         if behavior in {"domain", "ipcidr"} and mihomo:
             source_dir = "ipcidr" if behavior == "ipcidr" else "domain"
-            source = output_dist / "source" / source_dir / f"{name}.yaml"
             artifact = output_dist / source_dir / f"{name}.mrs"
-            write_yaml_payload(source, payload)
-            convert_source_to_mrs(mihomo, behavior, source, artifact)
+            with tempfile.TemporaryDirectory(prefix="mihomo-mrs-provider-") as scratch:
+                source = Path(scratch) / f"{name}.yaml"
+                write_yaml_payload(source, payload)
+                convert_source_to_mrs(mihomo, behavior, source, artifact)
             updated.update({"type": "http", "format": "mrs", "url": public_url(base_url, "dist", source_dir, f"{name}.mrs"), "path": f"./ruleset/{name}.mrs"})
         else:
-            folder = "classical" if behavior == "classical" else f"source/{'ipcidr' if behavior == 'ipcidr' else 'domain'}"
+            folder = "classical"
             artifact = output_dist / folder / f"{name}.yaml"
             write_yaml_payload(artifact, payload)
             updated.update({"type": "http", "format": "yaml", "url": public_url(base_url, "dist", folder, f"{name}.yaml"), "path": f"./ruleset/{name}.yaml"})
@@ -103,8 +105,3 @@ def materialize_final_config(
             )
         providers[name] = updated
     return {**config, "rule-providers": providers}
-
-
-def publish_final_config(config: dict[str, Any], work_dist: Path, final_dist: Path, base_url: str) -> dict[str, Any]:
-    """Legacy name retained only for callers outside the production pipeline."""
-    raise RuntimeError("publish_final_config is obsolete; call materialize_final_config")

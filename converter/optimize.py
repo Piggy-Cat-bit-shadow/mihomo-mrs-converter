@@ -1,10 +1,10 @@
 """Pure in-memory provider consolidation, deduplication and naming."""
 
-import ipaddress
 from collections import Counter
 from typing import Any, Iterator
 
-from .model import DedupStats, NormalizedProvider, ProviderMetadata, parse_legacy_provider_name
+from .model import DedupStats, NormalizedProvider, ProviderMetadata, parse_provider_identity
+from .semantics import parse_ip_network
 from .rules import (
     _rewrite_expression,
     find_ruleset_refs,
@@ -19,24 +19,17 @@ from .rules import (
 BEHAVIOR_ORDER = {"domain": 0, "classical": 1, "ipcidr": 2}
 
 
-def parse_ip_network(rule: str) -> ipaddress._BaseNetwork | None:
-    try:
-        return ipaddress.ip_network(rule.strip(), strict=False)
-    except ValueError:
-        return None
-
-
 def _domain_suffix(rule: str) -> str | None:
     value = rule.strip().lower()
     return value[2:].rstrip(".") if value.startswith("+.") and len(value) > 2 else None
 
 
-def _domain_covered(domain: str, suffixes: set[str]) -> bool:
+def domain_covered_by_suffix(domain: str, suffixes: set[str]) -> bool:
     value = domain.strip().lower().rstrip(".")
     return any(".".join(value.split(".")[i:]) in suffixes for i in range(len(value.split("."))))
 
 
-def _suffix_covered(suffix: str, suffixes: set[str]) -> bool:
+def suffix_covered_by_parent_suffix(suffix: str, suffixes: set[str]) -> bool:
     labels = suffix.split(".")
     return any(".".join(labels[i:]) in suffixes for i in range(1, len(labels)))
 
@@ -55,9 +48,9 @@ def dedup_domain_payload(rules: list[str]) -> tuple[list[str], DedupStats]:
     output: list[str] = []
     for rule in unique:
         suffix = _domain_suffix(rule)
-        if suffix is not None and _suffix_covered(suffix, suffixes):
+        if suffix is not None and suffix_covered_by_parent_suffix(suffix, suffixes):
             stats.suffix_covered_by_parent_suffix += 1
-        elif suffix is None and _domain_covered(rule, suffixes):
+        elif suffix is None and domain_covered_by_suffix(rule, suffixes):
             stats.domain_covered_by_suffix += 1
         else:
             output.append(rule)
@@ -145,10 +138,6 @@ def iter_ruleset_blocks(rules: list[Any], providers: dict[str, dict[str, Any]]) 
         index = end
 
 
-def _semantic_provider(name: str, value: dict[str, Any], payload: list[str]) -> NormalizedProvider:
-    return NormalizedProvider(name, value["behavior"], tuple(payload), ProviderMetadata.from_mapping(value))
-
-
 def optimize_config(
     config: dict[str, Any], payloads: dict[str, list[str]], segment_mapping: dict[str, str] | None = None,
 ) -> tuple[dict[str, Any], dict[str, list[str]], dict[str, DedupStats]]:
@@ -183,7 +172,7 @@ def optimize_config(
             anchored = any(
                 name == anchor
                 or name.startswith(anchor + "-")
-                or (parse_legacy_provider_name(name) and parse_legacy_provider_name(name).segment == anchor)
+                or (parse_provider_identity(name) and parse_provider_identity(name).segment == anchor)
                 for name in names
             )
             if not anchored:

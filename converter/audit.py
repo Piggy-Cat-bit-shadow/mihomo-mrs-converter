@@ -10,8 +10,7 @@ import yaml
 
 from .rules import iter_all_rules, parse_rule, rule_policy
 from .semantics import is_target_ip_kind
-from .validate import validate_config
-from .exporters.singbox import LEGACY_ROUTE_ALIASES
+from .validate import validate_final_config
 
 
 def validate_mihomo(binary: str, config: dict) -> None:
@@ -40,10 +39,10 @@ def _validate_srs(binary: str, path: Path, temporary: Path) -> None:
 def audit_dist(root: Path, mihomo: str | None = None, sing_box: str | None = None) -> None:
     mihomo_path = root / "generated/mihomo-rules.yaml"
     config = yaml.safe_load(mihomo_path.read_text(encoding="utf-8"))
-    validate_config(root, config, require_no_orphans=True)
+    validate_final_config(root, config)
     providers = config["rule-providers"]
     if any("-part-" in name for name in providers):
-        raise ValueError("unexpected fallback provider in committed example")
+        raise ValueError("unexpected fallback provider in generated artifacts")
     for raw in config.get("rules", []):
         if not isinstance(raw, str): continue
         parsed = parse_rule(raw)
@@ -146,12 +145,9 @@ def audit_dist(root: Path, mihomo: str | None = None, sing_box: str | None = Non
         raise ValueError("Sing-box: route contains action: resolve")
     srs_dir = root / "singbox"
     canonical_tags = set(tags)
-    expected_aliases = {
-        alias for canonical, aliases in LEGACY_ROUTE_ALIASES.items() if canonical in canonical_tags for alias in aliases
-    }
     actual_srs = {path.stem for path in srs_dir.glob("*.srs")}
-    if actual_srs != canonical_tags | expected_aliases:
-        raise ValueError(f"Sing-box: canonical/compatibility artifacts mismatch: expected {sorted(canonical_tags | expected_aliases)}, found {sorted(actual_srs)}")
+    if actual_srs != canonical_tags:
+        raise ValueError(f"Sing-box: canonical artifacts mismatch: expected {sorted(canonical_tags)}, found {sorted(actual_srs)}")
     for item in route_sets:
         if not isinstance(item, dict) or item.get("format") != "binary":
             raise ValueError(f"Sing-box: invalid rule-set declaration: {item!r}")
@@ -162,14 +158,6 @@ def audit_dist(root: Path, mihomo: str | None = None, sing_box: str | None = Non
     dns_files = sorted(dns_dir.glob("*.srs"))
     if {path.name for path in dns_files} != {"China-domain.srs", "Global-domain.srs"}:
         raise ValueError(f"DNS: expected China-domain.srs and Global-domain.srs, found {[path.name for path in dns_files]}")
-    for canonical, aliases in LEGACY_ROUTE_ALIASES.items():
-        if canonical not in canonical_tags:
-            continue
-        canonical_bytes = (srs_dir / f"{canonical}.srs").read_bytes()
-        for alias in aliases:
-            alias_path = srs_dir / f"{alias}.srs"
-            if not alias_path.exists() or alias_path.read_bytes() != canonical_bytes:
-                raise ValueError(f"Sing-box: legacy alias {alias}.srs is not identical to {canonical}.srs")
     if sing_box:
         with tempfile.TemporaryDirectory(prefix="converter-srs-audit-") as tmp:
             temporary = Path(tmp)

@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from converter.validate import validate_config
+from converter.validate import validate_final_config
 
 
 class SubRulesValidationTest(unittest.TestCase):
@@ -13,7 +13,7 @@ class SubRulesValidationTest(unittest.TestCase):
                 "rules": ["MATCH,DIRECT"],
                 "sub-rules": {"Example": ["RULE-SET,OnlyInSubRule,DIRECT"]},
             }
-            validate_config(Path(tmp), config)
+            validate_final_config(Path(tmp), config)
 
     def test_missing_provider_only_in_sub_rule_fails_closed(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -23,7 +23,7 @@ class SubRulesValidationTest(unittest.TestCase):
                 "sub-rules": {"Example": ["RULE-SET,Missing,DIRECT"]},
             }
             with self.assertRaisesRegex(ValueError, "missing referenced provider"):
-                validate_config(Path(tmp), config)
+                validate_final_config(Path(tmp), config)
 
 
 if __name__ == "__main__":

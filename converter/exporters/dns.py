@@ -7,12 +7,12 @@ from typing import Any
 
 from ..artifacts import convert_source_to_mrs, write_yaml_atomic, write_yaml_payload
 from ..rules import parse_rule
-from ..model import parse_legacy_provider_name
+from ..model import provider_segment
 from ..optimize import dedup_domain_payload, dedup_exact_rules
 from .egern import classify_egern_classical, optimize_egern_rule_set
 
 DNS_CLASSICAL_KINDS = {"DOMAIN-KEYWORD", "DOMAIN-WILDCARD", "DOMAIN-REGEX"}
-DNS_DOMAIN_KINDS = {"DOMAIN", "DOMAIN-SUFFIX", "DOMAIN-KEYWORD", "DOMAIN-REGEX", "DOMAIN-WILDCARD"}
+from ..rules import DNS_DOMAIN_KINDS
 DNS_SEGMENT_GROUPS = {
     "China": {"Direct", "China"},
     "Global": {"AI", "Global"},
@@ -28,8 +28,7 @@ def collect_dns_domain_payloads(
     classical_rules: dict[str, list[str]] = {group: [] for group in DNS_SEGMENT_GROUPS}
     classical_kinds = classical_kinds or DNS_CLASSICAL_KINDS
     for name, provider in config["rule-providers"].items():
-        identity = parse_legacy_provider_name(name)
-        segment = identity.segment if identity else name
+        segment = provider_segment(name)
         group = next((group for group, members in DNS_SEGMENT_GROUPS.items() if segment in members), None)
         if group is None:
             continue
@@ -58,9 +57,9 @@ def export_dns(
     dns_payloads = collect_dns_domain_payloads(config, final_payloads)
 
     present_segments = {
-        (parse_legacy_provider_name(name).segment if parse_legacy_provider_name(name) else name)
+        provider_segment(name)
         for name in config["rule-providers"]
-        if (parse_legacy_provider_name(name).segment if parse_legacy_provider_name(name) else name) in {"Direct", "China", "AI", "Global"}
+        if provider_segment(name) in {"Direct", "China", "AI", "Global"}
     }
     missing = sorted({"Direct", "China", "AI", "Global"} - present_segments)
     if missing:

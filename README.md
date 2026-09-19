@@ -59,20 +59,28 @@ audit and atomic publish
 
 provider normalization 返回 `NormalizedProvider`，只包含名称、behavior、payload 和影响语义的 metadata；URL、path、YAML/MRS 文件只在最终 Mihomo materialization 时创建。Egern、Loon、Sing-box 和 DNS exporter 都消费同一份 `final_payloads`，不会从中间文件反推规则。
 
-## 目录
+## 发布目录（rules 分支）
 
 ```text
 dist/
 ├── domain/
 ├── ipcidr/
 ├── classical/
-├── source/              # YAML/text 输入的规范化源
+├── egern/
+├── loon/
+├── singbox/
+├── dns/
+│   ├── mihomo/
+│   ├── egern/
+│   └── singbox/
 └── generated/
     ├── egern-rules.yaml
     └── mihomo-rules.yaml
 
 .state/
 └── managed-state.yaml
+
+main 只保存转换器、测试、示例和源规则；生成物与 state 由 CI 发布到 `rules` 分支。
 ```
 
 转换器先在内存中完成归一化、合并、安全去重和最终命名，最后一次性生成客户端 artifacts：
@@ -119,15 +127,15 @@ pip install -r requirements.txt
 如果本机已有 `mihomo`：
 
 ```bash
-python scripts/convert.py examples/my-rules.yaml \
-  --base-url "https://raw.githubusercontent.com/<owner>/<repo>/main"
+python -m converter examples/my-rules.yaml \
+  --base-url "https://raw.githubusercontent.com/<owner>/<repo>/rules"
 ```
 
 如果要把本轮生成结果刷新进完整 Mihomo / Clash 配置，可以指定完整配置路径：
 
 ```bash
-python scripts/convert.py examples/my-rules.yaml \
-  --base-url "https://raw.githubusercontent.com/<owner>/<repo>/main" \
+python -m converter examples/my-rules.yaml \
+  --base-url "https://raw.githubusercontent.com/<owner>/<repo>/rules" \
   --complete-config "/path/to/full-config.yaml" \
   --complete-output "/path/to/full-config.generated.yaml"
 ```
@@ -168,7 +176,7 @@ dist/dns/singbox/Global-domain.srs
 
 `.srs` 由官方 `sing-box rule-set compile` 生成并执行 decompile 验收。`singbox-rules.json` 是只包含 `route.rule_set`、规则和可选 `final` 的配置片段，不是完整 Sing-box 客户端配置；支持 remote binary rule-set、原样 policy、SUB-RULE 展开、UDP 条件和 `MATCH` 到 `final` 的映射。
 
-流量路由只引用四个 canonical SRS：`Direct.srs`、`AI.srs`、`Global.srs`、`China.srs`。为兼容历史客户端，发布目录同时机械复制 legacy aliases：`Direct-no-resolve.srs`、`AI-ip.srs`、`Global-ip.srs`、`Global-no-resolve.srs`、`China-ip.srs`、`China-no-resolve.srs`。aliases 与对应 canonical 文件字节相同，不进入 generated route，也不承载独立语义。
+流量路由只引用四个 canonical SRS：`Direct.srs`、`AI.srs`、`Global.srs`、`China.srs`；发布目录不生成别名文件。
 
 ## Exporter capability matrix
 
@@ -230,14 +238,14 @@ rule-providers:
     type: http
     behavior: domain
     format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/dns/mihomo/China-domain.mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/rules/dist/dns/mihomo/China-domain.mrs
     path: ./ruleset/dns/China-domain.mrs
     interval: 172800
   DNS-China-classical:
     type: http
     behavior: classical
     format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/dns/mihomo/China-classical.yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/rules/dist/dns/mihomo/China-classical.yaml
     path: ./ruleset/dns/China-classical.yaml
     interval: 172800
 ```
