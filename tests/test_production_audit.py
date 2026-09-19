@@ -9,10 +9,11 @@ from converter.production_audit import audit_production
 
 
 class ProductionAuditTest(unittest.TestCase):
-    def make_fixture(self, root: Path, include_legacy_zero: bool = False) -> Path:
+    def make_fixture(self, root: Path, include_legacy_zero: bool = False, reject_mode: str = "reject", actual_mode: str | None = None) -> Path:
+        actual_policy = "REJECT-DROP" if (actual_mode or reject_mode) == "drop" else "REJECT"
         metadata = root / "segment-names.yaml"
         metadata.write_text(yaml.safe_dump({"segments": {
-            "BlockHttpDNS": {"name": "HTTPDNS", "role": "reject"},
+            "BlockHttpDNS": {"name": "HTTPDNS", "role": "reject", "reject-mode": reject_mode},
             "Lan": {"name": "Direct", "role": "direct"},
             "me-pure": {"name": "AI", "role": "ai"},
             "Scholar-Foreign": {"name": "Global", "role": "global"},
@@ -21,7 +22,7 @@ class ProductionAuditTest(unittest.TestCase):
         generated = root / "dist/generated"
         generated.mkdir(parents=True)
         egern_rules = [{"rule_set": {"match": f"https://example.test/{name}.yaml", "policy": policy}}
-            for name, policy in (("HTTPDNS", "REJECT-DROP"), ("Direct", "DIRECT"), ("AI", "🤖 AI"), ("Global", "🌍 国外流量"), ("China", "DIRECT"))]
+            for name, policy in (("HTTPDNS", actual_policy), ("Direct", "DIRECT"), ("AI", "🤖 AI"), ("Global", "🌍 国外流量"), ("China", "DIRECT"))]
         egern_rules.extend([
             {"and": {"match": [{"rule_set": {"match": "https://example.test/AI.yaml"}}, {"protocol": {"match": "udp"}}], "policy": "REJECT"}},
             {"default": {"policy": "🌍 国外流量"}},
@@ -30,7 +31,8 @@ class ProductionAuditTest(unittest.TestCase):
             egern_rules.insert(0, {"ip_cidr": {"match": "0.0.0.0/32", "policy": "REJECT-DROP"}})
         (generated / "egern-rules.yaml").write_text(yaml.safe_dump({"rules": egern_rules}, allow_unicode=True), encoding="utf-8")
         (generated / "mihomo-rules.yaml").write_text(yaml.safe_dump({"rules": [
-            "RULE-SET,HTTPDNS-domain,REJECT-DROP",
+            f"RULE-SET,HTTPDNS-domain,{actual_policy}",
+            f"RULE-SET,HTTPDNS-ip,{actual_policy},no-resolve",
             "RULE-SET,Direct-domain,DIRECT",
             "RULE-SET,AI-domain,AI",
             "RULE-SET,Global-domain,GLOBAL",
@@ -38,7 +40,10 @@ class ProductionAuditTest(unittest.TestCase):
             "MATCH,🌍 国外流量",
         ]}, allow_unicode=True), encoding="utf-8")
         (generated / "loon-rules.conf").write_text("[Remote Rule]\n", encoding="utf-8")
-        route = {"route": {"rule_set": [{"tag": name} for name in ("HTTPDNS", "Direct", "AI", "Global", "China")], "rules": [{"rule_set": [name], "action": "reject", "method": "drop"} for name in ("HTTPDNS", "Direct", "AI", "Global", "China")]}}
+        reject_rule = {"rule_set": ["HTTPDNS"], "action": "reject"}
+        if actual_policy == "REJECT-DROP":
+            reject_rule["method"] = "drop"
+        route = {"route": {"rule_set": [{"tag": name} for name in ("HTTPDNS", "Direct", "AI", "Global", "China")], "rules": [reject_rule] + [{"rule_set": [name], "action": "route", "outbound": "direct"} for name in ("Direct", "AI", "Global", "China")]}}
         (generated / "singbox-rules.json").write_text(json.dumps(route), encoding="utf-8")
         for name in ("HTTPDNS", "Direct", "AI", "Global", "China"):
             (root / "dist/egern").mkdir(exist_ok=True)
@@ -47,7 +52,7 @@ class ProductionAuditTest(unittest.TestCase):
             (root / "dist/singbox" / f"{name}.srs").write_bytes(b"")
         (root / "dist/generated/loon-rules.conf").write_text("\n".join(
             f"https://example.test/{name}.lsr,policy={policy},tag={name},enabled=true"
-            for name, policy in (("HTTPDNS", "REJECT-DROP"), ("Direct", "DIRECT"), ("AI", "🤖 AI"), ("Global", "🌍 国外流量"), ("China", "DIRECT"))
+            for name, policy in (("HTTPDNS", actual_policy), ("Direct", "DIRECT"), ("AI", "🤖 AI"), ("Global", "🌍 国外流量"), ("China", "DIRECT"))
         ) + "\n", encoding="utf-8")
         (root / "dist/dns/singbox").mkdir(parents=True)
         for name in ("China", "Global"):
@@ -67,6 +72,20 @@ class ProductionAuditTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "removed zero-address rule"):
                 audit_production(root / "dist", segment_names=metadata)
 
+    def test_reject_mode_drop_requires_drop_semantics(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            metadata = self.make_fixture(root, reject_mode="drop", actual_mode="drop")
+            audit_production(root / "dist", segment_names=metadata)
+
+    def test_reject_mode_mismatch_fails_for_both_modes(self):
+        for metadata_mode, actual_mode in (("reject", "drop"), ("drop", "reject")):
+            with self.subTest(metadata_mode=metadata_mode, actual_mode=actual_mode), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                metadata = self.make_fixture(root, reject_mode=metadata_mode, actual_mode=actual_mode)
+                with self.assertRaisesRegex(ValueError, "reject policy mismatch|reject mode mismatch"):
+                    audit_production(root / "dist", segment_names=metadata)
+
     def test_route_order_is_derived_from_generated_mihomo(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -76,7 +95,7 @@ class ProductionAuditTest(unittest.TestCase):
                 "Scholar-Foreign": {"name": "Global", "role": "global"},
                 "me-pure": {"name": "AI", "role": "ai"},
                 "Lan": {"name": "Direct", "role": "direct"},
-                "BlockHttpDNS": {"name": "HTTPDNS", "role": "reject"},
+                "BlockHttpDNS": {"name": "HTTPDNS", "role": "reject", "reject-mode": "reject"},
             }}, sort_keys=False), encoding="utf-8")
             audit_production(root / "dist", segment_names=metadata)
 

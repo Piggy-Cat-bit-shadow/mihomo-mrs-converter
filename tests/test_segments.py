@@ -17,6 +17,7 @@ class SegmentMetadataTest(unittest.TestCase):
   ExampleReject:
     name: ExampleReject
     role: reject
+    reject-mode: reject
 """))
         self.assertEqual(segment_mapping(specs), {"ExampleReject": "ExampleReject"})
         self.assertEqual(segment_roles(specs), {"ExampleReject": "reject"})
@@ -34,8 +35,19 @@ class SegmentMetadataTest(unittest.TestCase):
             with self.assertRaisesRegex(SystemExit, "duplicate segment name"):
                 load_segment_specs(self.write(Path(tmp), """segments:
   one: {name: Same, role: direct}
-  two: {name: Same, role: reject}
+  two: {name: Same, role: reject, reject-mode: reject}
 """))
+
+    def test_reject_mode_is_required_and_validated(self):
+        cases = (
+            ("role: reject\n", "requires reject-mode"),
+            ("role: reject\n    reject-mode: invalid\n", "requires reject-mode"),
+            ("role: direct\n    reject-mode: reject\n", "only valid for role=reject"),
+        )
+        for body, message in cases:
+            with self.subTest(body=body), tempfile.TemporaryDirectory() as tmp:
+                with self.assertRaisesRegex(SystemExit, message):
+                    load_segment_specs(self.write(Path(tmp), f"segments:\n  Example:\n    name: Example\n    {body}"))
 
 
 if __name__ == "__main__":

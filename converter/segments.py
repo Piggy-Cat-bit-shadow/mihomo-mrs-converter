@@ -9,6 +9,7 @@ from .yamlio import load_yaml_unique
 
 
 VALID_ROLES = frozenset({"direct", "ai", "global", "china", "reject"})
+VALID_REJECT_MODES = frozenset({"reject", "drop"})
 
 
 @dataclass(frozen=True)
@@ -16,6 +17,7 @@ class SegmentSpec:
     anchor: str
     name: str
     role: str
+    reject_mode: str | None = None
 
 
 def load_segment_specs(path: Path | None) -> tuple[SegmentSpec, ...]:
@@ -49,11 +51,17 @@ def load_segment_specs(path: Path | None) -> tuple[SegmentSpec, ...]:
             raise SystemExit(f"{path}: segment {anchor!r} requires a non-empty string role")
         if role not in VALID_ROLES:
             raise SystemExit(f"{path}: segment {anchor!r} has unknown role: {role!r}")
+        reject_mode = raw.get("reject-mode")
+        if role == "reject":
+            if not isinstance(reject_mode, str) or reject_mode not in VALID_REJECT_MODES:
+                raise SystemExit(f"{path}: reject segment {anchor!r} requires reject-mode: reject or drop")
+        elif "reject-mode" in raw:
+            raise SystemExit(f"{path}: reject-mode is only valid for role=reject: {anchor}")
         if name in names:
             raise SystemExit(f"{path}: duplicate segment name: {name}")
         anchors.add(anchor)
         names.add(name)
-        specs.append(SegmentSpec(anchor, name, role))
+        specs.append(SegmentSpec(anchor, name, role, reject_mode))
     return tuple(specs)
 
 
@@ -63,3 +71,7 @@ def segment_mapping(specs: tuple[SegmentSpec, ...]) -> dict[str, str]:
 
 def segment_roles(specs: tuple[SegmentSpec, ...]) -> dict[str, str]:
     return {spec.name: spec.role for spec in specs}
+
+
+def segment_reject_modes(specs: tuple[SegmentSpec, ...]) -> dict[str, str]:
+    return {spec.name: spec.reject_mode for spec in specs if spec.role == "reject" and spec.reject_mode is not None}

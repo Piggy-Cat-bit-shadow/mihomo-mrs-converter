@@ -48,6 +48,14 @@ def _assert_no_legacy_top_level_rules(root: Path) -> None:
             raise ValueError(f"production Sing-box route contains removed zero-address rule: {item}")
 
 
+def _expected_reject_policy(spec) -> str:
+    if spec.reject_mode == "reject":
+        return "REJECT"
+    if spec.reject_mode == "drop":
+        return "REJECT-DROP"
+    raise ValueError(f"production reject segment has no valid reject-mode: {spec.name}")
+
+
 def audit_production(root: Path, segment_names: Path | None = None, export_config: Path | None = None) -> None:
     metadata_path = segment_names or root.parent / "segment-names.yaml"
     specs = load_segment_specs(metadata_path)
@@ -56,7 +64,8 @@ def audit_production(root: Path, segment_names: Path | None = None, export_confi
     profile_path = export_config or root.parent / "config/export.yaml"
     profile = load_export_profile(profile_path if profile_path.exists() else None)
     expected_names = [spec.name for spec in specs]
-    canonical_order = _canonical_route_order(load_yaml_unique(root / "generated/mihomo-rules.yaml"), set(expected_names))
+    mihomo = load_yaml_unique(root / "generated/mihomo-rules.yaml") or {}
+    canonical_order = _canonical_route_order(mihomo, set(expected_names))
     if set(canonical_order) != set(expected_names):
         raise ValueError(f"production canonical route segments mismatch: {canonical_order}")
     egern = load_yaml_unique(root / "generated/egern-rules.yaml") or {}
@@ -71,18 +80,42 @@ def audit_production(root: Path, segment_names: Path | None = None, export_confi
         if isinstance(item, dict) and isinstance(item.get("rule_set"), dict)
     ]
     expected_order = canonical_order
+    expected_reject_policies = {
+        spec.name: _expected_reject_policy(spec)
+        for spec in specs
+        if spec.role == "reject"
+    }
+    for raw in mihomo.get("rules", []):
+        if not isinstance(raw, str):
+            continue
+        refs = find_ruleset_refs(raw)
+        if len(refs) != 1:
+            continue
+        provider = provider_segment(refs[0])
+        if provider not in expected_reject_policies:
+            continue
+        parts = [part.strip() for part in raw.split(",")]
+        if parts[0].upper() == "RULE-SET" and len(parts) >= 3:
+            actual = parts[2]
+            if actual != expected_reject_policies[provider]:
+                raise ValueError(
+                    f"production Mihomo reject policy mismatch for {provider}: "
+                    f"expected {expected_reject_policies[provider]}, got {actual}"
+                )
     for spec in specs:
         resource = f"{spec.name}.yaml"
         if resource not in policies:
             raise ValueError(f"production Egern missing segment: {spec.name}")
-        if spec.role == "reject" and policies[resource] != "REJECT-DROP":
-            raise ValueError(f"production Egern reject segment must use REJECT-DROP: {spec.name}")
+        if spec.role == "reject" and policies[resource] != expected_reject_policies[spec.name]:
+            raise ValueError(
+                f"production Egern reject policy mismatch for {spec.name}: "
+                f"expected {expected_reject_policies[spec.name]}, got {policies[resource]}"
+            )
     actual_egern_order = [name for name in egern_order if name in set(expected_order)]
     if actual_egern_order != expected_order:
         raise ValueError("production Egern segment order does not match segment metadata")
     _assert_no_legacy_top_level_rules(root)
     defaults = [item["default"] for item in egern.get("rules", []) if isinstance(item, dict) and isinstance(item.get("default"), dict)]
-    mihomo = load_yaml_unique(root / "generated/mihomo-rules.yaml") or {}
     default_rules = [raw for raw in mihomo.get("rules", []) if isinstance(raw, str) and raw.upper().startswith("MATCH,")]
     expected_default = profile.egern_policy_map.get(default_rules[-1].split(",", 1)[1], default_rules[-1].split(",", 1)[1]) if default_rules else None
     if not defaults or expected_default is None or defaults[-1].get("policy") != expected_default:
@@ -97,8 +130,11 @@ def audit_production(root: Path, segment_names: Path | None = None, export_confi
     if loon_order != expected_order:
         raise ValueError(f"production Loon segment order mismatch: {loon_order}")
     for spec in specs:
-        if spec.role == "reject" and f"tag={spec.name}," in loon and "policy=REJECT-DROP" not in next(line for line in loon.splitlines() if f"tag={spec.name}," in line):
-            raise ValueError(f"production Loon reject segment must use REJECT-DROP: {spec.name}")
+        if spec.role == "reject" and f"tag={spec.name}," in loon:
+            line = next(line for line in loon.splitlines() if f"tag={spec.name}," in line)
+            expected = expected_reject_policies[spec.name]
+            if f"policy={expected}," not in line:
+                raise ValueError(f"production Loon reject policy mismatch for {spec.name}: expected {expected}")
     route = json.loads((root / "generated/singbox-rules.json").read_text(encoding="utf-8")).get("route", {})
     route_sets = route.get("rule_set", [])
     tags = [item.get("tag") for item in route_sets if isinstance(item, dict)]
@@ -126,8 +162,13 @@ def audit_production(root: Path, segment_names: Path | None = None, export_confi
     for spec in specs:
         if spec.role == "reject":
             rule = next((item for item in route_rules if isinstance(item, dict) and spec.name in item.get("rule_set", [])), None)
-            if not rule or rule.get("action") != "reject" or rule.get("method") != "drop":
-                raise ValueError(f"production Sing-box reject segment must use drop: {spec.name}")
+            expected = expected_reject_policies[spec.name]
+            if not rule or rule.get("action") != "reject":
+                raise ValueError(f"production Sing-box reject action mismatch for {spec.name}")
+            if expected == "REJECT-DROP" and rule.get("method") != "drop":
+                raise ValueError(f"production Sing-box reject mode mismatch for {spec.name}: expected drop")
+            if expected == "REJECT" and "method" in rule:
+                raise ValueError(f"production Sing-box reject mode mismatch for {spec.name}: method must be absent")
     expected_dns = {f"{group}-domain.srs" for group in profile.dns_groups}
     if {path.name for path in (root / "dns/singbox").glob("*.srs")} != expected_dns:
         raise ValueError("production DNS files do not match export profile groups")

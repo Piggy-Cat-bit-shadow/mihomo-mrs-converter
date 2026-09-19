@@ -69,6 +69,17 @@ segments:
 
 `segment-names.yaml` 是生产 segment metadata 的唯一来源。生产构建会从生成的 Mihomo route 中读取实际 segment 顺序，并要求 Egern、Loon、Sing-box 与之保持一致；新增、删除、重命名或重排 segment 时只需同步 metadata 和输入规则。
 
+`role` 表示 segment 的语义类别。对 `role: reject` 的 segment，`reject-mode` 明确具体拒绝方式，只允许 `reject` 或 `drop`：前者映射为各客户端的普通 `REJECT`，后者映射为 `REJECT-DROP` / Sing-box `method: drop`。因此 `role: reject` 不等于 `REJECT-DROP`；reject segment 必须显式填写 `reject-mode`，其他 role 不得填写该字段。
+
+例如：
+
+```yaml
+BlockHttpDNS:
+  name: HTTPDNS
+  role: reject
+  reject-mode: reject
+```
+
 多客户端导出策略位于 [`config/export.yaml`](config/export.yaml)：其中包含客户端 policy 映射、允许降级处理的 matcher 类型，以及 DNS role 分组。未列入 allowlist 的 matcher 和任何结构性跳过都会使 Egern/Loon 构建失败，避免生成静默缺规则的生产文件。
 
 ## 输出
