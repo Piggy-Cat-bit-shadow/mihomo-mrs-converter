@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from .artifacts import generated_artifact_path
+from .identifiers import ensure_path_within
 from .rules import find_ruleset_refs, iter_all_rules
 
 
@@ -17,8 +18,13 @@ def _validate(dist: Path, config: dict[str, Any], require_no_orphans: bool) -> N
             raise ValueError(f"duplicate provider path {path}: {paths[path]}, {name}")
         if isinstance(path, str): paths[path] = name
         artifact = generated_artifact_path(dist, provider)
-        if artifact is not None and not artifact.exists():
-            raise ValueError(f"missing artifact for {name}: {artifact}")
+        if artifact is not None:
+            ensure_path_within(artifact, dist, f"provider {name} artifact")
+            if not artifact.exists():
+                raise ValueError(f"missing artifact for {name}: {artifact}")
+    for item in dist.rglob("*"):
+        if item.is_file():
+            ensure_path_within(item, dist, f"generated file {item.name}")
     for rule in iter_all_rules(config):
         refs = find_ruleset_refs(rule)
         missing = set(refs) - set(providers)

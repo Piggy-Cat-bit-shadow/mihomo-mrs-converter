@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from .identifiers import validate_artifact_id
 from .yamlio import load_yaml_unique
 
 
@@ -35,8 +36,7 @@ def load_segment_specs(path: Path | None) -> tuple[SegmentSpec, ...]:
     anchors: set[str] = set()
     names: set[str] = set()
     for anchor, raw in value["segments"].items():
-        if not isinstance(anchor, str) or not anchor.strip():
-            raise SystemExit(f"{path}: segment anchor must be a non-empty string")
+        validate_artifact_id(anchor, f"{path}: segment anchor {anchor!r}")
         if anchor.startswith("merged-segment-"):
             raise SystemExit(f"{path}: ordinal segment keys are not supported: {anchor}")
         if anchor in anchors:
@@ -47,6 +47,7 @@ def load_segment_specs(path: Path | None) -> tuple[SegmentSpec, ...]:
         role = raw.get("role")
         if not isinstance(name, str) or not name.strip():
             raise SystemExit(f"{path}: segment {anchor!r} requires a non-empty string name")
+        validate_artifact_id(name, f"{path}: segment name {name!r}")
         if not isinstance(role, str) or not role.strip():
             raise SystemExit(f"{path}: segment {anchor!r} requires a non-empty string role")
         if role not in VALID_ROLES:

@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from .identifiers import validate_artifact_id
 from .yamlio import load_yaml_unique
 
 
@@ -45,8 +46,9 @@ def load_export_profile(path: Path | None) -> ExportProfile:
         raise SystemExit(f"{path}: dns.groups must be a non-empty mapping")
     groups: dict[str, frozenset[str]] = {}
     for name, raw in groups_raw.items():
+        validate_artifact_id(name, f"{path}: dns.groups name {name!r}")
         roles = raw.get("roles") if isinstance(raw, dict) else raw
-        if not isinstance(name, str) or not name or not isinstance(roles, list) or not roles or not all(isinstance(role, str) and role for role in roles):
+        if not isinstance(roles, list) or not roles or not all(isinstance(role, str) and role for role in roles):
             raise SystemExit(f"{path}: dns.groups entries require a non-empty roles list")
         if name in groups or any(role in used for used in groups.values() for role in roles):
             raise SystemExit(f"{path}: dns group names and roles must be unique")

@@ -18,6 +18,7 @@ from .exporters.loon import export_loon
 from .exporters.mihomo import materialize_final_config, normalize_no_active_resolve
 from .exporters.singbox import export_singbox, export_singbox_dns
 from .export_config import ExportProfile, load_export_profile
+from .identifiers import validate_artifact_id
 from .model import BuildConfig, BuildContext, BuildResult
 from .optimize import optimize_config
 from .providers import prefetch_provider_texts, process_provider
@@ -42,8 +43,7 @@ def validate_input_schema(path: Path, value: Any) -> None:
     if not isinstance(providers, dict):
         raise SystemExit(f"{path}: rule-providers must be a mapping")
     for name, provider in providers.items():
-        if not isinstance(name, str) or not name:
-            raise SystemExit(f"{path}: provider name must be a non-empty string")
+        validate_artifact_id(name, f"{path}: rule-providers key {name!r}")
         if not isinstance(provider, dict):
             raise SystemExit(f"{path}: rule-providers.{name} must be a mapping")
         for field in ("type", "behavior", "format", "url", "path", "proxy"):
@@ -61,8 +61,7 @@ def validate_input_schema(path: Path, value: Any) -> None:
         if not isinstance(sub_rules, dict):
             raise SystemExit(f"{path}: sub-rules must be a mapping")
         for name, members in sub_rules.items():
-            if not isinstance(name, str) or not name:
-                raise SystemExit(f"{path}: sub-rules names must be non-empty strings")
+            validate_artifact_id(name, f"{path}: sub-rules name {name!r}")
             if not isinstance(members, list):
                 raise SystemExit(f"{path}: sub-rules.{name} must be a list")
             for index, member in enumerate(members):
@@ -148,6 +147,7 @@ def build(config: BuildConfig) -> BuildResult:
     complete_before = complete_output.read_bytes() if complete_output and complete_output.exists() else None
     state_path = config.dist.parent / ".state" / "managed-state.yaml"
     state_before = state_path.read_bytes() if state_path.exists() else None
+    config.dist.parent.mkdir(parents=True, exist_ok=True)
     publish_dist = Path(tempfile.mkdtemp(prefix="mihomo-mrs-publish-", dir=config.dist.parent))
     old_dist = config.dist.with_name(f".{config.dist.name}.previous")
     export_started = time.perf_counter()
