@@ -142,6 +142,7 @@ def build(config: BuildConfig) -> BuildResult:
         optimized = normalize_no_active_resolve(optimized, final_payloads)
 
     previous = read_managed_manifest(config.dist)
+    dist_existed_before = config.dist.exists()
     refreshed_complete: dict[str, Any] | None = None
     complete_output = config.complete_output or config.complete_config
     complete_before = complete_output.read_bytes() if complete_output and complete_output.exists() else None
@@ -157,14 +158,14 @@ def build(config: BuildConfig) -> BuildResult:
                 final = materialize_final_config(optimized, final_payloads, publish_dist, config.base_url, config.mihomo_bin)
             with timing.phase("validate final config"):
                 validate_final_config(publish_dist, final)
-            exporter_calls = {
+            exporter_calls: dict[str, tuple[str, Any, tuple[Any, ...]]] = {
                 "egern": ("Egern export", export_egern, (final, final_payloads, publish_dist, config.base_url, export_profile.egern_policy_map, export_profile.allowed_unsupported.get("egern", frozenset()))),
                 "loon": ("Loon export", export_loon, (final, final_payloads, publish_dist, config.base_url, export_profile.allowed_unsupported.get("loon", frozenset()))),
                 "singbox": ("Sing-box route export", export_singbox, (final, final_payloads, publish_dist, config.base_url, config.sing_box_bin, None, mapping, export_profile.singbox_policy_map)),
                 "singbox-dns": ("Sing-box DNS export", export_singbox_dns, (final, final_payloads, publish_dist, config.base_url, config.sing_box_bin, segment_roles, export_profile.dns_groups)),
                 "dns": ("DNS export", export_dns, (final, final_payloads, publish_dist, config.base_url, config.mihomo_bin, segment_roles, export_profile.dns_groups)),
             }
-            def run_export(item: tuple[str, Any, tuple[Any, ...]]) -> tuple[str, Any, BuildTiming]:
+            def run_export(item: tuple[str, tuple[str, Any, tuple[Any, ...]]]) -> tuple[str, Any, BuildTiming]:
                 key, (_label, function, args) = item
                 started = time.perf_counter()
                 worker_timing = BuildTiming()
@@ -212,10 +213,15 @@ def build(config: BuildConfig) -> BuildResult:
             shutil.rmtree(old_dist, ignore_errors=True)
     except BaseException:
         shutil.rmtree(publish_dist, ignore_errors=True)
-        if config.dist.exists() and old_dist.exists():
-            shutil.rmtree(config.dist)
-        if old_dist.exists():
-            os.replace(old_dist, config.dist)
+        if not dist_existed_before:
+            if config.dist.exists():
+                shutil.rmtree(config.dist, ignore_errors=True)
+        else:
+            if config.dist.exists() and old_dist.exists():
+                shutil.rmtree(config.dist, ignore_errors=True)
+            if old_dist.exists():
+                os.replace(old_dist, config.dist)
+        shutil.rmtree(old_dist, ignore_errors=True)
         if state_before is None:
             state_path.unlink(missing_ok=True)
         else:
