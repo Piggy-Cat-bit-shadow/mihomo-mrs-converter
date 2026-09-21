@@ -93,17 +93,17 @@ rule-providers:
 rules:
 - RULE-SET,HTTPDNS-domain,REJECT
 - RULE-SET,HTTPDNS-ip,REJECT,no-resolve
-- RULE-SET,Direct-domain,🏠 国内流量
-- RULE-SET,Direct-classical,🏠 国内流量,no-resolve
+- RULE-SET,Direct-domain,DIRECT
+- RULE-SET,Direct-classical,DIRECT,no-resolve
 - SUB-RULE,(RULE-SET,AI-domain),AI-Routing
 - SUB-RULE,(RULE-SET,AI-classical,no-resolve),AI-Routing
 - SUB-RULE,(RULE-SET,AI-ip,no-resolve),AI-Routing
 - RULE-SET,Global-domain,🌍 国外流量
 - RULE-SET,Global-classical,🌍 国外流量,no-resolve
 - RULE-SET,Global-ip,🌍 国外流量,no-resolve
-- RULE-SET,China-domain,🏠 国内流量
-- RULE-SET,China-classical,🏠 国内流量,no-resolve
-- RULE-SET,China-ip,🏠 国内流量,no-resolve
+- RULE-SET,China-domain,DIRECT
+- RULE-SET,China-classical,DIRECT,no-resolve
+- RULE-SET,China-ip,DIRECT,no-resolve
 - MATCH,🌍 国外流量
 sub-rules:
   AI-Routing:
