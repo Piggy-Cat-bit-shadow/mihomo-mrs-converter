@@ -115,6 +115,7 @@ domain_suffix_set:
 - envato.com
 - envatousercontent.com
 - flow.google
+- flow.google.com
 - g.ai
 - geller-pa.googleapis.com
 - gemini.google
@@ -155,6 +156,7 @@ domain_suffix_set:
 - mistral.ai
 - moonshot.ai
 - mozilla.ai
+- notebook.google
 - notebook.google.com
 - notebooklm.google
 - notebooklm.google.com
