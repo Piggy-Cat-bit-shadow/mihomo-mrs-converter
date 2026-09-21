@@ -87,9 +87,5 @@ def materialize_final_config(
         size_limit = provider.get("size-limit", 0)
         if isinstance(size_limit, bool) or not isinstance(size_limit, int) or size_limit < 0:
             raise ValueError(f"{name}: size-limit must be a non-negative byte count")
-        if size_limit and artifact.stat().st_size > size_limit:
-            raise ValueError(
-                f"{name}: generated artifact is {artifact.stat().st_size} bytes, exceeds size-limit {size_limit} bytes"
-            )
         providers[name] = updated
     return {**config, "rule-providers": providers}

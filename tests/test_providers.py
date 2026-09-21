@@ -144,6 +144,36 @@ class ProvidersTest(unittest.TestCase):
             with self.assertRaisesRegex(SystemExit, "URL"):
                 process_provider("A", {"type": "http", "behavior": "domain", "format": "text", "url": url}, BuildContext({}, {"A"}))
 
+    def test_provider_name_validation(self):
+        for bad_name in ("bad/name", "bad\\name", "..", ".", "name with spaces", "name\x00"):
+            with self.assertRaisesRegex(SystemExit, "provider name:"):
+                process_provider(bad_name, {"type": "http", "behavior": "domain", "format": "text", "url": "https://example.invalid/rules"}, BuildContext({}, {bad_name}))
+
+    def test_provider_size_limit_type_and_enforcement(self):
+        # Invalid type or negative
+        for bad_limit in (-1, -100, True, False, "100"):
+            with self.assertRaisesRegex(SystemExit, "size-limit must be a non-negative byte count"):
+                process_provider("A", {"type": "http", "behavior": "domain", "format": "text", "url": "https://example.invalid/rules", "size-limit": bad_limit}, BuildContext({}, {"A"}))
+
+        # Oversized remote_text prefetch
+        with self.assertRaisesRegex(SystemExit, "exceeds 10 bytes"):
+            process_provider(
+                "A",
+                {"type": "http", "behavior": "domain", "format": "text", "url": "https://example.invalid/rules", "size-limit": 10},
+                BuildContext({}, {"A"}),
+                remote_text="payload:\n- verylongdomainnamesexceedinglimit.com\n",
+            )
+
+        # Oversized direct download
+        with patch("converter.net.urllib.request.urlopen", return_value=Response(b"payload:\n- verylongdomainnamesexceedinglimit.com\n")):
+            with self.assertRaisesRegex(SystemExit, "exceeds 10 bytes"):
+                process_provider(
+                    "A",
+                    {"type": "http", "behavior": "domain", "format": "text", "url": "https://example.invalid/rules", "size-limit": 10},
+                    BuildContext({}, {"A"}),
+                )
+
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -41,8 +41,6 @@ def audit_dist(root: Path, mihomo: str | None = None, sing_box: str | None = Non
     config = yaml.safe_load(mihomo_path.read_text(encoding="utf-8"))
     validate_final_config(root, config)
     providers = config["rule-providers"]
-    if any("-part-" in name for name in providers):
-        raise ValueError("unexpected fallback provider in generated artifacts")
     for raw in config.get("rules", []):
         if not isinstance(raw, str): continue
         parsed = parse_rule(raw)

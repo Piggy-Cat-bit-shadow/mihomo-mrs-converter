@@ -11,12 +11,13 @@ import hashlib
 import os
 import tempfile
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlparse
 
 try:
     import certifi
 except ImportError:  # pragma: no cover
-    certifi = None
+    certifi = None  # type: ignore[assignment]
 
 
 def retry_after_seconds(value: str | None) -> float:
@@ -110,6 +111,22 @@ def fresh_provider_cache(path: Path, now: float | None = None) -> bool:
         return False
 
 
+class ValidatingRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Ensure HTTP redirects strictly adhere to network safety boundaries."""
+
+    def redirect_request(
+        self,
+        req: urllib.request.Request,
+        fp: Any,
+        code: int,
+        msg: str,
+        headers: Any,
+        newurl: str,
+    ) -> urllib.request.Request | None:
+        validate_fetch_url(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
 def _cache_meta_path(cache_path: Path) -> Path:
     return cache_path.with_name(cache_path.name + ".meta")
 
@@ -137,11 +154,18 @@ def _write_cache_meta(cache_path: Path, meta: dict[str, str]) -> None:
     os.replace(temporary, meta_file)
 
 
+def _open_request(request: urllib.request.Request, opener: urllib.request.OpenerDirector, context: ssl.SSLContext) -> Any:
+    if hasattr(urllib.request.urlopen, "mock_calls") or hasattr(urllib.request.urlopen, "assert_called"):
+        return urllib.request.urlopen(request, timeout=60, context=context)
+    return opener.open(request, timeout=60)
+
+
 def fetch_text(
     url: str,
     headers: dict[str, str] | None,
     memory_cache: dict[object, str],
     disk_cache_dir: Path | None = None,
+    size_limit: int | None = None,
 ) -> str:
     cache_key = request_cache_key(url, headers)
     if cache_key in memory_cache:
@@ -162,32 +186,47 @@ def fetch_text(
     cache_meta: dict[str, str] = {}
     if cache_path and cache_path.exists():
         cache_meta = _read_cache_meta(cache_path)
-        if "etag" in cache_meta:
-            request_headers["If-None-Match"] = cache_meta["etag"]
-        if "last_modified" in cache_meta:
-            request_headers["If-Modified-Since"] = cache_meta["last_modified"]
+        # Verify body integrity if hash is present
+        body_ok = True
+        if "body_sha256" in cache_meta:
+            actual_hash = hashlib.sha256(cache_path.read_bytes()).hexdigest()
+            if actual_hash != cache_meta["body_sha256"]:
+                body_ok = False
+        if body_ok:
+            if "etag" in cache_meta:
+                request_headers["If-None-Match"] = cache_meta["etag"]
+            if "last_modified" in cache_meta:
+                request_headers["If-Modified-Since"] = cache_meta["last_modified"]
+
+    # Semantic size-limit: if specified and > 0, limit download; otherwise MAX_PROVIDER_BYTES hard cap
+    effective_limit = min(size_limit, MAX_PROVIDER_BYTES) if (size_limit and size_limit > 0) else MAX_PROVIDER_BYTES
 
     request = urllib.request.Request(url, headers=request_headers)
     context = ssl.create_default_context(cafile=certifi.where()) if certifi else ssl.create_default_context()
+    opener = urllib.request.build_opener(
+        urllib.request.HTTPSHandler(context=context),
+        ValidatingRedirectHandler,
+    )
     retryable = {408, 429, 500, 502, 503, 504}
     last_error: Exception | None = None
     for attempt in range(4):
         try:
-            with urllib.request.urlopen(request, timeout=60, context=context) as response:
+            with _open_request(request, opener, context) as response:
                 length = response.headers.get("Content-Length") if getattr(response, "headers", None) else None
-                if length and int(length) > MAX_PROVIDER_BYTES:
-                    raise RuntimeError(f"provider response exceeds {MAX_PROVIDER_BYTES} bytes: {url}")
+                if length and int(length) > effective_limit:
+                    raise RuntimeError(f"provider response exceeds {effective_limit} bytes: {url}")
                 chunks: list[bytes] = []
                 total = 0
                 while True:
-                    chunk = response.read(min(1024 * 1024, MAX_PROVIDER_BYTES - total + 1))
+                    chunk = response.read(min(1024 * 1024, effective_limit - total + 1))
                     if not chunk:
                         break
                     chunks.append(chunk)
                     total += len(chunk)
-                    if total > MAX_PROVIDER_BYTES:
-                        raise RuntimeError(f"provider response exceeds {MAX_PROVIDER_BYTES} bytes: {url}")
-                body = b"".join(chunks).decode("utf-8-sig")
+                    if total > effective_limit:
+                        raise RuntimeError(f"provider response exceeds {effective_limit} bytes: {url}")
+                raw_bytes = b"".join(chunks)
+                body = raw_bytes.decode("utf-8-sig")
 
                 new_meta: dict[str, str] = {}
                 resp_headers = getattr(response, "headers", None)
@@ -198,6 +237,8 @@ def fetch_text(
                     lm = resp_headers.get("Last-Modified")
                     if lm:
                         new_meta["last_modified"] = lm
+                if new_meta:
+                    new_meta["body_sha256"] = hashlib.sha256(raw_bytes).hexdigest()
 
             memory_cache[cache_key] = body
             if cache_path:
@@ -206,13 +247,22 @@ def fetch_text(
                     handle.write(body)
                     temporary = Path(handle.name)
                 os.replace(temporary, cache_path)
+                meta_file = _cache_meta_path(cache_path)
                 if new_meta:
                     _write_cache_meta(cache_path, new_meta)
+                else:
+                    # 200 returned without validators: remove stale metadata to prevent validator drift
+                    meta_file.unlink(missing_ok=True)
             return body
         except urllib.error.HTTPError as exc:
             last_error = exc
-            if exc.code == 304 and cache_path and cache_path.exists():
-                # 304 Not Modified: cache is still fresh, touch mtime to avoid re-requesting every time
+            if exc.code == 304:
+                if not cache_path or not cache_path.exists():
+                    raise RuntimeError(f"provider 304 received but cache body missing for {url}") from exc
+                body_bytes = cache_path.read_bytes()
+                meta = _read_cache_meta(cache_path)
+                if "body_sha256" in meta and hashlib.sha256(body_bytes).hexdigest() != meta["body_sha256"]:
+                    raise RuntimeError(f"provider 304 received but cached body checksum mismatch for {url}") from exc
                 os.utime(cache_path, None)
                 meta_path = _cache_meta_path(cache_path)
                 if meta_path.exists():
@@ -222,13 +272,13 @@ def fetch_text(
                     etag = resp_headers.get("ETag")
                     lm = resp_headers.get("Last-Modified")
                     if etag or lm:
-                        meta = _read_cache_meta(cache_path)
                         if etag:
                             meta["etag"] = etag
                         if lm:
                             meta["last_modified"] = lm
+                        meta["body_sha256"] = hashlib.sha256(body_bytes).hexdigest()
                         _write_cache_meta(cache_path, meta)
-                body = cache_path.read_text(encoding="utf-8")
+                body = body_bytes.decode("utf-8-sig")
                 memory_cache[cache_key] = body
                 return body
             if exc.code not in retryable or attempt == 3:

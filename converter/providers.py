@@ -18,11 +18,11 @@ from .semantics import parse_ip_network
 ALLOWED_PROVIDER_FIELDS = {"type", "behavior", "format", "url", "path", "interval", "proxy", "size-limit", "header"}
 
 
+from .identifiers import validate_artifact_id
+
+
 def validate_provider_name(name: str) -> None:
-    if not isinstance(name, str) or not name:
-        raise SystemExit("provider name must be a non-empty string")
-    if not re.fullmatch(r"[A-Za-z0-9._-]+", name):
-        raise SystemExit(f"{name}: provider name contains unsupported artifact characters")
+    validate_artifact_id(name, "provider name")
 
 
 def validate_http_url(name: str, url: str) -> None:
@@ -110,31 +110,43 @@ def prefetch_provider_texts(
             provider.get("header") is not None and not isinstance(provider.get("header"), dict)
         ):
             continue
+        size_limit = provider.get("size-limit", 0)
+        if isinstance(size_limit, bool) or not isinstance(size_limit, int) or size_limit < 0:
+            continue
         url = provider.get("url")
         headers = provider.get("header")
         if not isinstance(url, str):
             continue
         key = net.request_cache_key(url, headers if isinstance(headers, dict) else None)
         if key not in requests:
-            requests[key] = (url, headers if isinstance(headers, dict) else None, [])
+            requests[key] = (url, headers if isinstance(headers, dict) else None, [], [])
         requests[key][2].append(name)
+        requests[key][3].append(size_limit)
 
     cache_hits = sum(key in memory_cache for key in requests)
     disk_hits = 0
     if disk_cache_dir:
-        for key, (url, headers, _names) in requests.items():
+        for key, (url, headers, _names, _limits) in requests.items():
             cache_path = net.provider_cache_path(disk_cache_dir, url, headers)
             if key not in memory_cache and net.fresh_provider_cache(cache_path):
                 memory_cache[key] = cache_path.read_text(encoding="utf-8")
                 disk_hits += 1
     pending = [(key, request) for key, request in requests.items() if key not in memory_cache]
 
-    def download(item: tuple[tuple[object, ...], tuple[str, dict[str, str] | None, list[str]]]) -> tuple[tuple[object, ...], str]:
-        key, (url, headers, _names) = item
-        if disk_cache_dir is not None:
-            text = net.fetch_text(url, headers, {}, disk_cache_dir)
+    def download(item: tuple[tuple[object, ...], tuple[str, dict[str, str] | None, list[str], list[int]]]) -> tuple[tuple[object, ...], str]:
+        key, (url, headers, _names, limits) = item
+        positive = [lim for lim in limits if lim > 0]
+        effective_limit = min(positive) if positive else None
+        if effective_limit is not None:
+            if disk_cache_dir is not None:
+                text = net.fetch_text(url, headers, {}, disk_cache_dir, size_limit=effective_limit)
+            else:
+                text = net.fetch_text(url, headers, {}, size_limit=effective_limit)
         else:
-            text = net.fetch_text(url, headers, {})
+            if disk_cache_dir is not None:
+                text = net.fetch_text(url, headers, {}, disk_cache_dir)
+            else:
+                text = net.fetch_text(url, headers, {})
         return key, text
 
     with ThreadPoolExecutor(max_workers=_prefetch_workers(len(pending))) if pending else _NullExecutor() as executor:
@@ -143,7 +155,7 @@ def prefetch_provider_texts(
 
     texts = {
         name: memory_cache[key]
-        for key, (_url, _headers, names) in requests.items()
+        for key, (_url, _headers, names, _limits) in requests.items()
         for name in names
     }
     return ProviderPrefetch(texts, len(requests), cache_hits, len(pending), disk_hits)
@@ -183,8 +195,23 @@ def process_provider(
     headers = provider.get("header")
     if headers is not None and not isinstance(headers, dict):
         raise SystemExit(f"{name}: provider header must be a mapping")
+    size_limit = provider.get("size-limit", 0)
+    if isinstance(size_limit, bool) or not isinstance(size_limit, int) or size_limit < 0:
+        raise SystemExit(f"{name}: size-limit must be a non-negative byte count")
 
-    remote = remote_text if remote_text is not None else net.fetch_text(url, headers, context.memory_cache)
+    if remote_text is not None:
+        effective_limit = size_limit if size_limit > 0 else net.MAX_PROVIDER_BYTES
+        if len(remote_text.encode("utf-8")) > effective_limit:
+            raise SystemExit(f"{name}: provider response exceeds {effective_limit} bytes: {url}")
+        remote = remote_text
+    else:
+        try:
+            if size_limit > 0:
+                remote = net.fetch_text(url, headers, context.memory_cache, size_limit=size_limit)
+            else:
+                remote = net.fetch_text(url, headers, context.memory_cache)
+        except RuntimeError as exc:
+            raise SystemExit(f"{name}: {exc}") from exc
     raw = payload_from_remote(name, remote, fmt, allow_integer_items=behavior == "ipcidr")
     if not raw:
         raise SystemExit(f"{name}: provider contains no rules")

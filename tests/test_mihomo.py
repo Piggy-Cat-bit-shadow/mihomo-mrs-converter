@@ -45,11 +45,24 @@ class MihomoExporterTest(unittest.TestCase):
         output = normalize_no_active_resolve(config, {"A-domain": ["httpdns.example"], "A-ip": ["203.107.1.0/24"]})
         self.assertEqual(output["rules"], ["RULE-SET,A-domain,REJECT-DROP", "RULE-SET,A-ip,REJECT-DROP,no-resolve"])
 
-    def test_size_limit_is_enforced_in_bytes_after_materialization(self):
-        config = {"rule-providers": {"A": {"behavior": "domain", "size-limit": 1}}, "rules": ["RULE-SET,A,DIRECT"]}
+    def test_size_limit_validation_requires_non_negative_int(self):
         with tempfile.TemporaryDirectory() as tmp:
-            with self.assertRaisesRegex(ValueError, "exceeds size-limit 1 bytes"):
-                materialize_final_config(config, {"A": ["example.com"]}, Path(tmp), "https://x", None)
+            with self.assertRaisesRegex(ValueError, "size-limit must be a non-negative byte count"):
+                materialize_final_config(
+                    {"rule-providers": {"A": {"behavior": "domain", "size-limit": -1}}, "rules": ["RULE-SET,A,DIRECT"]},
+                    {"A": ["example.com"]},
+                    Path(tmp),
+                    "https://x",
+                    None,
+                )
+            with self.assertRaisesRegex(ValueError, "size-limit must be a non-negative byte count"):
+                materialize_final_config(
+                    {"rule-providers": {"A": {"behavior": "domain", "size-limit": True}}, "rules": ["RULE-SET,A,DIRECT"]},
+                    {"A": ["example.com"]},
+                    Path(tmp),
+                    "https://x",
+                    None,
+                )
 
     def test_zero_size_limit_means_unlimited(self):
         config = {"rule-providers": {"A": {"behavior": "domain", "size-limit": 0}}, "rules": ["RULE-SET,A,DIRECT"]}

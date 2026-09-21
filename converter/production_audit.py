@@ -65,6 +65,9 @@ def audit_production(root: Path, segment_names: Path | None = None, export_confi
     profile = load_export_profile(profile_path if profile_path.exists() else None)
     expected_names = [spec.name for spec in specs]
     mihomo = load_yaml_unique(root / "generated/mihomo-rules.yaml") or {}
+    providers = mihomo.get("rule-providers") or {}
+    if any("-part-" in name for name in providers):
+        raise ValueError("unexpected fallback provider in generated production artifacts")
     canonical_order = _canonical_route_order(mihomo, set(expected_names))
     if set(canonical_order) != set(expected_names):
         raise ValueError(f"production canonical route segments mismatch: {canonical_order}")
