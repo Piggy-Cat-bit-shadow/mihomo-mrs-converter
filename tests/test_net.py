@@ -259,4 +259,115 @@ class RetryAfterTest(unittest.TestCase):
         self.assertIsNotNone(redirected_req)
         self.assertEqual(redirected_req.full_url, "https://safe.example.com/target")
 
+    def test_cross_origin_redirect_strips_sensitive_headers(self) -> None:
+        import urllib.request
+        from converter.net import ValidatingRedirectHandler
+
+        handler = ValidatingRedirectHandler()
+        req = urllib.request.Request(
+            "https://example.com/start",
+            headers={
+                "Authorization": "Bearer secret-token",
+                "Proxy-Authorization": "Basic credit",
+                "Cookie": "session=xyz123",
+                "User-Agent": "CustomAgent/1.0",
+                "Accept": "text/plain",
+            },
+        )
+
+        # Cross-origin redirect (different host)
+        cross_req = handler.redirect_request(req, None, 302, "Found", {}, "https://other.example.com/dest")
+        self.assertIsNotNone(cross_req)
+        self.assertNotIn("Authorization", cross_req.headers)
+        self.assertNotIn("authorization", cross_req.headers)
+        self.assertNotIn("Proxy-Authorization", cross_req.headers)
+        self.assertNotIn("proxy-authorization", cross_req.headers)
+        self.assertNotIn("Cookie", cross_req.headers)
+        self.assertNotIn("cookie", cross_req.headers)
+        self.assertEqual(cross_req.headers.get("User-agent"), "CustomAgent/1.0")
+        self.assertEqual(cross_req.headers.get("Accept"), "text/plain")
+
+        # Cross-origin redirect (different port)
+        cross_port_req = handler.redirect_request(req, None, 302, "Found", {}, "https://example.com:8443/dest")
+        self.assertIsNotNone(cross_port_req)
+        self.assertNotIn("Authorization", cross_port_req.headers)
+        self.assertNotIn("Cookie", cross_port_req.headers)
+
+        # Same-origin redirect preserves sensitive headers
+        same_req = handler.redirect_request(req, None, 302, "Found", {}, "https://example.com/newpath")
+        self.assertIsNotNone(same_req)
+        self.assertIn("Authorization", same_req.headers)
+        self.assertIn("Cookie", same_req.headers)
+        self.assertEqual(same_req.headers.get("User-agent"), "CustomAgent/1.0")
+
+    def test_fetch_text_bom_hash_consistency_and_304(self) -> None:
+        import tempfile
+        import hashlib
+        from pathlib import Path
+        from unittest.mock import patch
+        import urllib.error
+        from email.message import Message
+        from converter import net
+
+        class MockResponse:
+            def __init__(self, body: bytes, headers: dict[str, str] | None = None):
+                self.body = body
+                self.headers = Message()
+                if headers:
+                    for k, v in headers.items():
+                        self.headers[k] = v
+            def read(self, size=-1):
+                body, self.body = self.body, b""
+                return body
+            def __enter__(self): return self
+            def __exit__(self, *_): return False
+
+        with tempfile.TemporaryDirectory() as tmp:
+            cache_dir = Path(tmp)
+            url = "https://example.invalid/bom-rules.yaml"
+
+            # Server returns UTF-8 BOM + content
+            raw_body = b"\xef\xbb\xbfpayload:\n- bom.example.com\n"
+            resp = MockResponse(raw_body, {"ETag": '"bom-etag"'})
+            with patch("urllib.request.urlopen", return_value=resp):
+                body = net.fetch_text(url, None, {}, disk_cache_dir=cache_dir)
+                self.assertEqual(body, "payload:\n- bom.example.com\n")
+
+            cache_path = net.provider_cache_path(cache_dir, url, None)
+            self.assertTrue(cache_path.exists())
+            # Cached file must be normalized UTF-8 without BOM
+            self.assertEqual(cache_path.read_bytes(), b"payload:\n- bom.example.com\n")
+            meta = net._read_cache_meta(cache_path)
+            # body_sha256 must match normalized cached file, not raw BOM bytes
+            expected_hash = hashlib.sha256(b"payload:\n- bom.example.com\n").hexdigest()
+            self.assertEqual(meta.get("body_sha256"), expected_hash)
+
+            # Expire cache to force conditional request
+            net.os.utime(cache_path, (net.time.time() - 90000, net.time.time() - 90000))
+
+            # 304 Not Modified must succeed because checksums match
+            def mock_304(req, timeout, context):
+                raise urllib.error.HTTPError(req.full_url, 304, "Not Modified", Message(), None)
+
+            with patch("urllib.request.urlopen", side_effect=mock_304):
+                body304 = net.fetch_text(url, None, {}, disk_cache_dir=cache_dir)
+                self.assertEqual(body304, "payload:\n- bom.example.com\n")
+
+    def test_cached_disk_hit_enforces_size_limit(self) -> None:
+        import tempfile
+        from pathlib import Path
+        from converter import net
+
+        with tempfile.TemporaryDirectory() as tmp:
+            cache_dir = Path(tmp)
+            url = "https://example.invalid/large.yaml"
+            cache_path = net.provider_cache_path(cache_dir, url, None)
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+            # Write 500 bytes to cache
+            cache_path.write_bytes(b"x" * 500)
+
+            # Fresh cache hit must raise if size_limit is 100
+            with self.assertRaisesRegex(RuntimeError, "exceeds 100 bytes"):
+                net.fetch_text(url, None, {}, disk_cache_dir=cache_dir, size_limit=100)
+
 

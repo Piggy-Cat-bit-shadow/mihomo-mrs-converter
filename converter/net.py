@@ -112,7 +112,12 @@ def fresh_provider_cache(path: Path, now: float | None = None) -> bool:
 
 
 class ValidatingRedirectHandler(urllib.request.HTTPRedirectHandler):
-    """Ensure HTTP redirects strictly adhere to network safety boundaries."""
+    """URL and redirect SSRF hardening.
+
+    Blocks unsafe schemes, userinfo, and private IP literals on initial URL
+    and redirect targets. Note that DNS resolution rebinding is outside the
+    current threat model. Strips sensitive authentication headers on cross-origin redirects.
+    """
 
     def redirect_request(
         self,
@@ -124,7 +129,25 @@ class ValidatingRedirectHandler(urllib.request.HTTPRedirectHandler):
         newurl: str,
     ) -> urllib.request.Request | None:
         validate_fetch_url(newurl)
-        return super().redirect_request(req, fp, code, msg, headers, newurl)
+        new_req = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if new_req is None:
+            return None
+        old_parsed = urlparse(req.full_url)
+        new_parsed = urlparse(newurl)
+        old_port = old_parsed.port or (443 if old_parsed.scheme.lower() == "https" else 80)
+        new_port = new_parsed.port or (443 if new_parsed.scheme.lower() == "https" else 80)
+        old_origin = (old_parsed.scheme.lower(), (old_parsed.hostname or "").lower(), old_port)
+        new_origin = (new_parsed.scheme.lower(), (new_parsed.hostname or "").lower(), new_port)
+        if old_origin != new_origin:
+            sensitive = {"authorization", "proxy-authorization", "cookie"}
+            for header in list(new_req.headers.keys()):
+                if header.lower() in sensitive:
+                    del new_req.headers[header]
+            if hasattr(new_req, "unredirected_hdrs"):
+                for header in list(new_req.unredirected_hdrs.keys()):
+                    if header.lower() in sensitive:
+                        del new_req.unredirected_hdrs[header]
+        return new_req
 
 
 def _cache_meta_path(cache_path: Path) -> Path:
@@ -170,11 +193,20 @@ def fetch_text(
     cache_key = request_cache_key(url, headers)
     if cache_key in memory_cache:
         return memory_cache[cache_key]
+    effective_limit = min(size_limit, MAX_PROVIDER_BYTES) if (size_limit and size_limit > 0) else MAX_PROVIDER_BYTES
     cache_path = provider_cache_path(disk_cache_dir, url, headers) if disk_cache_dir else None
     if cache_path and fresh_provider_cache(cache_path):
-        body = cache_path.read_text(encoding="utf-8")
-        memory_cache[cache_key] = body
-        return body
+        meta = _read_cache_meta(cache_path)
+        body_ok = True
+        if "body_sha256" in meta:
+            if hashlib.sha256(cache_path.read_bytes()).hexdigest() != meta["body_sha256"]:
+                body_ok = False
+        if body_ok:
+            if cache_path.stat().st_size > effective_limit:
+                raise RuntimeError(f"provider response exceeds {effective_limit} bytes: {url}")
+            body = cache_path.read_text(encoding="utf-8")
+            memory_cache[cache_key] = body
+            return body
 
     validate_fetch_url(url)
     request_headers = {"User-Agent": "mihomo-mrs-converter"}
@@ -197,9 +229,6 @@ def fetch_text(
                 request_headers["If-None-Match"] = cache_meta["etag"]
             if "last_modified" in cache_meta:
                 request_headers["If-Modified-Since"] = cache_meta["last_modified"]
-
-    # Semantic size-limit: if specified and > 0, limit download; otherwise MAX_PROVIDER_BYTES hard cap
-    effective_limit = min(size_limit, MAX_PROVIDER_BYTES) if (size_limit and size_limit > 0) else MAX_PROVIDER_BYTES
 
     request = urllib.request.Request(url, headers=request_headers)
     context = ssl.create_default_context(cafile=certifi.where()) if certifi else ssl.create_default_context()
@@ -227,6 +256,7 @@ def fetch_text(
                         raise RuntimeError(f"provider response exceeds {effective_limit} bytes: {url}")
                 raw_bytes = b"".join(chunks)
                 body = raw_bytes.decode("utf-8-sig")
+                cached_bytes = body.encode("utf-8")
 
                 new_meta: dict[str, str] = {}
                 resp_headers = getattr(response, "headers", None)
@@ -238,13 +268,13 @@ def fetch_text(
                     if lm:
                         new_meta["last_modified"] = lm
                 if new_meta:
-                    new_meta["body_sha256"] = hashlib.sha256(raw_bytes).hexdigest()
+                    new_meta["body_sha256"] = hashlib.sha256(cached_bytes).hexdigest()
 
             memory_cache[cache_key] = body
             if cache_path:
                 cache_path.parent.mkdir(parents=True, exist_ok=True)
-                with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=cache_path.parent, delete=False) as handle:
-                    handle.write(body)
+                with tempfile.NamedTemporaryFile("wb", dir=cache_path.parent, delete=False) as handle:
+                    handle.write(cached_bytes)
                     temporary = Path(handle.name)
                 os.replace(temporary, cache_path)
                 meta_file = _cache_meta_path(cache_path)
@@ -263,6 +293,8 @@ def fetch_text(
                 meta = _read_cache_meta(cache_path)
                 if "body_sha256" in meta and hashlib.sha256(body_bytes).hexdigest() != meta["body_sha256"]:
                     raise RuntimeError(f"provider 304 received but cached body checksum mismatch for {url}") from exc
+                if len(body_bytes) > effective_limit:
+                    raise RuntimeError(f"provider response exceeds {effective_limit} bytes: {url}")
                 os.utime(cache_path, None)
                 meta_path = _cache_meta_path(cache_path)
                 if meta_path.exists():
