@@ -187,7 +187,9 @@ def export_loon(
         wrapper = simple_ruleset_wrapper(raw_rule)
         if wrapper is not None:
             reference = parse_ruleset_reference(raw_rule)
-            assert reference is not None
+            if reference is None:
+                record_top_level_unsupported(parsed.kind or "<empty>", raw_rule)
+                continue
             refs = find_ruleset_refs(raw_rule)
             if len(refs) != 1:
                 record_top_level_unsupported(parsed.kind or "<empty>", raw_rule)

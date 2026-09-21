@@ -137,8 +137,8 @@ def _rewrite_expression(
         name = direct[1]
         try:
             reference = parse_ruleset_reference(expression)
-            policy = reference.policy
-            suffix = reference.modifiers
+            policy = reference.policy if reference is not None else None
+            suffix = reference.modifiers if reference is not None else tuple(direct[2:])
         except SystemExit:
             policy = None
             suffix = tuple(direct[2:])
@@ -158,11 +158,11 @@ def _rewrite_expression(
 
     inner, wrapped = strip_balanced_outer_parentheses(expression)
     parts = split_top_level_commas(inner if wrapped else expression)
-    rewritten = []
+    rewritten_parts: list[str] = []
     for part in parts:
         _, is_wrapped = strip_balanced_outer_parentheses(part)
-        rewritten.append(_rewrite_expression(part, replacements, provider_behaviors) if is_wrapped else part)
-    result = ",".join(rewritten)
+        rewritten_parts.append(_rewrite_expression(part, replacements, provider_behaviors) if is_wrapped else part)
+    result = ",".join(rewritten_parts)
     return f"({result})" if wrapped else result
 
 

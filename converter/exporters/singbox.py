@@ -416,7 +416,9 @@ def _groups(config: dict[str, Any], segment_names: dict[str, str] | None = None)
             current = None
             continue
         reference = parse_ruleset_reference(raw)
-        assert reference is not None
+        if reference is None:
+            current = None
+            continue
         provider = wrapper[0][1]
         # no-resolve changes Mihomo semantics, but not Sing-box destination-IP
         # semantics.  Do not let it split an otherwise identical logical

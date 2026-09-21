@@ -289,7 +289,8 @@ def export_egern(
             if wrapper is None:
                 continue
             reference = parse_ruleset_reference(rule)
-            assert reference is not None
+            if reference is None:
+                raise ValueError(f"Egern structural unsupported rule: {rule}")
             parts, prefix, suffix = wrapper
             refs = find_ruleset_refs(rule)
             if len(refs) != 1:

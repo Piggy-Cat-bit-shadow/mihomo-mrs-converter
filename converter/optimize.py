@@ -119,7 +119,8 @@ def iter_ruleset_blocks(rules: list[Any], providers: dict[str, dict[str, Any]]) 
             index += 1
             continue
         reference = parse_ruleset_reference(rules[index])
-        assert reference is not None
+        if reference is None:
+            raise ValueError(f"invalid ruleset reference: {rules[index]}")
         routing = ruleset_routing_signature(reference)
         wrapper_signature = (wrapper[1], wrapper[2])
         names = [wrapper[0][1]]
@@ -129,7 +130,8 @@ def iter_ruleset_blocks(rules: list[Any], providers: dict[str, dict[str, Any]]) 
             if candidate is None or candidate[0][1] not in providers:
                 break
             next_reference = parse_ruleset_reference(rules[end])
-            assert next_reference is not None
+            if next_reference is None:
+                raise ValueError(f"invalid ruleset reference: {rules[end]}")
             if ruleset_routing_signature(next_reference) != routing or (candidate[1], candidate[2]) != wrapper_signature:
                 break
             names.append(candidate[0][1])
@@ -184,7 +186,8 @@ def optimize_config(
         group_modifiers: dict[tuple[str, str], set[str]] = {}
         for offset, name in enumerate(names):
             reference = parse_ruleset_reference(rules[index + offset])
-            assert reference is not None
+            if reference is None:
+                raise ValueError(f"invalid ruleset reference: {rules[index + offset]}")
             behavior = providers[name]["behavior"]
             modifiers = tuple(ruleset_suffix_for_behavior(reference.modifiers, behavior))
             key = (behavior, reference.policy)
@@ -283,7 +286,8 @@ def rewrite_rules(rules: list[Any], replacements: dict[str, list[str]], provider
         if wrapper is not None and wrapper[0][1] in replacements:
             parts, prefix, suffix = wrapper
             reference = parse_ruleset_reference(item)
-            assert reference is not None
+            if reference is None:
+                raise ValueError(f"invalid ruleset reference: {item}")
             for name in replacements[parts[1]]:
                 if prefix.upper() == "SUB-RULE":
                     nested = ",".join(["RULE-SET", name, *ruleset_suffix_for_behavior(tuple(parts[2:]), provider_behaviors[name])])

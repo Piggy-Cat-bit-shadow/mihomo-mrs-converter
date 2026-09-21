@@ -155,3 +155,37 @@ class PreflightTest(unittest.TestCase):
             input_path, segment_path, export_path = self.make_config(Path(tmp), rules=rules)
             with self.assertRaisesRegex(PreflightError, "no terminal MATCH"):
                 run_preflight(input_path, segment_path, export_path)
+
+    def test_decoupled_preflight_rules_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            input_path, _, _ = self.make_config(Path(tmp))
+            # Rules-only validation passes when rules are structurally valid
+            run_preflight(input_path, None, None)
+
+    def test_decoupled_preflight_segments_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _, segment_path, _ = self.make_config(Path(tmp))
+            # Segment-only validation passes when segments are valid
+            run_preflight(None, segment_path, None)
+
+            # Invalid segment role fails fast in segment-only mode
+            bad_seg = Path(tmp) / "bad-seg.yaml"
+            bad_seg.write_text(yaml.safe_dump({"segments": {"Lan": {"name": "Direct", "role": "invalid_role"}}}))
+            with self.assertRaisesRegex(PreflightError, "unknown role"):
+                run_preflight(None, bad_seg, None)
+
+    def test_decoupled_preflight_export_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _, _, export_path = self.make_config(Path(tmp))
+            # Export-only validation passes when export configuration is valid
+            run_preflight(None, None, export_path)
+
+            # Invalid policy map fails fast in export-only mode
+            bad_exp = Path(tmp) / "bad-exp.yaml"
+            bad_exp.write_text(yaml.safe_dump({
+                "singbox": {"policy-map": {"FOO": "REJECT-DROP"}},
+                "dns": {"groups": {"China": {"roles": ["direct"]}}},
+            }))
+            with self.assertRaisesRegex(PreflightError, "cannot introduce intrinsic rejection policy"):
+                run_preflight(None, None, bad_exp)
+
