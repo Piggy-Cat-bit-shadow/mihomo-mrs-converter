@@ -111,12 +111,46 @@ def fresh_provider_cache(path: Path, now: float | None = None) -> bool:
         return False
 
 
+CROSS_ORIGIN_ALLOWED_HEADERS = frozenset({
+    "user-agent",
+    "accept",
+    "accept-encoding",
+    "accept-language",
+})
+
+
+def _origin(url: str) -> tuple[str, str, int]:
+    parsed = urlparse(url)
+    scheme = parsed.scheme.lower()
+    port = parsed.port or (443 if scheme == "https" else 80)
+    hostname = (parsed.hostname or "").rstrip(".").lower()
+    return scheme, hostname, port
+
+
+def _sanitize_cross_origin_headers(request: urllib.request.Request) -> None:
+    """Sanitize request headers on cross-origin redirect using a strict safe allowlist.
+
+    Strips credentials, auth tokens, cookies, cache validators, and arbitrary
+    user headers. Preserves only safe transport/content-negotiation headers.
+    """
+    for header in list(request.headers.keys()):
+        if header.lower() not in CROSS_ORIGIN_ALLOWED_HEADERS:
+            del request.headers[header]
+    if hasattr(request, "unredirected_hdrs") and request.unredirected_hdrs:
+        for header in list(request.unredirected_hdrs.keys()):
+            if header.lower() not in CROSS_ORIGIN_ALLOWED_HEADERS:
+                del request.unredirected_hdrs[header]
+    if not any(k.lower() == "user-agent" for k in request.headers):
+        request.headers["User-agent"] = "mihomo-mrs-converter"
+
+
 class ValidatingRedirectHandler(urllib.request.HTTPRedirectHandler):
     """URL and redirect SSRF hardening.
 
     Blocks unsafe schemes, userinfo, and private IP literals on initial URL
     and redirect targets. Note that DNS resolution rebinding is outside the
-    current threat model. Strips sensitive authentication headers on cross-origin redirects.
+    current threat model. Strips sensitive and user-supplied custom headers
+    on cross-origin redirects using a strict safe allowlist.
     """
 
     def redirect_request(
@@ -132,21 +166,8 @@ class ValidatingRedirectHandler(urllib.request.HTTPRedirectHandler):
         new_req = super().redirect_request(req, fp, code, msg, headers, newurl)
         if new_req is None:
             return None
-        old_parsed = urlparse(req.full_url)
-        new_parsed = urlparse(newurl)
-        old_port = old_parsed.port or (443 if old_parsed.scheme.lower() == "https" else 80)
-        new_port = new_parsed.port or (443 if new_parsed.scheme.lower() == "https" else 80)
-        old_origin = (old_parsed.scheme.lower(), (old_parsed.hostname or "").lower(), old_port)
-        new_origin = (new_parsed.scheme.lower(), (new_parsed.hostname or "").lower(), new_port)
-        if old_origin != new_origin:
-            sensitive = {"authorization", "proxy-authorization", "cookie"}
-            for header in list(new_req.headers.keys()):
-                if header.lower() in sensitive:
-                    del new_req.headers[header]
-            if hasattr(new_req, "unredirected_hdrs"):
-                for header in list(new_req.unredirected_hdrs.keys()):
-                    if header.lower() in sensitive:
-                        del new_req.unredirected_hdrs[header]
+        if _origin(req.full_url) != _origin(newurl):
+            _sanitize_cross_origin_headers(new_req)
         return new_req
 
 

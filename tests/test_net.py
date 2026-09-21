@@ -259,46 +259,161 @@ class RetryAfterTest(unittest.TestCase):
         self.assertIsNotNone(redirected_req)
         self.assertEqual(redirected_req.full_url, "https://safe.example.com/target")
 
-    def test_cross_origin_redirect_strips_sensitive_headers(self) -> None:
+    def test_origin_helper(self) -> None:
+        from converter.net import _origin
+        self.assertEqual(_origin("https://example.com/a"), ("https", "example.com", 443))
+        self.assertEqual(_origin("https://example.com:443/b"), ("https", "example.com", 443))
+        self.assertEqual(_origin("http://example.com/a"), ("http", "example.com", 80))
+        self.assertEqual(_origin("http://example.com:80/b"), ("http", "example.com", 80))
+        self.assertEqual(_origin("https://example.com:8443/a"), ("https", "example.com", 8443))
+        self.assertEqual(_origin("https://EXAMPLE.COM./a"), ("https", "example.com", 443))
+        self.assertEqual(_origin("https://other.example.com/a"), ("https", "other.example.com", 443))
+
+    def test_1_cross_origin_custom_api_key_stripped(self) -> None:
+        import urllib.request
+        from converter.net import ValidatingRedirectHandler
+
+        handler = ValidatingRedirectHandler()
+        req = urllib.request.Request("https://a.example/start", headers={"X-API-Key": "secret", "User-Agent": "Custom/1.0"})
+        redirected = handler.redirect_request(req, None, 302, "Found", {}, "https://b.example/dest")
+        self.assertIsNotNone(redirected)
+        self.assertNotIn("X-API-Key", redirected.headers)
+        self.assertNotIn("x-api-key", redirected.headers)
+        self.assertNotIn("X-api-key", redirected.headers)
+        self.assertEqual(redirected.headers.get("User-agent"), "Custom/1.0")
+
+    def test_2_cross_origin_arbitrary_unknown_headers_stripped(self) -> None:
         import urllib.request
         from converter.net import ValidatingRedirectHandler
 
         handler = ValidatingRedirectHandler()
         req = urllib.request.Request(
-            "https://example.com/start",
+            "https://a.example/start",
             headers={
-                "Authorization": "Bearer secret-token",
-                "Proxy-Authorization": "Basic credit",
-                "Cookie": "session=xyz123",
-                "User-Agent": "CustomAgent/1.0",
-                "Accept": "text/plain",
+                "X-Random-Secret": "secret-1",
+                "X-Whatever": "secret-2",
+                "X-Service-Auth": "secret-3",
+                "My-Custom-Secret": "secret-4",
+                "Authorization": "Bearer tok",
+                "Cookie": "c=1",
+                "Accept": "text/yaml",
+                "Accept-Language": "en-US",
             },
         )
+        redirected = handler.redirect_request(req, None, 302, "Found", {}, "https://b.example/dest")
+        self.assertIsNotNone(redirected)
+        for forbidden in ["X-Random-Secret", "X-Whatever", "X-Service-Auth", "My-Custom-Secret", "Authorization", "Cookie"]:
+            self.assertNotIn(forbidden, redirected.headers)
+            self.assertNotIn(forbidden.lower(), redirected.headers)
+        self.assertEqual(redirected.headers.get("Accept"), "text/yaml")
+        self.assertEqual(redirected.headers.get("Accept-language"), "en-US")
+        self.assertEqual(redirected.headers.get("User-agent"), "mihomo-mrs-converter")
 
-        # Cross-origin redirect (different host)
-        cross_req = handler.redirect_request(req, None, 302, "Found", {}, "https://other.example.com/dest")
-        self.assertIsNotNone(cross_req)
-        self.assertNotIn("Authorization", cross_req.headers)
-        self.assertNotIn("authorization", cross_req.headers)
-        self.assertNotIn("Proxy-Authorization", cross_req.headers)
-        self.assertNotIn("proxy-authorization", cross_req.headers)
-        self.assertNotIn("Cookie", cross_req.headers)
-        self.assertNotIn("cookie", cross_req.headers)
-        self.assertEqual(cross_req.headers.get("User-agent"), "CustomAgent/1.0")
-        self.assertEqual(cross_req.headers.get("Accept"), "text/plain")
+    def test_3_same_origin_preserves_custom_headers(self) -> None:
+        import urllib.request
+        from converter.net import ValidatingRedirectHandler
 
-        # Cross-origin redirect (different port)
-        cross_port_req = handler.redirect_request(req, None, 302, "Found", {}, "https://example.com:8443/dest")
-        self.assertIsNotNone(cross_port_req)
-        self.assertNotIn("Authorization", cross_port_req.headers)
-        self.assertNotIn("Cookie", cross_port_req.headers)
+        handler = ValidatingRedirectHandler()
+        req = urllib.request.Request(
+            "https://a.example/path1",
+            headers={
+                "Authorization": "Bearer my-secret-token",
+                "X-API-Key": "api-key-123",
+                "X-Custom": "custom-val",
+                "User-Agent": "CustomAgent/2.0",
+            },
+        )
+        redirected = handler.redirect_request(req, None, 302, "Found", {}, "https://a.example/path2")
+        self.assertIsNotNone(redirected)
+        self.assertIn("Authorization", redirected.headers)
+        self.assertEqual(redirected.headers["Authorization"], "Bearer my-secret-token")
+        self.assertIn("X-api-key", redirected.headers)
+        self.assertIn("X-custom", redirected.headers)
+        self.assertEqual(redirected.headers.get("User-agent"), "CustomAgent/2.0")
 
-        # Same-origin redirect preserves sensitive headers
-        same_req = handler.redirect_request(req, None, 302, "Found", {}, "https://example.com/newpath")
-        self.assertIsNotNone(same_req)
-        self.assertIn("Authorization", same_req.headers)
-        self.assertIn("Cookie", same_req.headers)
-        self.assertEqual(same_req.headers.get("User-agent"), "CustomAgent/1.0")
+    def test_4_cross_port_is_cross_origin_and_strips_custom_headers(self) -> None:
+        import urllib.request
+        from converter.net import ValidatingRedirectHandler
+
+        handler = ValidatingRedirectHandler()
+        req = urllib.request.Request(
+            "https://a.example/start",
+            headers={"X-API-Key": "secret", "Authorization": "Bearer tok", "User-Agent": "Agent"},
+        )
+        redirected = handler.redirect_request(req, None, 302, "Found", {}, "https://a.example:8443/dest")
+        self.assertIsNotNone(redirected)
+        self.assertNotIn("X-API-Key", redirected.headers)
+        self.assertNotIn("x-api-key", redirected.headers)
+        self.assertNotIn("Authorization", redirected.headers)
+        self.assertEqual(redirected.headers.get("User-agent"), "Agent")
+
+    def test_5_scheme_change_is_cross_origin_and_strips_custom_headers(self) -> None:
+        import urllib.request
+        from converter.net import ValidatingRedirectHandler
+
+        handler = ValidatingRedirectHandler()
+        req = urllib.request.Request(
+            "https://a.example/start",
+            headers={"X-Custom-Secret": "secret", "Authorization": "Bearer tok"},
+        )
+        redirected = handler.redirect_request(req, None, 302, "Found", {}, "http://a.example/dest")
+        self.assertIsNotNone(redirected)
+        self.assertNotIn("X-Custom-Secret", redirected.headers)
+        self.assertNotIn("Authorization", redirected.headers)
+
+    def test_6_cross_origin_strips_cache_validators(self) -> None:
+        import urllib.request
+        from converter.net import ValidatingRedirectHandler
+
+        handler = ValidatingRedirectHandler()
+        req = urllib.request.Request(
+            "https://a.example/start",
+            headers={"If-None-Match": '"etag-123"', "If-Modified-Since": "Wed, 21 Oct 2025 07:28:00 GMT"},
+        )
+        redirected = handler.redirect_request(req, None, 302, "Found", {}, "https://b.example/dest")
+        self.assertIsNotNone(redirected)
+        self.assertNotIn("If-None-Match", redirected.headers)
+        self.assertNotIn("if-none-match", redirected.headers)
+        self.assertNotIn("If-none-match", redirected.headers)
+        self.assertNotIn("If-Modified-Since", redirected.headers)
+        self.assertNotIn("if-modified-since", redirected.headers)
+        self.assertNotIn("If-modified-since", redirected.headers)
+
+    def test_7_same_origin_preserves_cache_validators(self) -> None:
+        import urllib.request
+        from converter.net import ValidatingRedirectHandler
+
+        handler = ValidatingRedirectHandler()
+        req = urllib.request.Request(
+            "https://a.example/path1",
+            headers={"If-None-Match": '"etag-123"', "If-Modified-Since": "Wed, 21 Oct 2025 07:28:00 GMT"},
+        )
+        redirected = handler.redirect_request(req, None, 302, "Found", {}, "https://a.example/path2")
+        self.assertIsNotNone(redirected)
+        self.assertEqual(redirected.headers.get("If-none-match"), '"etag-123"')
+        self.assertEqual(redirected.headers.get("If-modified-since"), "Wed, 21 Oct 2025 07:28:00 GMT")
+
+    def test_8_cross_origin_sanitizes_both_headers_and_unredirected_hdrs(self) -> None:
+        import urllib.request
+        from converter.net import _sanitize_cross_origin_headers
+
+        req = urllib.request.Request("https://a.example/start")
+        req.add_header("X-Regular-Secret", "secret-reg")
+        req.add_header("User-Agent", "my-agent")
+        req.add_unredirected_header("X-Unredirected-Secret", "secret-unredir")
+        req.add_unredirected_header("Accept", "text/plain")
+
+        _sanitize_cross_origin_headers(req)
+
+        # Regular headers
+        self.assertNotIn("X-regular-secret", req.headers)
+        self.assertNotIn("x-regular-secret", req.headers)
+        self.assertEqual(req.headers.get("User-agent"), "my-agent")
+
+        # Unredirected headers
+        self.assertNotIn("X-unredirected-secret", req.unredirected_hdrs)
+        self.assertNotIn("x-unredirected-secret", req.unredirected_hdrs)
+        self.assertEqual(req.unredirected_hdrs.get("Accept"), "text/plain")
 
     def test_fetch_text_bom_hash_consistency_and_304(self) -> None:
         import tempfile
