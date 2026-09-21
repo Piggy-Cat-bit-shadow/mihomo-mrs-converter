@@ -115,9 +115,10 @@ class PipelineTest(unittest.TestCase):
             dist = root / "dist"
             dist.mkdir()
             (dist / "sentinel.txt").write_text("old-production", encoding="utf-8")
+            (dist / ".generation").write_text("gen-sentinel\n", encoding="utf-8")
             state = root / ".state"
             state.mkdir()
-            (state / "managed-state.yaml").write_text("version: 2\nbase_url: https://example.invalid/repo/main\nproviders: {}\n", encoding="utf-8")
+            (state / "managed-state.yaml").write_text("version: 2\nbase_url: https://example.invalid/repo/main\ngeneration: gen-sentinel\nproviders: {}\n", encoding="utf-8")
             complete = root / "complete.yaml"
             complete.write_text("rule-providers: {Custom: {behavior: domain}}\nrules: [MATCH, DIRECT]\n", encoding="utf-8")
             complete_before = complete.read_bytes()

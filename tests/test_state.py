@@ -205,6 +205,45 @@ class StateTest(unittest.TestCase):
             with self.assertRaisesRegex(SystemExit, "dist/state generation mismatch"):
                 read_managed_manifest(dist)
 
+    def test_read_manifest_requires_generation_field(self):
+        import yaml
+        with tempfile.TemporaryDirectory() as tmp:
+            dist = Path(tmp) / "dist"
+            dist.mkdir()
+            (dist / ".generation").write_text("any_gen\n")
+            state_dir = Path(tmp) / ".state"
+            state_dir.mkdir()
+            state_file = state_dir / "managed-state.yaml"
+
+            # Missing generation field
+            state_file.write_text(yaml.safe_dump({
+                "version": 2,
+                "base_url": self.BASE_URL,
+                "providers": {},
+            }))
+            with self.assertRaisesRegex(SystemExit, "requires non-empty generation field"):
+                read_managed_manifest(dist)
+
+            # Empty or whitespace generation field
+            state_file.write_text(yaml.safe_dump({
+                "version": 2,
+                "base_url": self.BASE_URL,
+                "providers": {},
+                "generation": "   ",
+            }))
+            with self.assertRaisesRegex(SystemExit, "requires non-empty generation field"):
+                read_managed_manifest(dist)
+
+            # Non-string generation field
+            state_file.write_text(yaml.safe_dump({
+                "version": 2,
+                "base_url": self.BASE_URL,
+                "providers": {},
+                "generation": 12345,
+            }))
+            with self.assertRaisesRegex(SystemExit, "requires non-empty generation field"):
+                read_managed_manifest(dist)
+
 
 if __name__ == "__main__":
     unittest.main()

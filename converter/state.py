@@ -47,12 +47,14 @@ def read_managed_manifest(dist: Path) -> dict[str, Any] | None:
         or not isinstance(manifest.get("providers"), dict)
     ):
         raise SystemExit(f"{path}: invalid managed state schema")
+    generation = manifest.get("generation")
+    if not isinstance(generation, str) or not generation.strip():
+        raise SystemExit(f"{path}: managed state v2 requires non-empty generation field")
     generation_path = dist / ".generation"
-    if manifest.get("generation") is not None:
-        if not generation_path.exists():
-            raise SystemExit(f"{path}: dist/.generation marker missing; refusing incremental refresh")
-        if generation_path.read_text(encoding="utf-8").strip() != manifest["generation"]:
-            raise SystemExit(f"{path}: dist/state generation mismatch; refusing incremental refresh")
+    if not generation_path.exists():
+        raise SystemExit(f"{path}: dist/.generation marker missing; refusing incremental refresh")
+    if generation_path.read_text(encoding="utf-8").strip() != generation:
+        raise SystemExit(f"{path}: dist/state generation mismatch; refusing incremental refresh")
     for name, state in manifest["providers"].items():
         if not isinstance(name, str) or not isinstance(state, dict) or not isinstance(state.get("fingerprint"), str):
             raise SystemExit(f"{path}: invalid managed provider state")
