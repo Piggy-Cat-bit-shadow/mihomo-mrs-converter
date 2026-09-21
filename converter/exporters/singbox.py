@@ -16,6 +16,7 @@ import shutil
 import subprocess
 import tempfile
 import time
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
 import urllib.error
 import urllib.request
@@ -31,7 +32,7 @@ from ..rules import DNS_DOMAIN_KINDS, parse_rule, parse_ruleset_reference, simpl
 from ..model import parse_provider_identity
 from ..net import read_capped_response as _read_capped, retry_after_seconds, ssl_context
 from ..data_sources import GEOLITE2_ASSETS, GEOLITE2_RELEASE
-from ..timing import current_timing, observe_external
+from ..timing import BuildTiming, activate, current_timing, observe_external
 from .singbox_asn import ASN_INDEX_FILENAME, ASN_INDEX_VERSION
 from .singbox_asn import collect_required_asns as _collect_required_asns
 from .singbox_srs import canonicalize_decompiled_rules as _canonicalize_decompiled_rules
@@ -535,44 +536,61 @@ def export_singbox_dns(
         source_dir, binary_dir = stage / "source", stage / "dns"
         source_dir.mkdir(); binary_dir.mkdir()
         result: dict[str, Any] = {"groups": {}, "srs": []}
-        for group in groups:
-            domain_payload, classical_payload = dns_payloads[group]
-            matchers: list[dict[str, Any]] = []
-            for raw in domain_payload:
-                field, value = _domain_value(raw)
-                matchers.append({field: [value]})
-            for number, raw in enumerate(classical_payload):
-                parsed = parse_rule(raw)
-                if parsed.kind not in DNS_DOMAIN_KINDS:
-                    raise SingBoxExportError(f"DNS {group} classical[{number}]: unsupported matcher {parsed.kind!r}")
-                if len(parsed.parts) < 2:
-                    raise SingBoxExportError(f"DNS {group} classical[{number}]: missing matcher value")
-                field, value = _matcher(parsed.kind, parsed.parts[1], f"DNS {group} classical[{number}]")
-                matchers.append({field: [value]})
-            source_rules = _aggregate(matchers)
-            if not source_rules:
-                raise SingBoxExportError(f"DNS {group}: generated empty SRS")
-            source = source_dir / f"{group}-domain.json"
-            binary = binary_dir / f"{group}-domain.srs"
-            source.write_text(json.dumps({"version": 2, "rules": source_rules}, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
-            observe_external("sing-box", f"compile DNS {group}", subprocess.run, [sing_box, "rule-set", "compile", str(source), "-o", str(binary)], check=True, capture_output=True, text=True)
-            decompiled = stage / f"{group}-domain.decompiled.json"
-            observe_external("sing-box", f"decompile DNS {group}", subprocess.run, [sing_box, "rule-set", "decompile", str(binary), "-o", str(decompiled)], check=True, capture_output=True, text=True)
-            decoded = json.loads(decompiled.read_text(encoding="utf-8"))
-            decompiled_rules = _canonicalize_decompiled_rules(decoded.get("rules", []))
-            allowed = {"domain", "domain_suffix", "domain_keyword", "domain_regex"}
-            if any(set(rule) - allowed for rule in decompiled_rules):
-                raise SingBoxExportError(f"DNS {group}: decompiled SRS contains a non-domain matcher")
-            for probe in _representatives(source_rules):
-                source_match = observe_external("sing-box", f"match DNS source {group}", subprocess.run, [sing_box, "rule-set", "match", "-f", "source", str(source), probe], capture_output=True, text=True)
-                binary_match = observe_external("sing-box", f"match DNS binary {group}", subprocess.run, [sing_box, "rule-set", "match", "-f", "binary", str(binary), probe], capture_output=True, text=True)
-                if (source_match.returncode == 0) != (binary_match.returncode == 0):
-                    raise SingBoxExportError(f"DNS {group}: source/binary semantic mismatch for {probe!r}")
-            target = output_dist / "dns" / "singbox"
-            target.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(binary, target / binary.name)
-            result["groups"][group] = {"domain": len(domain_payload), "classical-domain": len(classical_payload)}
-            result["srs"].append(binary.name)
+        def process_dns_group(group: str) -> tuple[str, str, dict[str, int], BuildTiming]:
+            sub_timing = BuildTiming()
+            with activate(sub_timing):
+                domain_payload, classical_payload = dns_payloads[group]
+                matchers: list[dict[str, Any]] = []
+                for raw in domain_payload:
+                    field, value = _domain_value(raw)
+                    matchers.append({field: [value]})
+                for number, raw in enumerate(classical_payload):
+                    parsed = parse_rule(raw)
+                    if parsed.kind not in DNS_DOMAIN_KINDS:
+                        raise SingBoxExportError(f"DNS {group} classical[{number}]: unsupported matcher {parsed.kind!r}")
+                    if len(parsed.parts) < 2:
+                        raise SingBoxExportError(f"DNS {group} classical[{number}]: missing matcher value")
+                    field, value = _matcher(parsed.kind, parsed.parts[1], f"DNS {group} classical[{number}]")
+                    matchers.append({field: [value]})
+                source_rules = _aggregate(matchers)
+                if not source_rules:
+                    raise SingBoxExportError(f"DNS {group}: generated empty SRS")
+                source = source_dir / f"{group}-domain.json"
+                binary = binary_dir / f"{group}-domain.srs"
+                source.write_text(json.dumps({"version": 2, "rules": source_rules}, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
+                observe_external("sing-box", f"compile DNS {group}", subprocess.run, [sing_box, "rule-set", "compile", str(source), "-o", str(binary)], check=True, capture_output=True, text=True)
+                decompiled = stage / f"{group}-domain.decompiled.json"
+                observe_external("sing-box", f"decompile DNS {group}", subprocess.run, [sing_box, "rule-set", "decompile", str(binary), "-o", str(decompiled)], check=True, capture_output=True, text=True)
+                decoded = json.loads(decompiled.read_text(encoding="utf-8"))
+                decompiled_rules = _canonicalize_decompiled_rules(decoded.get("rules", []))
+                allowed = {"domain", "domain_suffix", "domain_keyword", "domain_regex"}
+                if any(set(rule) - allowed for rule in decompiled_rules):
+                    raise SingBoxExportError(f"DNS {group}: decompiled SRS contains a non-domain matcher")
+                for probe in _representatives(source_rules):
+                    source_match = observe_external("sing-box", f"match DNS source {group}", subprocess.run, [sing_box, "rule-set", "match", "-f", "source", str(source), probe], capture_output=True, text=True)
+                    binary_match = observe_external("sing-box", f"match DNS binary {group}", subprocess.run, [sing_box, "rule-set", "match", "-f", "binary", str(binary), probe], capture_output=True, text=True)
+                    if (source_match.returncode == 0) != (binary_match.returncode == 0):
+                        raise SingBoxExportError(f"DNS {group}: source/binary semantic mismatch for {probe!r}")
+                target = output_dist / "dns" / "singbox"
+                target.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(binary, target / binary.name)
+                stats = {"domain": len(domain_payload), "classical-domain": len(classical_payload)}
+            return group, binary.name, stats, sub_timing
+
+        dns_workers = int(os.environ.get("CONVERTER_SINGBOX_WORKERS", str(min(2, max(1, os.cpu_count() or 1)))))
+        group_list = list(groups)
+        if len(group_list) <= 1 or dns_workers <= 1:
+            completed_dns = [process_dns_group(g) for g in group_list]
+        else:
+            with ThreadPoolExecutor(max_workers=min(dns_workers, len(group_list)), thread_name_prefix="sb-dns") as pool:
+                completed_dns = list(pool.map(process_dns_group, group_list))
+
+        timing = current_timing()
+        for group, binary_name, stats, sub_timing in completed_dns:
+            if timing is not None:
+                timing.merge(sub_timing)
+            result["groups"][group] = stats
+            result["srs"].append(binary_name)
         return result
     finally:
         shutil.rmtree(stage, ignore_errors=True)
@@ -648,32 +666,52 @@ def export_singbox(config: dict[str, Any], final_payloads: dict[str, list[str]],
                 group_buckets[group["id"]][bucket] = {"tag": artifact_tag, "rules": source_rules}
                 artifacts.append((artifact_tag, source_rules))
             if not buckets: raise SingBoxExportError(f"segment {group['tag']}: generated empty SRS")
-        artifact_times: dict[str, float] = {}
-        for artifact_tag, source_rules in artifacts:
+        def process_artifact(item: tuple[str, list[dict[str, Any]]]) -> tuple[str, float, BuildTiming]:
+            artifact_tag, source_rules = item
+            artifact_timing = BuildTiming()
             artifact_started = time.perf_counter()
-            source = source_dir / f"{artifact_tag}.json"
-            with _timed("Sing-box source JSON write"):
+            with activate(artifact_timing):
+                source = source_dir / f"{artifact_tag}.json"
                 source.write_text(json.dumps({"version": 2, "rules": source_rules}, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
-            binary = binary_dir / f"{artifact_tag}.srs"
-            with _timed("Sing-box compile"):
+                binary = binary_dir / f"{artifact_tag}.srs"
                 observe_external("sing-box", f"compile route {artifact_tag}", subprocess.run, [sing_box, "rule-set", "compile", str(source), "-o", str(binary)], check=True, capture_output=True, text=True)
-            decompiled = stage / f"{artifact_tag}.decompiled.json"
-            with _timed("Sing-box decompile"):
+                decompiled = stage / f"{artifact_tag}.decompiled.json"
                 observe_external("sing-box", f"decompile route {artifact_tag}", subprocess.run, [sing_box, "rule-set", "decompile", str(binary), "-o", str(decompiled)], check=True, capture_output=True, text=True)
-            with _timed("Sing-box decoded JSON parse"):
                 decoded = json.loads(decompiled.read_text(encoding="utf-8"))
                 decompiled_rules = decoded.get("rules", [])
-            if not _semantic_matcher_equivalent(source_rules, decompiled_rules):
-                raise SingBoxExportError(f"artifact {artifact_tag}: source/decompiled matcher mismatch")
-            with _timed("Sing-box representative probes"):
+                if not _semantic_matcher_equivalent(source_rules, decompiled_rules):
+                    raise SingBoxExportError(f"artifact {artifact_tag}: source/decompiled matcher mismatch")
                 for probe in _representatives(source_rules):
                     source_match = observe_external("sing-box", f"match route source {artifact_tag}", subprocess.run, [sing_box, "rule-set", "match", "-f", "source", str(source), probe], capture_output=True, text=True)
                     binary_match = observe_external("sing-box", f"match route binary {artifact_tag}", subprocess.run, [sing_box, "rule-set", "match", "-f", "binary", str(binary), probe], capture_output=True, text=True)
-                    if (source_match.returncode == 0) != (binary_match.returncode == 0): raise SingBoxExportError(f"artifact {artifact_tag}: source/binary semantic mismatch for {probe!r}")
-            artifact_times[artifact_tag] = time.perf_counter() - artifact_started
-            timing = current_timing()
-            if timing is not None:
-                timing.phases[f"Sing-box artifact {artifact_tag}"] = artifact_times[artifact_tag]
+                    if (source_match.returncode == 0) != (binary_match.returncode == 0):
+                        raise SingBoxExportError(f"artifact {artifact_tag}: source/binary semantic mismatch for {probe!r}")
+            elapsed = time.perf_counter() - artifact_started
+            return artifact_tag, elapsed, artifact_timing
+
+        num_workers = int(os.environ.get("CONVERTER_SINGBOX_WORKERS", "1"))
+        num_workers = max(1, min(8, num_workers))
+        artifact_times: dict[str, float] = {}
+
+        if len(artifacts) <= 1 or num_workers <= 1:
+            for item in artifacts:
+                tag, elapsed, sub_timing = process_artifact(item)
+                artifact_times[tag] = elapsed
+                timing = current_timing()
+                if timing is not None:
+                    timing.merge(sub_timing)
+                    timing.phases[f"Sing-box artifact {tag}"] = elapsed
+        else:
+            with ThreadPoolExecutor(max_workers=min(num_workers, len(artifacts)), thread_name_prefix="sb-artifact") as pool:
+                # Maintain deterministic order of results
+                results = list(pool.map(process_artifact, artifacts))
+                for tag, elapsed, sub_timing in results:
+                    artifact_times[tag] = elapsed
+                    timing = current_timing()
+                    if timing is not None:
+                        timing.merge(sub_timing)
+                        timing.phases[f"Sing-box artifact {tag}"] = elapsed
+
         with _timed("Sing-box route generation"):
             route_rules, final = _route_rules(config, groups, group_buckets, policy_map)
         route = {"route": {"rule_set": [{"type": "remote", "tag": tag, "format": "binary", "url": f"{base_url.rstrip('/')}/dist/singbox/{tag}.srs", "update_interval": "2d"} for tag, _source_rules in artifacts], "rules": route_rules}}
