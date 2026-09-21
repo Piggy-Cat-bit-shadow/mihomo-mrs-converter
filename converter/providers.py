@@ -131,16 +131,10 @@ def prefetch_provider_texts(
 
     def download(item: tuple[tuple[object, ...], tuple[str, dict[str, str] | None, list[str]]]) -> tuple[tuple[object, ...], str]:
         key, (url, headers, _names) = item
-        text = net.fetch_text(url, headers, {})
-        if disk_cache_dir:
-            cache_path = net.provider_cache_path(disk_cache_dir, url, headers)
-            cache_path.parent.mkdir(parents=True, exist_ok=True)
-            import os
-            import tempfile
-            with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=cache_path.parent, delete=False) as handle:
-                handle.write(text)
-                temporary = Path(handle.name)
-            os.replace(temporary, cache_path)
+        if disk_cache_dir is not None:
+            text = net.fetch_text(url, headers, {}, disk_cache_dir)
+        else:
+            text = net.fetch_text(url, headers, {})
         return key, text
 
     with ThreadPoolExecutor(max_workers=_prefetch_workers(len(pending))) if pending else _NullExecutor() as executor:

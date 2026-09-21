@@ -110,7 +110,39 @@ def fresh_provider_cache(path: Path, now: float | None = None) -> bool:
         return False
 
 
-def fetch_text(url: str, headers: dict[str, str] | None, memory_cache: dict[object, str], disk_cache_dir: Path | None = None) -> str:
+def _cache_meta_path(cache_path: Path) -> Path:
+    return cache_path.with_name(cache_path.name + ".meta")
+
+
+def _read_cache_meta(cache_path: Path) -> dict[str, str]:
+    meta_file = _cache_meta_path(cache_path)
+    if not meta_file.exists():
+        return {}
+    import json
+    try:
+        data = json.loads(meta_file.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            return {str(k): str(v) for k, v in data.items() if v is not None}
+    except Exception:
+        pass
+    return {}
+
+
+def _write_cache_meta(cache_path: Path, meta: dict[str, str]) -> None:
+    meta_file = _cache_meta_path(cache_path)
+    import json
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=cache_path.parent, delete=False) as handle:
+        json.dump(meta, handle)
+        temporary = Path(handle.name)
+    os.replace(temporary, meta_file)
+
+
+def fetch_text(
+    url: str,
+    headers: dict[str, str] | None,
+    memory_cache: dict[object, str],
+    disk_cache_dir: Path | None = None,
+) -> str:
     cache_key = request_cache_key(url, headers)
     if cache_key in memory_cache:
         return memory_cache[cache_key]
@@ -119,12 +151,22 @@ def fetch_text(url: str, headers: dict[str, str] | None, memory_cache: dict[obje
         body = cache_path.read_text(encoding="utf-8")
         memory_cache[cache_key] = body
         return body
+
     validate_fetch_url(url)
     request_headers = {"User-Agent": "mihomo-mrs-converter"}
     if headers:
         if not all(isinstance(k, str) and isinstance(v, str) for k, v in headers.items()):
             raise SystemExit("provider header keys and values must be strings")
         request_headers.update(headers)
+
+    cache_meta: dict[str, str] = {}
+    if cache_path and cache_path.exists():
+        cache_meta = _read_cache_meta(cache_path)
+        if "etag" in cache_meta:
+            request_headers["If-None-Match"] = cache_meta["etag"]
+        if "last_modified" in cache_meta:
+            request_headers["If-Modified-Since"] = cache_meta["last_modified"]
+
     request = urllib.request.Request(url, headers=request_headers)
     context = ssl.create_default_context(cafile=certifi.where()) if certifi else ssl.create_default_context()
     retryable = {408, 429, 500, 502, 503, 504}
@@ -146,6 +188,17 @@ def fetch_text(url: str, headers: dict[str, str] | None, memory_cache: dict[obje
                     if total > MAX_PROVIDER_BYTES:
                         raise RuntimeError(f"provider response exceeds {MAX_PROVIDER_BYTES} bytes: {url}")
                 body = b"".join(chunks).decode("utf-8-sig")
+
+                new_meta: dict[str, str] = {}
+                resp_headers = getattr(response, "headers", None)
+                if resp_headers:
+                    etag = resp_headers.get("ETag")
+                    if etag:
+                        new_meta["etag"] = etag
+                    lm = resp_headers.get("Last-Modified")
+                    if lm:
+                        new_meta["last_modified"] = lm
+
             memory_cache[cache_key] = body
             if cache_path:
                 cache_path.parent.mkdir(parents=True, exist_ok=True)
@@ -153,9 +206,31 @@ def fetch_text(url: str, headers: dict[str, str] | None, memory_cache: dict[obje
                     handle.write(body)
                     temporary = Path(handle.name)
                 os.replace(temporary, cache_path)
+                if new_meta:
+                    _write_cache_meta(cache_path, new_meta)
             return body
         except urllib.error.HTTPError as exc:
             last_error = exc
+            if exc.code == 304 and cache_path and cache_path.exists():
+                # 304 Not Modified: cache is still fresh, touch mtime to avoid re-requesting every time
+                os.utime(cache_path, None)
+                meta_path = _cache_meta_path(cache_path)
+                if meta_path.exists():
+                    os.utime(meta_path, None)
+                resp_headers = getattr(exc, "headers", None)
+                if resp_headers:
+                    etag = resp_headers.get("ETag")
+                    lm = resp_headers.get("Last-Modified")
+                    if etag or lm:
+                        meta = _read_cache_meta(cache_path)
+                        if etag:
+                            meta["etag"] = etag
+                        if lm:
+                            meta["last_modified"] = lm
+                        _write_cache_meta(cache_path, meta)
+                body = cache_path.read_text(encoding="utf-8")
+                memory_cache[cache_key] = body
+                return body
             if exc.code not in retryable or attempt == 3:
                 raise RuntimeError(f"provider fetch failed for {url}: HTTP {exc.code} on attempt {attempt + 1}/4") from exc
             delay = retry_after_seconds(exc.headers.get("Retry-After") if exc.headers else None) or 2 ** attempt
@@ -166,3 +241,4 @@ def fetch_text(url: str, headers: dict[str, str] | None, memory_cache: dict[obje
                 raise RuntimeError(f"provider fetch failed for {url}: {type(exc).__name__} on attempt 4/4") from exc
             time.sleep(2 ** attempt)
     raise RuntimeError(f"provider fetch failed for {url}") from last_error
+
