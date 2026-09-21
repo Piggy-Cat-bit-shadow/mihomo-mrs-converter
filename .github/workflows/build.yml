@@ -45,7 +45,7 @@ jobs:
       - run: pip install -r requirements-test.txt
       - name: Run static type check
         run: |
-          python -m mypy --ignore-missing-imports --disable-error-code import-untyped converter/state.py converter/model.py converter/rules.py converter/net.py converter/segments.py converter/export_config.py converter/identifiers.py
+          python -m mypy --ignore-missing-imports --disable-error-code import-untyped --follow-imports=silent converter/state.py converter/model.py converter/rules.py converter/net.py converter/segments.py converter/export_config.py converter/identifiers.py converter/providers.py converter/pipeline.py converter/validate.py
       - name: Install verified test binaries
         run: scripts/install-ci-tools.sh "$GITHUB_WORKSPACE/.tools"
       - name: Run tests

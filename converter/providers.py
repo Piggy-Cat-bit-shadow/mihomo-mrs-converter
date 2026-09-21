@@ -89,10 +89,14 @@ def _prefetch_workers(request_count: int) -> int:
     return max(1, min(16, configured, request_count))
 
 
+RequestKey = tuple[str, tuple[tuple[str, str], ...]]
+RequestEntry = tuple[str, dict[str, str] | None, list[str], list[int]]
+
+
 def prefetch_provider_texts(
     providers: dict[str, dict[str, Any]], referenced: set[str], memory_cache: dict[object, str], disk_cache_dir: Path | None = None
 ) -> ProviderPrefetch:
-    requests: dict[tuple[object, ...], tuple[str, dict[str, str] | None, list[str]]] = {}
+    requests: dict[RequestKey, RequestEntry] = {}
     for name, provider in providers.items():
         if name not in referenced:
             continue
@@ -126,14 +130,22 @@ def prefetch_provider_texts(
     cache_hits = sum(key in memory_cache for key in requests)
     disk_hits = 0
     if disk_cache_dir:
-        for key, (url, headers, _names, _limits) in requests.items():
+        import hashlib
+        for key, (url, headers, _names, limits) in requests.items():
             cache_path = net.provider_cache_path(disk_cache_dir, url, headers)
             if key not in memory_cache and net.fresh_provider_cache(cache_path):
+                positive = [lim for lim in limits if lim > 0]
+                effective_limit = min(positive) if positive else net.MAX_PROVIDER_BYTES
+                if cache_path.stat().st_size > effective_limit:
+                    continue
+                meta = net._read_cache_meta(cache_path)
+                if "body_sha256" in meta and hashlib.sha256(cache_path.read_bytes()).hexdigest() != meta["body_sha256"]:
+                    continue
                 memory_cache[key] = cache_path.read_text(encoding="utf-8")
                 disk_hits += 1
-    pending = [(key, request) for key, request in requests.items() if key not in memory_cache]
+    pending: list[tuple[RequestKey, RequestEntry]] = [(key, request) for key, request in requests.items() if key not in memory_cache]
 
-    def download(item: tuple[tuple[object, ...], tuple[str, dict[str, str] | None, list[str], list[int]]]) -> tuple[tuple[object, ...], str]:
+    def download(item: tuple[RequestKey, RequestEntry]) -> tuple[RequestKey, str]:
         key, (url, headers, _names, limits) = item
         positive = [lim for lim in limits if lim > 0]
         effective_limit = min(positive) if positive else None
@@ -165,8 +177,8 @@ class _NullExecutor:
     def __enter__(self) -> "_NullExecutor":
         return self
 
-    def __exit__(self, *_: Any) -> bool:
-        return False
+    def __exit__(self, *_: Any) -> None:
+        return None
 
     def map(self, _function: Any, _items: list[Any]) -> list[Any]:
         return []
