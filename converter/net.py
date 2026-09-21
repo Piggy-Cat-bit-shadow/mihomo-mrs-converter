@@ -35,6 +35,7 @@ def retry_after_seconds(value: str | None) -> float:
 
 MAX_PROVIDER_BYTES = 128 * 1024 * 1024
 PROVIDER_CACHE_TTL = 86400
+DEFAULT_USER_AGENT = "mihomo-mrs-converter"
 
 
 def ssl_context() -> ssl.SSLContext:
@@ -90,7 +91,7 @@ def validate_base_url(url: str) -> str:
 
 
 def request_cache_key(url: str, headers: dict[str, str] | None) -> tuple[str, tuple[tuple[str, str], ...]]:
-    effective = {"user-agent": "mihomo-mrs-converter"}
+    effective = {"user-agent": DEFAULT_USER_AGENT}
     if headers:
         if not all(isinstance(key, str) and isinstance(value, str) for key, value in headers.items()):
             raise SystemExit("provider header keys and values must be strings")
@@ -111,14 +112,6 @@ def fresh_provider_cache(path: Path, now: float | None = None) -> bool:
         return False
 
 
-CROSS_ORIGIN_ALLOWED_HEADERS = frozenset({
-    "user-agent",
-    "accept",
-    "accept-encoding",
-    "accept-language",
-})
-
-
 def _origin(url: str) -> tuple[str, str, int]:
     parsed = urlparse(url)
     scheme = parsed.scheme.lower()
@@ -128,20 +121,16 @@ def _origin(url: str) -> tuple[str, str, int]:
 
 
 def _sanitize_cross_origin_headers(request: urllib.request.Request) -> None:
-    """Sanitize request headers on cross-origin redirect using a strict safe allowlist.
+    """Rebuild request headers on cross-origin redirect.
 
-    Strips credentials, auth tokens, cookies, cache validators, and arbitrary
-    user headers. Preserves only safe transport/content-negotiation headers.
+    Inherits zero user-controlled headers. Replaces all headers in both
+    request.headers and request.unredirected_hdrs with only the fixed
+    framework-owned User-Agent.
     """
-    for header in list(request.headers.keys()):
-        if header.lower() not in CROSS_ORIGIN_ALLOWED_HEADERS:
-            del request.headers[header]
-    if hasattr(request, "unredirected_hdrs") and request.unredirected_hdrs:
-        for header in list(request.unredirected_hdrs.keys()):
-            if header.lower() not in CROSS_ORIGIN_ALLOWED_HEADERS:
-                del request.unredirected_hdrs[header]
-    if not any(k.lower() == "user-agent" for k in request.headers):
-        request.headers["User-agent"] = "mihomo-mrs-converter"
+    request.headers.clear()
+    if hasattr(request, "unredirected_hdrs") and request.unredirected_hdrs is not None:
+        request.unredirected_hdrs.clear()
+    request.add_header("User-Agent", DEFAULT_USER_AGENT)
 
 
 class ValidatingRedirectHandler(urllib.request.HTTPRedirectHandler):
@@ -149,8 +138,9 @@ class ValidatingRedirectHandler(urllib.request.HTTPRedirectHandler):
 
     Blocks unsafe schemes, userinfo, and private IP literals on initial URL
     and redirect targets. Note that DNS resolution rebinding is outside the
-    current threat model. Strips sensitive and user-supplied custom headers
-    on cross-origin redirects using a strict safe allowlist.
+    current threat model. Rebuilds headers on cross-origin redirects so that
+    no user-controlled headers (including custom User-Agent, Accept, or tokens)
+    can cross origins.
     """
 
     def redirect_request(
@@ -230,7 +220,7 @@ def fetch_text(
             return body
 
     validate_fetch_url(url)
-    request_headers = {"User-Agent": "mihomo-mrs-converter"}
+    request_headers = {"User-Agent": DEFAULT_USER_AGENT}
     if headers:
         if not all(isinstance(k, str) and isinstance(v, str) for k, v in headers.items()):
             raise SystemExit("provider header keys and values must be strings")
