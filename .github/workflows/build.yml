@@ -38,7 +38,10 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
-        with: {python-version: "3.12"}
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: "requirements-test.txt"
       - run: pip install -r requirements-test.txt
       - name: Install verified test binaries
         run: scripts/install-ci-tools.sh "$GITHUB_WORKSPACE/.tools"
@@ -53,6 +56,7 @@ jobs:
           name: test-log-${{ github.sha }}
           path: pytest.log
           compression-level: 0
+          retention-days: 7
 
   build:
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-24.04' }}
@@ -61,8 +65,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with: {persist-credentials: false}
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
-        with: {python-version: "3.12"}
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: "requirements.txt"
       - run: pip install -r requirements.txt
+      - name: Run static preflight
+        run: |
+          python -m converter.preflight config/rules.yaml --segment-names segment-names.yaml --export-config config/export.yaml
       - name: Install verified binaries
         run: scripts/install-ci-tools.sh "$GITHUB_WORKSPACE/.tools"
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -74,13 +84,20 @@ jobs:
           path: .cache/providers
           key: provider-cache-v1-${{ runner.os }}-${{ github.run_id }}
           restore-keys: provider-cache-v1-${{ runner.os }}-
-      - name: Build and audit
+      - name: Build rules
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          CONVERTER_SINGBOX_WORKERS: "4"
         run: |
           python -m converter config/rules.yaml --segment-names segment-names.yaml --export-config config/export.yaml --base-url "$BASE_URL" --mihomo ./.tools/mihomo --sing-box ./.tools/sing-box
+      - name: Audit generated artifacts
+        run: |
           python -m converter.audit dist --mihomo ./.tools/mihomo --sing-box ./.tools/sing-box
+      - name: Production profile audit
+        run: |
           python -m converter.production_audit dist --segment-names segment-names.yaml --export-config config/export.yaml
+      - name: Verify bytecode and git integrity
+        run: |
           python -m compileall -q converter
           git diff --check
       - name: Upload verified generated artifacts
@@ -92,6 +109,7 @@ jobs:
             .state/managed-state.yaml
           include-hidden-files: true
           compression-level: 0
+          retention-days: 1
 
   publish:
     needs: [test, build]
@@ -100,7 +118,7 @@ jobs:
     permissions: {contents: write}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with: {fetch-depth: 0}
+        with: {fetch-depth: 1}
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: verified-generated-${{ github.sha }}
@@ -110,14 +128,18 @@ jobs:
           set -euo pipefail
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git fetch origin main
+          git fetch --no-tags --depth=20 origin main
           git checkout --detach origin/main
 
+          # Ensure the commit we built is reachable or compare against origin/main.
           # Do not publish an artifact built from an older source tree over a
           # newer source commit. The newer push will run its own build.
-          if ! git diff --quiet "${GITHUB_SHA}..origin/main" -- . ':(exclude)dist/**' ':(exclude).state/**'; then
-            echo "main changed outside generated artifacts while this run was building; retry via the newer workflow"
-            exit 1
+          if [[ "$(git rev-parse HEAD)" != "$GITHUB_SHA" ]]; then
+            git fetch --no-tags origin "$GITHUB_SHA"
+            if ! git diff --quiet "${GITHUB_SHA}..HEAD" -- . ':(exclude)dist/**' ':(exclude).state/**'; then
+              echo "main changed outside generated artifacts while this run was building; retry via the newer workflow"
+              exit 1
+            fi
           fi
 
           rm -rf dist .state
