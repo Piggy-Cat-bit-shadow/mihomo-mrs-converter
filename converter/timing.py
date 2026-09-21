@@ -73,6 +73,61 @@ class BuildTiming:
             print(f"external {kind} calls:       {stats.calls} calls, {stats.seconds:.2f}s")
         print("==================================")
 
+    def to_markdown_summary(self) -> str:
+        lines: list[str] = [
+            "### ⏱️ Build Performance Summary\n",
+            "| Phase | Duration | Status |",
+            "| :--- | :--- | :--- |",
+        ]
+        for label in (
+            "provider prefetch",
+            "provider processing",
+            "optimize config",
+            "materialize Mihomo",
+            "validate final config",
+            "Egern export",
+            "Loon export",
+            "Sing-box route export",
+            "Sing-box DNS export",
+            "DNS export",
+            "parallel exporter wall-clock",
+            "audit",
+            "total build",
+        ):
+            if label in self.phases or label in self.skipped:
+                duration = f"{self.phases.get(label, 0.0):.2f}s"
+                status = "Skipped" if label in self.skipped else "Completed"
+                lines.append(f"| {label} | `{duration}` | {status} |")
+
+        if self.notes:
+            lines.append("\n#### 📦 Build Notes & Metrics\n")
+            lines.append("| Metric | Value |")
+            lines.append("| :--- | :--- |")
+            for label, value in sorted(self.notes.items()):
+                lines.append(f"| {label} | `{value}` |")
+
+        if self.external:
+            lines.append("\n#### ⚙️ External Binaries\n")
+            lines.append("| Binary | Calls | Total Time | Slowest Call |")
+            lines.append("| :--- | :--- | :--- | :--- |")
+            for kind, stats in sorted(self.external.items()):
+                slowest = f"{stats.slowest_seconds:.2f}s ({stats.slowest_label})" if stats.slowest_label else f"{stats.slowest_seconds:.2f}s"
+                lines.append(f"| `{kind}` | {stats.calls} | `{stats.seconds:.2f}s` | `{slowest}` |")
+
+        lines.append("")
+        return "\n".join(lines)
+
+    def write_step_summary(self) -> None:
+        import os
+        summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+        if summary_path:
+            try:
+                with open(summary_path, "a", encoding="utf-8") as f:
+                    f.write(self.to_markdown_summary() + "\n")
+            except Exception as exc:
+                print(f"Warning: failed to write GITHUB_STEP_SUMMARY: {exc}")
+
+
 
 _ACTIVE_TIMING: ContextVar[BuildTiming | None] = ContextVar("active_build_timing", default=None)
 

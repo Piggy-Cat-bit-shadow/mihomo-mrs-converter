@@ -97,6 +97,10 @@ def build(config: BuildConfig) -> BuildResult:
     prefetch_started = time.perf_counter()
     prefetch = prefetch_provider_texts(providers, referenced, context.memory_cache, config.provider_cache)
     timing.phases["provider prefetch"] = time.perf_counter() - prefetch_started
+    timing.notes["provider prefetch"] = (
+        f"{len(referenced)} providers (unique: {prefetch.unique_requests}, mem-hits: {prefetch.cache_hits}, "
+        f"disk-hits: {prefetch.disk_hits}, downloads: {prefetch.downloads})"
+    )
     print(
         f"provider prefetch: {len(referenced)} providers in {timing.phases['provider prefetch']:.2f}s "
         f"(unique requests: {prefetch.unique_requests}, memory hits: {prefetch.cache_hits}, disk hits: {prefetch.disk_hits}, downloads: {prefetch.downloads})"
@@ -227,5 +231,10 @@ def build(config: BuildConfig) -> BuildResult:
 
     timing.phases["total export/publish"] = time.perf_counter() - export_started
     timing.phases["total build"] = time.perf_counter() - build_started
+    timing.notes["generated providers"] = f"{len(final.get('rule-providers', {}))} total"
+    mrs_count = sum(1 for p in final.get("rule-providers", {}).values() if p.get("format") == "mrs")
+    yaml_count = sum(1 for p in final.get("rule-providers", {}).values() if p.get("format") == "yaml")
+    timing.notes["artifacts generated"] = f"{mrs_count} MRS, {yaml_count} YAML"
     timing.print_report()
+    timing.write_step_summary()
     return BuildResult(final, final_payloads, dedup_stats, exporter_stats)
