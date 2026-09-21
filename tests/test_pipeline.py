@@ -41,7 +41,7 @@ class PipelineTest(unittest.TestCase):
             no_op = {"route": {}}
             snapshots = []
             for workers, name in (("1", "dist-one"), ("8", "dist-eight")):
-                dist = root / name
+                dist = root / name / "dist"
                 with patch.dict("os.environ", {"PROVIDER_PREFETCH_WORKERS": workers}), patch("converter.net.fetch_text", side_effect=fetch), patch("converter.pipeline.export_egern", return_value=no_op), patch("converter.pipeline.export_loon", return_value=no_op), patch("converter.pipeline.export_singbox", return_value=no_op), patch("converter.pipeline.export_singbox_dns", return_value=no_op), patch("converter.pipeline.export_dns", return_value=no_op):
                     build(BuildConfig(input_path, dist, "https://example.invalid/repo/main", mihomo, None))
                 snapshots.append({path.relative_to(dist): path.read_bytes() for path in dist.rglob("*") if path.is_file()})

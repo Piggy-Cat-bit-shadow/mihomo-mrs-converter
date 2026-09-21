@@ -43,6 +43,9 @@ jobs:
           cache: "pip"
           cache-dependency-path: "requirements-test.txt"
       - run: pip install -r requirements-test.txt
+      - name: Run static type check
+        run: |
+          python -m mypy --ignore-missing-imports converter/state.py converter/model.py converter/rules.py converter/net.py converter/segments.py converter/export_config.py converter/identifiers.py
       - name: Install verified test binaries
         run: scripts/install-ci-tools.sh "$GITHUB_WORKSPACE/.tools"
       - name: Run tests
