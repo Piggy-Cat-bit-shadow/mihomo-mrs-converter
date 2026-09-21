@@ -84,7 +84,21 @@ BlockHttpDNS:
 
 ## 输出
 
-生成物发布在 `rules` 分支的 `dist/`：
+`main` 是本仓库唯一的长期分支，源码、配置、测试、生成物和正式构建状态都在其中：
+
+```text
+main/
+├── source code
+├── config
+├── tests
+├── scripts
+├── dist        # generated production rules
+└── .state      # managed build state
+```
+
+GitHub Actions 会在源码或配置变化后自动生成并提交 `dist/` 与 `.state/`。公开订阅 URL 使用 `/main/dist/...`；本仓库不再使用 `rules` 分支。
+
+生成目录结构保持稳定：
 
 ```text
 dist/

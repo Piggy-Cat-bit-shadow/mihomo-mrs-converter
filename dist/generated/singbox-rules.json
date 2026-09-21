@@ -1,0 +1,87 @@
+{
+  "route": {
+    "rule_set": [
+      {
+        "type": "remote",
+        "tag": "HTTPDNS",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/singbox/HTTPDNS.srs",
+        "update_interval": "2d"
+      },
+      {
+        "type": "remote",
+        "tag": "Direct",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/singbox/Direct.srs",
+        "update_interval": "2d"
+      },
+      {
+        "type": "remote",
+        "tag": "AI",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/singbox/AI.srs",
+        "update_interval": "2d"
+      },
+      {
+        "type": "remote",
+        "tag": "Global",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/singbox/Global.srs",
+        "update_interval": "2d"
+      },
+      {
+        "type": "remote",
+        "tag": "China",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/singbox/China.srs",
+        "update_interval": "2d"
+      }
+    ],
+    "rules": [
+      {
+        "rule_set": [
+          "HTTPDNS"
+        ],
+        "action": "reject"
+      },
+      {
+        "rule_set": [
+          "Direct"
+        ],
+        "action": "route",
+        "outbound": "direct"
+      },
+      {
+        "rule_set": [
+          "AI"
+        ],
+        "network": [
+          "udp"
+        ],
+        "action": "reject"
+      },
+      {
+        "rule_set": [
+          "AI"
+        ],
+        "action": "route",
+        "outbound": "🤖 AI"
+      },
+      {
+        "rule_set": [
+          "Global"
+        ],
+        "action": "route",
+        "outbound": "🌍 国外流量"
+      },
+      {
+        "rule_set": [
+          "China"
+        ],
+        "action": "route",
+        "outbound": "direct"
+      }
+    ],
+    "final": "🌍 国外流量"
+  }
+}

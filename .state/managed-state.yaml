@@ -1,0 +1,95 @@
+version: 2
+base_url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main
+providers:
+  HTTPDNS-domain:
+    name: HTTPDNS-domain
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/HTTPDNS-domain.mrs
+    path: ./ruleset/HTTPDNS-domain.mrs
+    behavior: domain
+    format: mrs
+    fingerprint: 851e3580ca0b7a5c2865ed287198c6dd747b7cb012830d05beac382e92d0edb8
+  HTTPDNS-ip:
+    name: HTTPDNS-ip
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/HTTPDNS-ip.mrs
+    path: ./ruleset/HTTPDNS-ip.mrs
+    behavior: ipcidr
+    format: mrs
+    fingerprint: 41da714bbd44a153a127ea742a47b454f0ebc1682975762a27ccc0f27771a420
+  Direct-domain:
+    name: Direct-domain
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/Direct-domain.mrs
+    path: ./ruleset/Direct-domain.mrs
+    behavior: domain
+    format: mrs
+    fingerprint: e459ddd5ca79760770730ac75f03781edfa06a93e0d75622f848cc7d10c829a0
+  Direct-classical:
+    name: Direct-classical
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/Direct-classical.yaml
+    path: ./ruleset/Direct-classical.yaml
+    behavior: classical
+    format: yaml
+    fingerprint: 911e9dafd57ba57271729ab2370e3652618f5d6f99b2a0882d2806c0d4d47eb6
+  AI-domain:
+    name: AI-domain
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/AI-domain.mrs
+    path: ./ruleset/AI-domain.mrs
+    behavior: domain
+    format: mrs
+    fingerprint: de4d525a180fac48f0e62c65c23da7f74f00f881e491644a2a3d30e5aeceaa7e
+  AI-classical:
+    name: AI-classical
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/AI-classical.yaml
+    path: ./ruleset/AI-classical.yaml
+    behavior: classical
+    format: yaml
+    fingerprint: fe3e4534b7cc71331c640ee52a56c136ae8b92396d41427b44fc4c81aa9d444b
+  AI-ip:
+    name: AI-ip
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/AI-ip.mrs
+    path: ./ruleset/AI-ip.mrs
+    behavior: ipcidr
+    format: mrs
+    fingerprint: 3e1749785904c411231d8ab383ec822b290903a2f6d925e43b6d58e949db51ed
+  Global-domain:
+    name: Global-domain
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/Global-domain.mrs
+    path: ./ruleset/Global-domain.mrs
+    behavior: domain
+    format: mrs
+    fingerprint: 5c75333ab32c9fffb24184d2b2ddc35e0c81042ed14f4e05d8d98cc0683bfb74
+  Global-classical:
+    name: Global-classical
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/Global-classical.yaml
+    path: ./ruleset/Global-classical.yaml
+    behavior: classical
+    format: yaml
+    fingerprint: 8acc3db040c627f06f9a7b996d3e6dc63411f804140c45d9ce0ab06bd13f4a55
+  Global-ip:
+    name: Global-ip
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/Global-ip.mrs
+    path: ./ruleset/Global-ip.mrs
+    behavior: ipcidr
+    format: mrs
+    fingerprint: aaa486fb7bb74bb5e606f3d39c8377e737145805dbc1472b4b76b58e8f6cf3bf
+  China-domain:
+    name: China-domain
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/China-domain.mrs
+    path: ./ruleset/China-domain.mrs
+    behavior: domain
+    format: mrs
+    fingerprint: 3cdca3788d00e3233d41b2c4356c86cb700fefc29790c5fe0c800a02312d1c76
+  China-classical:
+    name: China-classical
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/China-classical.yaml
+    path: ./ruleset/China-classical.yaml
+    behavior: classical
+    format: yaml
+    fingerprint: 218f97183d08d999616528e77ce247475557e6eb66512760ff799045747922c0
+  China-ip:
+    name: China-ip
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/China-ip.mrs
+    path: ./ruleset/China-ip.mrs
+    behavior: ipcidr
+    format: mrs
+    fingerprint: 981374ad825cb4bf510ecc87f3f90b4c9e062ea3c1da28377e7f9220905ae400
+generation: d80f1ec51834ca20a3c824a63c5a84fc03a591d5fb696683bde1060cbdd84ce3

@@ -11,7 +11,12 @@ on:
     - cron: "25 3 1,6,11,16,21,26 * *"
   push:
     branches: ["main"]
-    paths-ignore: ["README.md", "LICENSE", "LICENSE.*"]
+    paths-ignore:
+      - "dist/**"
+      - ".state/**"
+      - "README.md"
+      - "LICENSE"
+      - "LICENSE.*"
 
 concurrency:
   group: build-${{ github.ref }}
@@ -21,7 +26,7 @@ env:
   SING_BOX_VERSION: "1.14.0"
   MIHOMO_SHA256: "cf06ce2c7d1421bdbda14ee4a5b6046672dc35ebf8eecd8e77504ec3c0ed9a84"
   SING_BOX_SHA256: "2375de6999f4f56ab46b4fc5ddf26a6aba1d3e61a0f4e7ddec2f4690457d5f63"
-  BASE_URL: https://raw.githubusercontent.com/${{ github.repository }}/rules
+  BASE_URL: https://raw.githubusercontent.com/${{ github.repository }}/main
 
 permissions:
   contents: read
@@ -95,36 +100,33 @@ jobs:
     permissions: {contents: write}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with: {fetch-depth: 1}
+        with: {fetch-depth: 0}
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: verified-generated-${{ github.sha }}
           path: .verified-generated
-      - name: Publish rules branch
+      - name: Publish generated artifacts to main
         run: |
           set -euo pipefail
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          if git ls-remote --exit-code --heads origin rules >/dev/null 2>&1; then
-            git fetch --depth=1 origin rules:refs/remotes/origin/rules
-            expected_rules_sha="$(git rev-parse refs/remotes/origin/rules)"
-            git switch --detach "$expected_rules_sha"
-            git switch --orphan rules-snapshot
-            git read-tree --empty
-            git branch -M rules
-          else
-            expected_rules_sha=""
-            git switch --orphan rules
-            git read-tree --empty
+          git fetch origin main
+          git checkout --detach origin/main
+
+          # Do not publish an artifact built from an older source tree over a
+          # newer source commit. The newer push will run its own build.
+          if ! git diff --quiet "${GITHUB_SHA}..origin/main" -- . ':(exclude)dist/**' ':(exclude).state/**'; then
+            echo "main changed outside generated artifacts while this run was building; retry via the newer workflow"
+            exit 1
           fi
+
           rm -rf dist .state
           cp -a .verified-generated/dist dist
           cp -a .verified-generated/.state .state
-          git add -A dist .state
-          if git diff --cached --quiet; then exit 0; fi
-          git commit -m "build: update generated rules"
-          if [[ -n "$expected_rules_sha" ]]; then
-            git push --force-with-lease="refs/heads/rules:$expected_rules_sha" origin rules
-          else
-            git push --force-with-lease="refs/heads/rules:" origin rules
+          git add dist .state
+          if git diff --cached --quiet; then
+            echo "Generated artifacts unchanged."
+            exit 0
           fi
+          git commit -m "build: update generated rules"
+          git push origin HEAD:main

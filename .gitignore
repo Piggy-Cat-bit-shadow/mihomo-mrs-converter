@@ -1,7 +1,8 @@
-dist/
-.state/
 .cache/
 __pycache__/
 .pytest_cache/
 .venv/
 venv/
+.tools/
+.state/*
+!.state/managed-state.yaml
