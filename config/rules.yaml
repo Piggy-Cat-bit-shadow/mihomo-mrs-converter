@@ -341,10 +341,10 @@ rule-providers:
     interval: 172800
 rules:
 - RULE-SET,BlockHttpDNS,REJECT,no-resolve
-- RULE-SET,Lan,🏠 国内流量
-- RULE-SET,private,🏠 国内流量
-- RULE-SET,me-China,🏠 国内流量
-- RULE-SET,wechat,🏠 国内流量
+- RULE-SET,Lan,DIRECT
+- RULE-SET,private,DIRECT
+- RULE-SET,me-China,DIRECT
+- RULE-SET,wechat,DIRECT
 - SUB-RULE,(RULE-SET,me-pure),AI-Routing
 - SUB-RULE,(RULE-SET,AppleProxy),AI-Routing
 - SUB-RULE,(RULE-SET,AppleIntelligence),AI-Routing
@@ -381,15 +381,15 @@ rules:
 - RULE-SET,tiktok,🌍 国外流量
 - RULE-SET,google,🌍 国外流量
 - RULE-SET,global,🌍 国外流量
-- RULE-SET,apple,🏠 国内流量
-- RULE-SET,icloud,🏠 国内流量
-- RULE-SET,qcloud,🏠 国内流量
-- RULE-SET,DouYin,🏠 国内流量
-- RULE-SET,BiliBili,🏠 国内流量
-- RULE-SET,BaiDuTieBa,🏠 国内流量
-- RULE-SET,alibaba-domain,🏠 国内流量
-- RULE-SET,alibaba,🏠 国内流量
-- RULE-SET,ChinaMax-domain,🏠 国内流量
-- RULE-SET,ChinaMax-classical,🏠 国内流量
-- RULE-SET,ChinaMax-ip,🏠 国内流量,no-resolve
+- RULE-SET,apple,DIRECT
+- RULE-SET,icloud,DIRECT
+- RULE-SET,qcloud,DIRECT
+- RULE-SET,DouYin,DIRECT
+- RULE-SET,BiliBili,DIRECT
+- RULE-SET,BaiDuTieBa,DIRECT
+- RULE-SET,alibaba-domain,DIRECT
+- RULE-SET,alibaba,DIRECT
+- RULE-SET,ChinaMax-domain,DIRECT
+- RULE-SET,ChinaMax-classical,DIRECT
+- RULE-SET,ChinaMax-ip,DIRECT,no-resolve
 - MATCH,🌍 国外流量
