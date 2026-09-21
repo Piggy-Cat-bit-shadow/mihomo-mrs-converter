@@ -103,6 +103,108 @@ class StateTest(unittest.TestCase):
         with self.assertRaisesRegex(SystemExit, "not contiguous"):
             refresh_complete_config(noncontiguous, final, self._manifest({"A": a, "B": b}), self.BASE_URL)
 
+    def test_bootstrap_managed_manifest_success_and_type_error_fix(self):
+        from converter.state import bootstrap_managed_manifest
+        p_a = self._provider("A")
+        p_b = self._provider("B")
+        complete = {
+            "rule-providers": {"A": p_a, "B": p_b},
+            "rules": ["DOMAIN,custom.com,DIRECT", "RULE-SET,A,DIRECT", "RULE-SET,B,Proxy", "MATCH,DIRECT"],
+        }
+        final = {
+            "rule-providers": {"A": p_a, "B": p_b},
+            "rules": ["RULE-SET,A,DIRECT", "RULE-SET,B,Proxy"],
+        }
+        manifest = bootstrap_managed_manifest(complete, final, self.BASE_URL)
+        self.assertEqual(manifest["version"], 2)
+        self.assertIn("A", manifest["providers"])
+        self.assertIn("B", manifest["providers"])
+
+    def test_bootstrap_managed_manifest_rejects_candidate_length_mismatch(self):
+        from converter.state import bootstrap_managed_manifest
+        p_a = self._provider("A")
+        p_b = self._provider("B")
+        complete = {
+            "rule-providers": {"A": p_a, "B": p_b},
+            "rules": ["RULE-SET,A,DIRECT", "MATCH,DIRECT"],
+        }
+        final = {
+            "rule-providers": {"A": p_a, "B": p_b},
+            "rules": ["RULE-SET,A,DIRECT", "RULE-SET,B,Proxy"],
+        }
+        with self.assertRaisesRegex(SystemExit, "does not match generated rules"):
+            bootstrap_managed_manifest(complete, final, self.BASE_URL)
+
+    def test_bootstrap_managed_manifest_rejects_semantic_mismatch(self):
+        from converter.state import bootstrap_managed_manifest
+        p_a = self._provider("A")
+        p_b = self._provider("B")
+        complete = {
+            "rule-providers": {"A": p_a, "B": p_b},
+            "rules": ["RULE-SET,A,DIRECT", "RULE-SET,B,REJECT"],
+        }
+        final = {
+            "rule-providers": {"A": p_a, "B": p_b},
+            "rules": ["RULE-SET,A,DIRECT", "RULE-SET,B,Proxy"],
+        }
+        with self.assertRaisesRegex(SystemExit, "policy or modifier mismatch"):
+            bootstrap_managed_manifest(complete, final, self.BASE_URL)
+
+    def test_bootstrap_managed_manifest_rejects_non_contiguous_rules(self):
+        from converter.state import bootstrap_managed_manifest
+        p_a = self._provider("A")
+        p_b = self._provider("B")
+        complete = {
+            "rule-providers": {"A": p_a, "B": p_b},
+            "rules": ["RULE-SET,A,DIRECT", "DOMAIN,barrier.com,DIRECT", "RULE-SET,B,Proxy"],
+        }
+        final = {
+            "rule-providers": {"A": p_a, "B": p_b},
+            "rules": ["RULE-SET,A,DIRECT", "RULE-SET,B,Proxy"],
+        }
+        with self.assertRaisesRegex(SystemExit, "contiguous"):
+            bootstrap_managed_manifest(complete, final, self.BASE_URL)
+
+    def test_bootstrap_managed_manifest_rejects_managed_provider_in_sub_rules(self):
+        from converter.state import bootstrap_managed_manifest
+        p_a = self._provider("A")
+        complete = {
+            "rule-providers": {"A": p_a},
+            "sub-rules": {"Sub1": ["RULE-SET,A,DIRECT"]},
+            "rules": ["RULE-SET,A,DIRECT"],
+        }
+        final = {
+            "rule-providers": {"A": p_a},
+            "rules": ["RULE-SET,A,DIRECT"],
+        }
+        with self.assertRaisesRegex(SystemExit, "managed provider appears in sub-rules"):
+            bootstrap_managed_manifest(complete, final, self.BASE_URL)
+
+    def test_generation_marker_validation_in_read_manifest(self):
+        from converter.state import write_managed_manifest
+        with tempfile.TemporaryDirectory() as tmp:
+            dist = Path(tmp) / "dist"
+            dist.mkdir()
+            p_a = self._provider("A")
+            manifest = write_managed_manifest(dist, self.BASE_URL, {"A": p_a})
+            self.assertIn("generation", manifest)
+            self.assertTrue((dist / ".generation").exists())
+            self.assertEqual((dist / ".generation").read_text(encoding="utf-8").strip(), manifest["generation"])
+
+            # Valid read
+            read_back = read_managed_manifest(dist)
+            self.assertIsNotNone(read_back)
+
+            # Missing .generation marker fails closed
+            (dist / ".generation").unlink()
+            with self.assertRaisesRegex(SystemExit, "dist/.generation marker missing"):
+                read_managed_manifest(dist)
+
+            # Mismatched .generation fails closed
+            (dist / ".generation").write_text("corrupt_generation_hash\n")
+            with self.assertRaisesRegex(SystemExit, "dist/state generation mismatch"):
+                read_managed_manifest(dist)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -8,7 +8,7 @@ from typing import Any
 import yaml
 
 from .artifacts import public_url, write_yaml_atomic
-from .rules import find_ruleset_refs, iter_all_rules
+from .rules import find_ruleset_refs, iter_all_rules, normalize, parse_ruleset_reference
 
 MANAGED_STATE_FILENAME = "managed-state.yaml"
 
@@ -49,7 +49,9 @@ def read_managed_manifest(dist: Path) -> dict[str, Any] | None:
         raise SystemExit(f"{path}: invalid managed state schema")
     generation_path = dist / ".generation"
     if manifest.get("generation") is not None:
-        if generation_path.exists() and generation_path.read_text(encoding="utf-8").strip() != manifest["generation"]:
+        if not generation_path.exists():
+            raise SystemExit(f"{path}: dist/.generation marker missing; refusing incremental refresh")
+        if generation_path.read_text(encoding="utf-8").strip() != manifest["generation"]:
             raise SystemExit(f"{path}: dist/state generation mismatch; refusing incremental refresh")
     for name, state in manifest["providers"].items():
         if not isinstance(name, str) or not isinstance(state, dict) or not isinstance(state.get("fingerprint"), str):
@@ -62,6 +64,8 @@ def write_managed_manifest(dist: Path, base_url: str, providers: dict[str, dict[
     path = managed_manifest_path(dist)
     path.parent.mkdir(parents=True, exist_ok=True)
     write_yaml_atomic(path, manifest)
+    if "generation" in manifest and dist.exists():
+        (dist / ".generation").write_text(manifest["generation"] + "\n", encoding="utf-8")
     return manifest
 
 
@@ -137,6 +141,18 @@ def refresh_complete_config(
     else:
         insert_at = len(retained_rules)
 
+    # Complete-config sub-rules cannot reference managed providers
+    old_sub_rules = complete_config.get("sub-rules")
+    if isinstance(old_sub_rules, dict):
+        for sub_name, sub_members in old_sub_rules.items():
+            if isinstance(sub_members, list):
+                for member in sub_members:
+                    sub_refs = set(find_ruleset_refs(member))
+                    if sub_refs & managed_old_names or sub_refs & set(new_providers):
+                        raise SystemExit(
+                            f"complete-config managed provider appears in sub-rules[{sub_name!r}]; unsupported"
+                        )
+
     refreshed_providers = {
         name: provider for name, provider in old_providers.items()
         if name not in managed_old_names and name not in new_providers
@@ -164,7 +180,42 @@ def bootstrap_managed_manifest(complete_config: dict[str, Any], final_config: di
     for name, provider in new_providers.items():
         if provider_fingerprint(old_providers[name]) != provider_fingerprint(provider):
             raise SystemExit(f"bootstrap provider mismatch: {name}")
-    managed_indexes = [index for index, rule in enumerate(complete_config.get("rules") or []) if find_ruleset_refs(rule) & set(new_providers)]
+
+    old_sub_rules = complete_config.get("sub-rules")
+    if isinstance(old_sub_rules, dict):
+        for sub_name, sub_members in old_sub_rules.items():
+            if isinstance(sub_members, list):
+                for member in sub_members:
+                    if set(find_ruleset_refs(member)) & set(new_providers):
+                        raise SystemExit(
+                            f"complete-config managed provider appears in sub-rules[{sub_name!r}]; unsupported"
+                        )
+
+    managed_names = set(new_providers)
+    complete_rules = complete_config.get("rules") or []
+    managed_indexes = [
+        index for index, rule in enumerate(complete_rules)
+        if set(find_ruleset_refs(rule)) & managed_names
+    ]
     if not managed_indexes or managed_indexes != list(range(managed_indexes[0], managed_indexes[-1] + 1)):
         raise SystemExit("bootstrap requires one contiguous generated RULE-SET block")
+
+    # Semantic exact comparison: candidate rules in complete-config must match generated rules exactly
+    generated_rulesets = [rule for rule in (final_config.get("rules") or []) if find_ruleset_refs(rule)]
+    candidate_rules = [complete_rules[i] for i in managed_indexes]
+    if len(candidate_rules) != len(generated_rulesets):
+        raise SystemExit("bootstrap candidate RULE-SET block length does not match generated rules")
+
+    for cand, gen in zip(candidate_rules, generated_rulesets):
+        # Normalize comma spacing
+        if normalize(cand) == normalize(gen):
+            continue
+        # Compare structured parsed reference
+        cand_ref = parse_ruleset_reference(cand)
+        gen_ref = parse_ruleset_reference(gen)
+        if cand_ref != gen_ref or cand_ref is None:
+            raise SystemExit(
+                f"bootstrap RULE-SET policy or modifier mismatch: candidate {cand!r} != generated {gen!r}"
+            )
+
     return build_managed_manifest(base_url, new_providers)
