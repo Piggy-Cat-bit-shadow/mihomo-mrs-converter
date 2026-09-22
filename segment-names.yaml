@@ -1,8 +1,4 @@
 segments:
-  BlockHttpDNS:
-    name: HTTPDNS
-    role: reject
-    reject-mode: reject
   Lan:
     name: Direct
     role: direct
