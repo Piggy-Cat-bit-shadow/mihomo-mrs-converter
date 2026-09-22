@@ -1,18 +1,4 @@
 rule-providers:
-  HTTPDNS-domain:
-    behavior: domain
-    interval: 172800
-    type: http
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/HTTPDNS-domain.mrs
-    path: ./ruleset/HTTPDNS-domain.mrs
-  HTTPDNS-ip:
-    behavior: ipcidr
-    interval: 172800
-    type: http
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/HTTPDNS-ip.mrs
-    path: ./ruleset/HTTPDNS-ip.mrs
   Direct-domain:
     behavior: domain
     interval: 172800
@@ -91,8 +77,6 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/China-ip.mrs
     path: ./ruleset/China-ip.mrs
 rules:
-- RULE-SET,HTTPDNS-domain,REJECT
-- RULE-SET,HTTPDNS-ip,REJECT,no-resolve
 - RULE-SET,Direct-domain,DIRECT
 - RULE-SET,Direct-classical,DIRECT,no-resolve
 - SUB-RULE,(RULE-SET,AI-domain),AI-Routing

@@ -1,20 +1,6 @@
 version: 2
 base_url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main
 providers:
-  HTTPDNS-domain:
-    name: HTTPDNS-domain
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/HTTPDNS-domain.mrs
-    path: ./ruleset/HTTPDNS-domain.mrs
-    behavior: domain
-    format: mrs
-    fingerprint: 4cd28d1221043e703f47e32fd743dffc9c02c821a8ea3b8eea08f18393ed4b4f
-  HTTPDNS-ip:
-    name: HTTPDNS-ip
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/HTTPDNS-ip.mrs
-    path: ./ruleset/HTTPDNS-ip.mrs
-    behavior: ipcidr
-    format: mrs
-    fingerprint: 3bbac3413f16cd5a5bc009a2f0143ad07b9e9faf8636df96d87c3de725366feb
   Direct-domain:
     name: Direct-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/Direct-domain.mrs
@@ -92,4 +78,4 @@ providers:
     behavior: ipcidr
     format: mrs
     fingerprint: 89f8d5f243c3c645b9a123c079de7ff6b8ba18d5eea227aada41a75f193dea00
-generation: 6400a6ec3283992dae0ddc860dfff0a0a21495b4d7285c2794dfa1f162459ad1
+generation: 8ea21c61c300c78b7b21452b715a544673fdbc29d21f97a3bcb2f3e2414e6e8c

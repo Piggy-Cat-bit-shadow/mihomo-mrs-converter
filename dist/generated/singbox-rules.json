@@ -3,13 +3,6 @@
     "rule_set": [
       {
         "type": "remote",
-        "tag": "HTTPDNS",
-        "format": "binary",
-        "url": "https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/singbox/HTTPDNS.srs",
-        "update_interval": "2d"
-      },
-      {
-        "type": "remote",
         "tag": "Direct",
         "format": "binary",
         "url": "https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/singbox/Direct.srs",
@@ -38,12 +31,6 @@
       }
     ],
     "rules": [
-      {
-        "rule_set": [
-          "HTTPDNS"
-        ],
-        "action": "reject"
-      },
       {
         "rule_set": [
           "Direct"

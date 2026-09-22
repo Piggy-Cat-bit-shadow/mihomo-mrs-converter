@@ -1,9 +1,5 @@
 rules:
 - rule_set:
-    match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/HTTPDNS.yaml
-    policy: REJECT
-    update_interval: 172800
-- rule_set:
     match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/Direct.yaml
     policy: DIRECT
     update_interval: 172800
