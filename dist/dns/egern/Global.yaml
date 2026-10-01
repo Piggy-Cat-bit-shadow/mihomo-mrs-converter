@@ -113,11 +113,13 @@ domain_suffix_set:
 - manuscdn.com
 - marscode.com
 - meta.ai
+- metaaivm.com
 - midjourney.com
 - minimax.io
 - mistral.ai
 - moonshot.ai
 - mozilla.ai
+- muse.ai
 - notebook.google
 - notebooklm.google
 - notegpt.io
@@ -127,6 +129,7 @@ domain_suffix_set:
 - opal.google
 - openart.ai
 - openclaw.ai
+- opencode.ai
 - openrouter.ai
 - openspec.dev
 - oystermercury.top
@@ -17466,7 +17469,6 @@ domain_suffix_set:
 - qmzdd.com
 - qnap.com
 - qnapsupport.net
-- qobuz.com
 - qombol.com
 - qoo-app.com
 - qoo10.jp
@@ -23880,6 +23882,7 @@ domain_suffix_set:
 - c-est-simple.com
 - c-span.org
 - c-spanvideo.org
+- c.go-mpulse.net
 - c.mi.com
 - c100tibet.org
 - c2cx.com
@@ -27419,6 +27422,7 @@ domain_suffix_set:
 - qiwen.lu
 - qkshare.com
 - qmp4.com
+- qobuz.com
 - qoos.com
 - qpoe.com
 - qq.co.za
@@ -28839,6 +28843,7 @@ domain_suffix_set:
 - vansky.com
 - vaticannews.va
 - vatn.org
+- vava8.com
 - vbstatic.co
 - vcf-online.org
 - vcfbuilder.org

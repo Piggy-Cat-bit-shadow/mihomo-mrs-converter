@@ -17169,7 +17169,6 @@ domain_suffix_set:
 - qmzdd.com
 - qnap.com
 - qnapsupport.net
-- qobuz.com
 - qombol.com
 - qoo-app.com
 - qoo10.jp
@@ -23645,6 +23644,7 @@ domain_suffix_set:
 - c-est-simple.com
 - c-span.org
 - c-spanvideo.org
+- c.go-mpulse.net
 - c.mi.com
 - c100tibet.org
 - c2cx.com
@@ -27232,6 +27232,7 @@ domain_suffix_set:
 - qiwen.lu
 - qkshare.com
 - qmp4.com
+- qobuz.com
 - qoos.com
 - qpoe.com
 - qq.co.za
@@ -28659,6 +28660,7 @@ domain_suffix_set:
 - vansky.com
 - vaticannews.va
 - vatn.org
+- vava8.com
 - vbstatic.co
 - vcf-online.org
 - vcfbuilder.org
@@ -29588,10 +29590,13 @@ ip_cidr_set:
 - 125.6.149.0/24
 - 125.6.190.0/24
 - 129.226.0.0/16
+- 13.251.24.0/24
+- 13.251.41.0/24
 - 13.32.0.0/15
 - 13.35.0.0/17
 - 14.102.250.18/31
 - 147.92.128.0/17
+- 17.252.156.0/23
 - 174.142.105.153/32
 - 174.37.0.0/16
 - 179.60.192.0/22
