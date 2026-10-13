@@ -5,7 +5,7 @@ rules:
     update_interval: 172800
 - rule_set:
     match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/FastGlobal-PreAI.yaml
-    policy: 🌍 海外高速
+    policy: 🚀 海外高速
     update_interval: 172800
 - and:
     match:
@@ -21,7 +21,7 @@ rules:
     update_interval: 172800
 - rule_set:
     match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/FastGlobal-PostAI.yaml
-    policy: 🌍 海外高速
+    policy: 🚀 海外高速
     update_interval: 172800
 - rule_set:
     match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/Global.yaml

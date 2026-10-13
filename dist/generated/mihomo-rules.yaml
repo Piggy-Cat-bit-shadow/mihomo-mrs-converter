@@ -121,15 +121,15 @@ rule-providers:
 rules:
 - RULE-SET,Direct-domain,DIRECT
 - RULE-SET,Direct-classical,DIRECT,no-resolve
-- RULE-SET,FastGlobal-PreAI-domain,🌍 海外高速
-- RULE-SET,FastGlobal-PreAI-classical,🌍 海外高速,no-resolve
-- RULE-SET,FastGlobal-PreAI-ip,🌍 海外高速,no-resolve
+- RULE-SET,FastGlobal-PreAI-domain,🚀 海外高速
+- RULE-SET,FastGlobal-PreAI-classical,🚀 海外高速,no-resolve
+- RULE-SET,FastGlobal-PreAI-ip,🚀 海外高速,no-resolve
 - SUB-RULE,(RULE-SET,AI-domain),AI-Routing
 - SUB-RULE,(RULE-SET,AI-classical,no-resolve),AI-Routing
 - SUB-RULE,(RULE-SET,AI-ip,no-resolve),AI-Routing
-- RULE-SET,FastGlobal-PostAI-domain,🌍 海外高速
-- RULE-SET,FastGlobal-PostAI-classical,🌍 海外高速,no-resolve
-- RULE-SET,FastGlobal-PostAI-ip,🌍 海外高速,no-resolve
+- RULE-SET,FastGlobal-PostAI-domain,🚀 海外高速
+- RULE-SET,FastGlobal-PostAI-classical,🚀 海外高速,no-resolve
+- RULE-SET,FastGlobal-PostAI-ip,🚀 海外高速,no-resolve
 - RULE-SET,Global-domain,🌍 国外流量
 - RULE-SET,Global-classical,🌍 国外流量
 - RULE-SET,Global-ip,🌍 国外流量,no-resolve
