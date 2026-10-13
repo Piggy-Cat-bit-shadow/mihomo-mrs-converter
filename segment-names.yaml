@@ -2,10 +2,16 @@ segments:
   Lan:
     name: Direct
     role: direct
+  me-foreign:
+    name: FastGlobal-PreAI
+    role: global
   me-pure:
     name: AI
     role: ai
-  Scholar-Foreign:
+  GoogleEarth:
+    name: FastGlobal-PostAI
+    role: global
+  global:
     name: Global
     role: global
   apple:
