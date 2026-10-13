@@ -10,6 +10,13 @@ rule-providers:
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/sources/me-China.yaml
     path: ./ruleset/me-China.yaml
     interval: 172800
+  me-foreign:
+    type: http    
+    behavior: classical
+    format: yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/sources/me-foreign.yaml
+    path: ./ruleset/me-foreign.yaml
+    interval: 172800
   me-pure:
     type: http
     behavior: classical
@@ -337,6 +344,7 @@ rules:
 - RULE-SET,private,DIRECT
 - RULE-SET,me-China,DIRECT
 - RULE-SET,wechat,DIRECT
+- RULE-SET,me-foreign,🌍 国外流量
 - SUB-RULE,(RULE-SET,me-pure),AI-Routing
 - SUB-RULE,(RULE-SET,AppleProxy),AI-Routing
 - SUB-RULE,(RULE-SET,AppleIntelligence),AI-Routing
