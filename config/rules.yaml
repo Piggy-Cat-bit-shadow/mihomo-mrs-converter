@@ -360,8 +360,8 @@ rules:
 - RULE-SET,Reddit,🌍 海外高速
 - RULE-SET,Spotify,🌍 海外高速
 - RULE-SET,tiktok,🌍 海外高速
+- RULE-SET,AppleProxy,🌍 海外高速
 - SUB-RULE,(RULE-SET,me-pure),AI-Routing
-- SUB-RULE,(RULE-SET,AppleProxy),AI-Routing
 - SUB-RULE,(RULE-SET,AppleIntelligence),AI-Routing
 - SUB-RULE,(RULE-SET,openai),AI-Routing
 - SUB-RULE,(RULE-SET,claude),AI-Routing
