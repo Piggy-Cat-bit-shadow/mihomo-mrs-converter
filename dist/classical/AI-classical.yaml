@@ -1,7 +1,6 @@
 payload:
 - DOMAIN-WILDCARD,clients*.google.com
 - DOMAIN-WILDCARD,mtalk*.google.com
-- PROCESS-NAME,LookupViewService
 - DOMAIN-KEYWORD,openai
 - IP-ASN,20473
 - DOMAIN-KEYWORD,colab

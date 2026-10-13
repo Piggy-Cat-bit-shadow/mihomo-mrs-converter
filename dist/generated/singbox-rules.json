@@ -10,9 +10,23 @@
       },
       {
         "type": "remote",
+        "tag": "FastGlobal-PreAI",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/singbox/FastGlobal-PreAI.srs",
+        "update_interval": "2d"
+      },
+      {
+        "type": "remote",
         "tag": "AI",
         "format": "binary",
         "url": "https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/singbox/AI.srs",
+        "update_interval": "2d"
+      },
+      {
+        "type": "remote",
+        "tag": "FastGlobal-PostAI",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/singbox/FastGlobal-PostAI.srs",
         "update_interval": "2d"
       },
       {
@@ -40,6 +54,13 @@
       },
       {
         "rule_set": [
+          "FastGlobal-PreAI"
+        ],
+        "action": "route",
+        "outbound": "🌍 海外高速"
+      },
+      {
+        "rule_set": [
           "AI"
         ],
         "network": [
@@ -53,6 +74,13 @@
         ],
         "action": "route",
         "outbound": "🤖 AI"
+      },
+      {
+        "rule_set": [
+          "FastGlobal-PostAI"
+        ],
+        "action": "route",
+        "outbound": "🌍 海外高速"
       },
       {
         "rule_set": [
