@@ -1191,22 +1191,32 @@ domain_suffix_set:
 - generativeai.google
 - agentclientprotocol.com
 - ai.studio
+- ant.dev
+- anthropic.team
 - antigravity-unleash.goog
 - antigravity.google
+- antspace.dev
 - anythingllm.com
 - arena.ai
 - cerebras.ai
 - chat.com
+- chatbotclaude.com
 - chatgpt.site
 - chutes.ai
 - cici.com
 - ciciai.com
 - ciciaicdn.com
 - clau.de
+- claude.app
 - claude.com
 - claude.dev
+- claude.new
+- claude.site
+- claudeacademy.com
 - claudemcpclient.com
 - claudemcpcontent.com
+- claudepages.dev
+- claudestudio.com
 - claudeusercontent.com
 - clawhub.ai
 - clipdrop.co
@@ -1228,6 +1238,7 @@ domain_suffix_set:
 - cursor.com
 - cursor.sh
 - cursorapi.com
+- cursorvm.com
 - deepwiki.com
 - deepwiki.org
 - devin.ai
@@ -1264,6 +1275,7 @@ domain_suffix_set:
 - lmstudio.ai
 - lovart.ai
 - lpsnmedia.net
+- magnific.com
 - manus.im
 - manuscdn.com
 - meta.ai
@@ -1281,6 +1293,7 @@ domain_suffix_set:
 - oaistatsig.com
 - ollama.com
 - opal.google
+- openai.org
 - openart.ai
 - openclaw.ai
 - opencode.ai
@@ -1302,6 +1315,7 @@ domain_suffix_set:
 - tapnow.ai
 - themeforest.net
 - tripo3d.ai
+- typesafe.ai
 - windsurf.build
 - windsurf.com
 - x.ai
@@ -4680,7 +4694,6 @@ domain_suffix_set:
 - asminternational.org
 - asmrbuluo.com
 - asn-online.org
-- asobostudio.com
 - asp.net
 - aspbjournals.org
 - aspenpublishing.com
@@ -5550,8 +5563,15 @@ domain_suffix_set:
 - beforeigners.com
 - befuck.com
 - befuck.net
+- beget.app
+- beget.cloud
 - beget.com
+- beget.de
+- beget.hosting
+- beget.pro
 - beget.ru
+- beget.tech
+- begetcdn.cloud
 - begin-trade.com
 - behindthescreenz.com
 - beijingnike.com
@@ -5574,6 +5594,7 @@ domain_suffix_set:
 - berlincompanions.com
 - berlintwitterwall.com
 - beru.ru
+- beserver.ru
 - best-sex-games.com
 - best2pay.net
 - best3dhere.com
@@ -5673,6 +5694,7 @@ domain_suffix_set:
 - bfa.ru
 - bfads.net
 - bffshd.com
+- bget.ru
 - bgicdn.com
 - bgov.com
 - bgr.in
@@ -6523,6 +6545,7 @@ domain_suffix_set:
 - bs-awh.ne.jp
 - bsappapi.cc
 - bsappapi.com
+- bscdnweb.com
 - bsersd.xyz
 - bsi.ir
 - bspb.ru
@@ -9645,7 +9668,6 @@ domain_suffix_set:
 - fli8.xyz
 - flic.kr
 - flickr.net
-- flightsimulator.com
 - flipfap.com
 - flipnotestudio.com
 - flipshare.com
@@ -18316,12 +18338,14 @@ domain_suffix_set:
 - scatvids.club
 - scatville.com
 - scb.ru
+- scea.com
 - scene7.com
 - scenesource.me
 - scharferporno.com
 - schiffvitamins.com
 - schwab.com.sg
 - schwabassetmanagement.com
+- schwabcdn.com
 - schwabplan.com
 - sci-hub.it.nf
 - sci-hub.mksa.top
@@ -19109,6 +19133,7 @@ domain_suffix_set:
 - sony.com.pa
 - sony.com.pe
 - sony.com.ph
+- sony.com.py
 - sony.com.sg
 - sony.com.sv
 - sony.com.tr
@@ -19151,8 +19176,10 @@ domain_suffix_set:
 - sonydesign.com
 - sonydna.com
 - sonyglobalsolutions.jp
+- sonyinteractive.com
 - sonykigyo.jp
 - sonylatvija.com
+- sonymusic.com.hk
 - sonynetwork.co.jp
 - sonypcl.jp
 - sonypictures.com
@@ -19248,6 +19275,7 @@ domain_suffix_set:
 - spring06.top
 - spring13.top
 - sprinklesapp.com
+- sprut.io
 - sptvbroadcast.com
 - sputnikglobe.com
 - sputnikimages.com
@@ -20108,6 +20136,8 @@ domain_suffix_set:
 - timestalks.com
 - timeweb.cloud
 - timeweb.com
+- timeweb.tech
+- timewebcloud.kz
 - timi1.me
 - timo0.com
 - ting53.xyz
@@ -22225,6 +22255,7 @@ domain_suffix_set:
 - xn--90ab.com
 - xn--90ab2c.xn--p1ai
 - xn--90absjljw3g.xn--p1ai
+- xn--90aefb9d.xn--p1ai
 - xn--90aifd0az.shop
 - xn--90aifd0azb.xn--p1acf
 - xn--av-o44ep1d.com
@@ -23293,6 +23324,7 @@ domain_suffix_set:
 - 7capture.com
 - 7cow.com
 - 7mmtv.tv
+- 7x24hrs.com
 - 8-d.com
 - 85cc.net
 - 85cc.us
