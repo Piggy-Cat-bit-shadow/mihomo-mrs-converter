@@ -3,14 +3,11 @@ segments:
     name: Direct
     role: direct
   me-foreign:
-    name: FastGlobal-PreAI
+    name: Global-First
     role: global
   me-pure:
     name: AI
     role: ai
-  GoogleEarth:
-    name: FastGlobal-PostAI
-    role: global
   global:
     name: Global
     role: global
