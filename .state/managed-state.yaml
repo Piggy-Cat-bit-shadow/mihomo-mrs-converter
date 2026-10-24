@@ -15,27 +15,27 @@ providers:
     behavior: classical
     format: yaml
     fingerprint: 0538f2f350dbfd7b23d4e5f7f255a52fb2f317f3e6db4401ccccc1bb8015133a
-  FastGlobal-PreAI-domain:
-    name: FastGlobal-PreAI-domain
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/FastGlobal-PreAI-domain.mrs
-    path: ./ruleset/FastGlobal-PreAI-domain.mrs
+  Global-First-domain:
+    name: Global-First-domain
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/Global-First-domain.mrs
+    path: ./ruleset/Global-First-domain.mrs
     behavior: domain
     format: mrs
-    fingerprint: f7b7732d6829cdb2a139ca3eecc2ca27b96a33432b9661c75d56f3e790118f9b
-  FastGlobal-PreAI-classical:
-    name: FastGlobal-PreAI-classical
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/FastGlobal-PreAI-classical.yaml
-    path: ./ruleset/FastGlobal-PreAI-classical.yaml
+    fingerprint: 346ab6fb80954457fe4799fa37ef54179784fcad0764bed0869392c43ef10901
+  Global-First-classical:
+    name: Global-First-classical
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/Global-First-classical.yaml
+    path: ./ruleset/Global-First-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: a14cbc519045a5cdf6b395b1768fafd1bebaf787be7ab69fb8130962c059e183
-  FastGlobal-PreAI-ip:
-    name: FastGlobal-PreAI-ip
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/FastGlobal-PreAI-ip.mrs
-    path: ./ruleset/FastGlobal-PreAI-ip.mrs
+    fingerprint: 3f0a1c9aac47bc6da46f09f623c4621ec647efc1c62602a2eed6248520b22353
+  Global-First-ip:
+    name: Global-First-ip
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/Global-First-ip.mrs
+    path: ./ruleset/Global-First-ip.mrs
     behavior: ipcidr
     format: mrs
-    fingerprint: c68afc23748ab45582b71a1f6fc3d3d8a70032ba4c2ad57e2bc0800472b8dc38
+    fingerprint: ec01033bb6ebeb5d7d05a4070e4967886914cdb0cf3633c5cd1b6a02f9084fd2
   AI-domain:
     name: AI-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/AI-domain.mrs
@@ -57,27 +57,6 @@ providers:
     behavior: ipcidr
     format: mrs
     fingerprint: e71cc5c58add5a1e0ca1fb5467fc192fb30703eac250fb2e94c342657fddd99d
-  FastGlobal-PostAI-domain:
-    name: FastGlobal-PostAI-domain
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/FastGlobal-PostAI-domain.mrs
-    path: ./ruleset/FastGlobal-PostAI-domain.mrs
-    behavior: domain
-    format: mrs
-    fingerprint: e92e6e0dc3dac244b9e3b36ca0be3855f3c39765a580d499ca569ee68da818f0
-  FastGlobal-PostAI-classical:
-    name: FastGlobal-PostAI-classical
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/FastGlobal-PostAI-classical.yaml
-    path: ./ruleset/FastGlobal-PostAI-classical.yaml
-    behavior: classical
-    format: yaml
-    fingerprint: 0753ff7a031d6fa442b5b92199b16a859f5580ace4767b2dadca481bdd8b5fa7
-  FastGlobal-PostAI-ip:
-    name: FastGlobal-PostAI-ip
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/FastGlobal-PostAI-ip.mrs
-    path: ./ruleset/FastGlobal-PostAI-ip.mrs
-    behavior: ipcidr
-    format: mrs
-    fingerprint: 0fbeecbbf46ff5a668f49a784139659644879b6202667f856899652ae1d16fbf
   Global-domain:
     name: Global-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/Global-domain.mrs
@@ -120,4 +99,4 @@ providers:
     behavior: ipcidr
     format: mrs
     fingerprint: 89f8d5f243c3c645b9a123c079de7ff6b8ba18d5eea227aada41a75f193dea00
-generation: ac9fd5af2a2c005a08fa8467d70b880260335ff15877e33718fdc4c312c3e05f
+generation: f709a410292d04a5bb8c3efc22ee92aa8022281659c35479c724785b1d28aaab
