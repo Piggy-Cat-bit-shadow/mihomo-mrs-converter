@@ -344,23 +344,23 @@ rules:
 - RULE-SET,private,DIRECT
 - RULE-SET,me-China,DIRECT
 - RULE-SET,wechat,DIRECT
-- RULE-SET,me-foreign,🚀 海外高速
-- RULE-SET,Scholar-Foreign,🚀 海外高速
-- RULE-SET,Scholar,🚀 海外高速
-- RULE-SET,Telegram,🚀 海外高速
-- RULE-SET,github,🚀 海外高速
-- RULE-SET,WhatsApp,🚀 海外高速
-- RULE-SET,Discord,🚀 海外高速
-- RULE-SET,netflix,🚀 海外高速
-- RULE-SET,disney,🚀 海外高速
-- RULE-SET,primevideo,🚀 海外高速
-- RULE-SET,Instagram,🚀 海外高速
-- RULE-SET,Facebook,🚀 海外高速
-- RULE-SET,Twitter,🚀 海外高速
-- RULE-SET,Reddit,🚀 海外高速
-- RULE-SET,Spotify,🚀 海外高速
-- RULE-SET,tiktok,🚀 海外高速
-- RULE-SET,AppleProxy,🚀 海外高速
+- RULE-SET,me-foreign,🌍 国外流量
+- RULE-SET,Scholar-Foreign,🌍 国外流量
+- RULE-SET,Scholar,🌍 国外流量
+- RULE-SET,Telegram,🌍 国外流量
+- RULE-SET,github,🌍 国外流量
+- RULE-SET,WhatsApp,🌍 国外流量
+- RULE-SET,Discord,🌍 国外流量
+- RULE-SET,netflix,🌍 国外流量
+- RULE-SET,disney,🌍 国外流量
+- RULE-SET,primevideo,🌍 国外流量
+- RULE-SET,Instagram,🌍 国外流量
+- RULE-SET,Facebook,🌍 国外流量
+- RULE-SET,Twitter,🌍 国外流量
+- RULE-SET,Reddit,🌍 国外流量
+- RULE-SET,Spotify,🌍 国外流量
+- RULE-SET,tiktok,🌍 国外流量
+- RULE-SET,AppleProxy,🌍 国外流量
 - SUB-RULE,(RULE-SET,me-pure),AI-Routing
 - SUB-RULE,(RULE-SET,AppleIntelligence),AI-Routing
 - SUB-RULE,(RULE-SET,openai),AI-Routing
@@ -373,10 +373,10 @@ rules:
 - SUB-RULE,(RULE-SET,Crypto),AI-Routing
 - SUB-RULE,(RULE-SET,IPCheck),AI-Routing
 - SUB-RULE,(RULE-SET,paypal),AI-Routing
-- RULE-SET,GoogleEarth,🚀 海外高速
-- RULE-SET,GoogleDrive,🚀 海外高速
-- RULE-SET,youtube,🚀 海外高速
-- RULE-SET,google,🚀 海外高速
+- RULE-SET,GoogleEarth,🌍 国外流量
+- RULE-SET,GoogleDrive,🌍 国外流量
+- RULE-SET,youtube,🌍 国外流量
+- RULE-SET,google,🌍 国外流量
 - RULE-SET,global,🌍 国外流量
 - RULE-SET,apple,DIRECT
 - RULE-SET,icloud,DIRECT
