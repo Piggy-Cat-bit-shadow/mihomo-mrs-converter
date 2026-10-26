@@ -98,11 +98,26 @@ class InheritedRoleTest(unittest.TestCase):
                                       {'First': 'global', 'Second': 'global'})
         self.assertEqual(roles['merged-segment-01'], 'global')
 
-    def test_repository_unnamed_block_is_global(self):
+    def test_unnamed_foreign_block_inherits_global_from_named_peers(self):
         from converter.segments import resolve_segment_roles
-        from converter.yamlio import load_yaml_unique
-        root = Path(__file__).resolve().parents[1]
-        specs = load_segment_specs(root / 'segment-names.yaml')
-        roles = resolve_segment_roles(load_yaml_unique(root / 'config/rules.yaml'),
-                                      segment_mapping(specs), segment_roles(specs))
+        # Freeze the regression input: user edits to production rule order must
+        # not invalidate the historical unnamed-block inheritance scenario.
+        config = {
+            'rule-providers': {name: {'behavior': 'domain'} for name in
+                               ['Lan', 'Telegram', 'github', 'AppleProxy', 'me-foreign', 'global']},
+            'rules': ['RULE-SET,Lan,DIRECT', 'RULE-SET,Telegram,Proxy',
+                      'RULE-SET,github,Proxy', 'RULE-SET,AppleProxy,Proxy',
+                      'DOMAIN,barrier.example,DIRECT', 'RULE-SET,me-foreign,Proxy',
+                      'RULE-SET,global,Proxy', 'MATCH,DIRECT'],
+        }
+        mapping = {'Lan': 'Direct', 'me-foreign': 'Global-First', 'global': 'Global'}
+        explicit = {'Direct': 'direct', 'Global-First': 'global', 'Global': 'global'}
+        roles = resolve_segment_roles(config, mapping, explicit)
         self.assertEqual(roles['merged-segment-02'], 'global')
+        self.assertEqual({name: roles[name] for name in explicit}, explicit)
+
+    def test_all_named_blocks_do_not_require_an_unnamed_role(self):
+        for order in [('A', 'B'), ('B', 'A')]:
+            with self.subTest(order=order):
+                roles = self.resolve([f'RULE-SET,{name},Proxy' for name in order])
+                self.assertEqual(roles, {'First': 'global', 'Second': 'global'})
