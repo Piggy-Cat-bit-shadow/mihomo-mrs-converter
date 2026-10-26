@@ -346,6 +346,7 @@ rules:
 - RULE-SET,wechat,DIRECT
 - RULE-SET,Telegram,🌍 国外流量
 - RULE-SET,github,🌍 国外流量
+- RULE-SET,AppleProxy,🌍 国外流量
 - SUB-RULE,(RULE-SET,me-pure),AI-Routing
 - SUB-RULE,(RULE-SET,AppleIntelligence),AI-Routing
 - SUB-RULE,(RULE-SET,openai),AI-Routing
@@ -372,7 +373,6 @@ rules:
 - RULE-SET,Reddit,🌍 国外流量
 - RULE-SET,Spotify,🌍 国外流量
 - RULE-SET,tiktok,🌍 国外流量
-- RULE-SET,AppleProxy,🌍 国外流量
 - RULE-SET,GoogleEarth,🌍 国外流量
 - RULE-SET,GoogleDrive,🌍 国外流量
 - RULE-SET,youtube,🌍 国外流量
