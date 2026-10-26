@@ -9,7 +9,7 @@ import yaml
 from .export_config import ExportProfile, load_export_profile
 from .rules import find_ruleset_refs, iter_all_rules
 from .model import provider_segment
-from .segments import load_segment_specs, segment_mapping
+from .segments import load_segment_specs, resolve_segment_roles, segment_mapping, segment_roles
 from .optimize import iter_ruleset_blocks, matching_segment_anchors
 from .yamlio import load_yaml_unique
 
@@ -77,6 +77,7 @@ def audit_production(root: Path, segment_names: Path | None = None, export_confi
     if input_path.exists():
         source = load_yaml_unique(input_path)
         mapping = segment_mapping(specs)
+        resolve_segment_roles(source, mapping, segment_roles(specs))
         source_order = []
         for ordinal, (_, _, _, _, names) in enumerate(
             iter_ruleset_blocks(source["rules"], source["rule-providers"], mapping), 1

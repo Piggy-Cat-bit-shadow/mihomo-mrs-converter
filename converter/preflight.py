@@ -25,7 +25,7 @@ from .rules import (
     split_top_level_commas,
     strip_balanced_outer_parentheses,
 )
-from .segments import SegmentSpec, load_segment_specs, segment_mapping
+from .segments import SegmentSpec, load_segment_specs, resolve_segment_roles, segment_mapping, segment_roles
 from .yamlio import load_yaml_unique
 
 
@@ -160,6 +160,11 @@ def run_preflight(
             unused_anchors = sorted(set(mapping) - matched_anchors)
             if unused_anchors:
                 raise PreflightError(f"configured segment anchor(s) did not match any merged segment block: {unused_anchors}")
+
+            try:
+                resolve_segment_roles(data, mapping, segment_roles(specs))
+            except ValueError as exc:
+                raise PreflightError(str(exc)) from exc
 
             # Check Reject Segments Policy & Contract
             expected_reject_policies: dict[str, str] = {}

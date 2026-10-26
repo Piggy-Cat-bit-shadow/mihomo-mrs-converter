@@ -23,7 +23,7 @@ from .model import BuildConfig, BuildContext, BuildResult
 from .optimize import optimize_config
 from .providers import prefetch_provider_texts, process_provider
 from .rules import find_ruleset_refs, iter_all_rules
-from .segments import load_segment_specs, segment_mapping, segment_roles
+from .segments import load_segment_specs, resolve_segment_roles, segment_mapping, segment_roles
 from .state import bootstrap_managed_manifest, build_managed_manifest, read_managed_manifest, refresh_complete_config, write_managed_manifest
 from .timing import BuildTiming, activate
 from .validate import validate_final_config
@@ -136,6 +136,8 @@ def build(config: BuildConfig) -> BuildResult:
     }
     mapping = _segment_mapping(config.segment_names)
     segment_roles = _segment_roles(config.segment_names)
+    if mapping:
+        segment_roles = resolve_segment_roles(semantic, mapping, segment_roles)
     export_profile = _load_export_config(config.export_config)
     with timing.phase("optimize config"):
         optimized, final_payloads, dedup_stats = optimize_config(semantic, payloads, mapping)

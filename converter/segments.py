@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from .identifiers import validate_artifact_id
+from .optimize import iter_ruleset_blocks, matching_segment_anchors
 from .yamlio import load_yaml_unique
 
 
@@ -72,6 +73,38 @@ def segment_mapping(specs: tuple[SegmentSpec, ...]) -> dict[str, str]:
 
 def segment_roles(specs: tuple[SegmentSpec, ...]) -> dict[str, str]:
     return {spec.name: spec.role for spec in specs}
+
+
+def resolve_segment_roles(
+    config: dict[str, Any], mapping: dict[str, str], explicit_roles: dict[str, str],
+) -> dict[str, str]:
+    """Inherit unnamed block roles only from unanimous explicit routing peers.
+
+    Routing peers have both the same policy and the same wrapper. Inheritance
+    changes DNS metadata only; it never joins blocks or rewrites routing rules.
+    """
+    roles = dict(explicit_roles)
+    peers: dict[tuple[str, str], set[str]] = {}
+    unnamed: list[tuple[str, tuple[str, str]]] = []
+    for ordinal, (_, _, routing, _, names) in enumerate(
+        iter_ruleset_blocks(config.get("rules", []), config["rule-providers"], mapping), 1
+    ):
+        matches = matching_segment_anchors(names, mapping)
+        if len(matches) > 1:
+            raise ValueError(f"multiple configured anchors match providers {names}: {matches}")
+        if matches:
+            peers.setdefault(routing, set()).add(explicit_roles[matches[0][1]])
+        else:
+            unnamed.append((f"merged-segment-{ordinal:02d}", routing))
+    for name, routing in unnamed:
+        candidates = peers.get(routing, set())
+        if len(candidates) != 1:
+            raise ValueError(
+                f"DNS segment {name!r} cannot inherit an unambiguous role for "
+                f"wrapper/policy {routing}: explicit peer roles={sorted(candidates)}"
+            )
+        roles[name] = next(iter(candidates))
+    return roles
 
 
 def segment_reject_modes(specs: tuple[SegmentSpec, ...]) -> dict[str, str]:
