@@ -211,3 +211,23 @@ class AnchorBoundaryTest(unittest.TestCase):
             final, output, _ = optimize_config(config, payloads, {n: n for n in providers})
             for domain in ['shared.example', 'a.example', 'child.example', 'outside.test']:
                 self.assertEqual(route(config, payloads, domain), route(final, output, domain))
+
+    def test_external_reference_name_cannot_overwrite_merged_union(self):
+        config = {'rule-providers': {n: {'behavior': 'domain'} for n in ['A-domain', 'B']},
+                  'rules': ['RULE-SET,A-domain,Proxy', 'RULE-SET,B,Proxy'],
+                  'sub-rules': {'Routing': ['RULE-SET,A-domain,DIRECT']}}
+        final, output, _ = optimize_config(config, {'A-domain': ['a.example'], 'B': ['b.example']}, {'A': 'A'})
+        from converter.rules import parse_ruleset_reference
+        merged = parse_ruleset_reference(final['rules'][0]).provider
+        self.assertNotEqual(merged, 'A-domain')
+        self.assertEqual(output[merged], ['a.example', 'b.example'])
+        self.assertEqual(output['A-domain'], ['a.example'])
+        self.assertEqual(final['sub-rules']['Routing'], config['sub-rules']['Routing'])
+
+    def test_nested_reference_does_not_expand_to_a_merged_union(self):
+        nested = 'AND,((RULE-SET,A,Proxy),(NETWORK,tcp)),DIRECT'
+        config = {'rule-providers': {n: {'behavior': 'domain'} for n in 'AB'},
+                  'rules': ['RULE-SET,A,Proxy', 'RULE-SET,B,Proxy', nested]}
+        final, output, _ = optimize_config(config, {'A': ['a.example'], 'B': ['b.example']})
+        self.assertEqual(final['rules'][-1], nested)
+        self.assertEqual(output['A'], ['a.example'])

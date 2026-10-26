@@ -173,6 +173,14 @@ def optimize_config(
     rename_map: dict[str, list[str]] = {}
     segment_index = 0
     matched_anchors: set[str] = set()
+    external_refs = {
+        name for members in (config.get("sub-rules") or {}).values()
+        for item in members for name in find_ruleset_refs(item)
+    }
+    external_refs.update(
+        name for item in rules if simple_ruleset_wrapper(item) is None
+        for name in find_ruleset_refs(item)
+    )
 
     block_by_start = {start: (end, routing, wrapper, names) for start, end, routing, wrapper, names in iter_ruleset_blocks(rules, providers, segment_mapping)}
     index = 0
@@ -240,10 +248,10 @@ def optimize_config(
                 mapped = mapped_segment_name + mapped[len(segment_key):]
             provider = final_providers.pop(name)
             payload = final_payloads.pop(name)
-            if mapped in final_providers:
+            if mapped in final_providers or mapped in external_refs:
                 part = 2
                 base = mapped
-                while f"{base}-part-{part:02d}" in final_providers:
+                while f"{base}-part-{part:02d}" in final_providers or f"{base}-part-{part:02d}" in external_refs:
                     part += 1
                 mapped = f"{base}-part-{part:02d}"
             final_providers[mapped] = provider
@@ -266,14 +274,6 @@ def optimize_config(
 
     # A merged union is valid only at that contiguous occurrence. References
     # elsewhere (nested expressions or sub-rules) must keep the original set.
-    external_refs = {
-        name for members in (config.get("sub-rules") or {}).values()
-        for item in members for name in find_ruleset_refs(item)
-    }
-    external_refs.update(
-        name for item in rewritten_rules for name in find_ruleset_refs(item)
-        if name in providers and name not in final_providers
-    )
     for name in external_refs:
         final_providers[name] = providers[name]
         final_payloads[name] = list(payloads[name])

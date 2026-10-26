@@ -125,3 +125,29 @@ class ProductionAuditTest(unittest.TestCase):
             (root / "config/rules.yaml").write_text(yaml.safe_dump(source))
             with self.assertRaisesRegex(ValueError, "differs from input"):
                 audit_production(root / "dist", segment_names=metadata)
+
+    def test_unnamed_source_block_is_audited_in_all_platform_orders(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            metadata = self.make_fixture(root)
+            generated = root / 'dist/generated'
+            name = 'merged-segment-03'
+            path = generated / 'mihomo-rules.yaml'
+            config = yaml.safe_load(path.read_text())
+            config['rules'].insert(3, f'RULE-SET,{name}-domain,GLOBAL')
+            path.write_text(yaml.safe_dump(config))
+            path = generated / 'egern-rules.yaml'
+            config = yaml.safe_load(path.read_text())
+            config['rules'].insert(2, {'rule_set': {'match': f'https://example.test/{name}.yaml', 'policy': 'GLOBAL'}})
+            path.write_text(yaml.safe_dump(config))
+            path = generated / 'loon-rules.conf'
+            lines = path.read_text().splitlines()
+            lines.insert(2, f'https://example.test/{name}.lsr,policy=GLOBAL,tag={name},enabled=true')
+            path.write_text('\n'.join(lines) + '\n')
+            path = generated / 'singbox-rules.json'
+            config = json.loads(path.read_text())
+            config['route']['rule_set'].insert(2, {'tag': name})
+            config['route']['rules'].insert(2, {'rule_set': [name], 'action': 'route', 'outbound': 'GLOBAL'})
+            path.write_text(json.dumps(config))
+            (root / f'dist/singbox/{name}.srs').write_bytes(b'')
+            audit_production(root / 'dist', segment_names=metadata)
