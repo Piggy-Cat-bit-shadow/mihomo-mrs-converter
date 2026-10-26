@@ -109,3 +109,19 @@ class ProductionAuditTest(unittest.TestCase):
             path.write_text(yaml.safe_dump(data, allow_unicode=True), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "Egern segment order"):
                 audit_production(root / "dist", segment_names=metadata)
+
+
+    def test_source_segment_order_is_checked_independently(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            metadata = self.make_fixture(root)
+            (root / "config").mkdir()
+            anchors = ["BlockHttpDNS", "Lan", "me-pure", "Scholar-Foreign", "apple"]
+            source = {"rule-providers": {name: {"behavior": "domain"} for name in anchors},
+                      "rules": [f"RULE-SET,{name},Proxy" for name in anchors]}
+            (root / "config/rules.yaml").write_text(yaml.safe_dump(source))
+            audit_production(root / "dist", segment_names=metadata)
+            source["rules"][2:4] = reversed(source["rules"][2:4])
+            (root / "config/rules.yaml").write_text(yaml.safe_dump(source))
+            with self.assertRaisesRegex(ValueError, "differs from input"):
+                audit_production(root / "dist", segment_names=metadata)

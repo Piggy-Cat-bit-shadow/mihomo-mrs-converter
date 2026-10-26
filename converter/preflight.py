@@ -12,7 +12,7 @@ from typing import Any
 
 from .export_config import ExportProfile, load_export_profile
 from .model import parse_provider_identity, provider_segment
-from .optimize import iter_ruleset_blocks
+from .optimize import iter_ruleset_blocks, matching_segment_anchors
 from .pipeline import validate_input_schema
 from .rules import (
     find_ruleset_refs,
@@ -150,17 +150,8 @@ def run_preflight(
 
             # Verify segments match blocks and anchors exist in providers or blocks
             matched_anchors: set[str] = set()
-            for start, end, routing, wrapper_sig, names in iter_ruleset_blocks(rules, providers):
-                matches = [
-                    (anchor, mapped_name)
-                    for anchor, mapped_name in mapping.items()
-                    if any(
-                        name == anchor
-                        or name.startswith(anchor + "-")
-                        or (parse_provider_identity(name) and parse_provider_identity(name).segment == anchor)
-                        for name in names
-                    )
-                ]
+            for start, end, routing, wrapper_sig, names in iter_ruleset_blocks(rules, providers, mapping):
+                matches = matching_segment_anchors(names, mapping)
                 if len(matches) > 1:
                     raise PreflightError(f"multiple configured anchors match providers {names}: {[m[0] for m in matches]}")
                 if matches:

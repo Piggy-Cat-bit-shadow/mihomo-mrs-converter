@@ -9,16 +9,17 @@ import yaml
 from .export_config import ExportProfile, load_export_profile
 from .rules import find_ruleset_refs, iter_all_rules
 from .model import provider_segment
-from .segments import load_segment_specs
+from .segments import load_segment_specs, segment_mapping
+from .optimize import iter_ruleset_blocks, matching_segment_anchors
 from .yamlio import load_yaml_unique
 
 
-def _canonical_route_order(config: dict, expected_names: set[str]) -> list[str]:
+def _canonical_route_order(config: dict, expected_names: set[str] | None = None) -> list[str]:
     order: list[str] = []
     for raw in iter_all_rules(config):
         for provider in find_ruleset_refs(raw):
             name = provider_segment(provider)
-            if name in expected_names and name not in order:
+            if (expected_names is None or name in expected_names) and name not in order:
                 order.append(name)
     return order
 
@@ -68,9 +69,24 @@ def audit_production(root: Path, segment_names: Path | None = None, export_confi
     providers = mihomo.get("rule-providers") or {}
     if any("-part-" in name for name in providers):
         raise ValueError("unexpected fallback provider in generated production artifacts")
-    canonical_order = _canonical_route_order(mihomo, set(expected_names))
-    if set(canonical_order) != set(expected_names):
+    canonical_order = _canonical_route_order(mihomo)
+    if not set(expected_names).issubset(canonical_order):
         raise ValueError(f"production canonical route segments mismatch: {canonical_order}")
+    # Audit against the user's source, not merely agreement between exporters.
+    input_path = metadata_path.parent / "config/rules.yaml"
+    if input_path.exists():
+        source = load_yaml_unique(input_path)
+        mapping = segment_mapping(specs)
+        source_order = []
+        for ordinal, (_, _, _, _, names) in enumerate(
+            iter_ruleset_blocks(source["rules"], source["rule-providers"], mapping), 1
+        ):
+            matches = matching_segment_anchors(names, mapping)
+            if len(matches) > 1:
+                raise ValueError(f"ambiguous source segment anchors: {matches}")
+            source_order.append(matches[0][1] if matches else f"merged-segment-{ordinal:02d}")
+        if canonical_order != source_order:
+            raise ValueError(f"production segment order differs from input: {canonical_order} != {source_order}")
     egern = load_yaml_unique(root / "generated/egern-rules.yaml") or {}
     policies = {
         Path(str(item["rule_set"]["match"])).name: item["rule_set"].get("policy")

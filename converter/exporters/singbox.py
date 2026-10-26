@@ -409,7 +409,7 @@ def _aggregate_buckets(matchers: list[tuple[str, dict[str, Any]]]) -> dict[str, 
 def _groups(config: dict[str, Any], segment_names: dict[str, str] | None = None) -> list[dict[str, Any]]:
     groups: list[dict[str, Any]] = []
     current: dict[str, Any] | None = None
-    occurrence: dict[tuple[str, tuple[str, ...], str], int] = {}
+    occurrence: dict[tuple[str, tuple[str, ...], str, str | None], int] = {}
     for index, raw in enumerate(config.get("rules", [])):
         wrapper = simple_ruleset_wrapper(raw)
         if wrapper is None:
@@ -424,7 +424,11 @@ def _groups(config: dict[str, Any], segment_names: dict[str, str] | None = None)
         # semantics.  Do not let it split an otherwise identical logical
         # segment or create a separate artifact.
         logical_modifiers = tuple(item for item in reference.modifiers if item.lower() != "no-resolve")
-        key = (reference.policy, logical_modifiers, reference.wrapper_kind)
+        identity = parse_provider_identity(provider)
+        base = identity.segment if identity else None
+        if base in (segment_names or {}):
+            base = segment_names[base]
+        key = (reference.policy, logical_modifiers, reference.wrapper_kind, base)
         if current is None or current["key"] != key:
             occurrence[key] = occurrence.get(key, 0) + 1
             ordinal = occurrence[key]
@@ -432,10 +436,6 @@ def _groups(config: dict[str, Any], segment_names: dict[str, str] | None = None)
             # merged and applied segment-names.yaml (e.g. China-ip-part-02).
             # Do not derive identity from policy occurrence: Direct and China
             # may both route DIRECT while remaining distinct logical segments.
-            identity = parse_provider_identity(provider)
-            base = identity.segment if identity else None
-            if base in (segment_names or {}):
-                base = segment_names[base]
             if base and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", base):
                 # Keep the logical group identity free of no-resolve, which
                 # has no distinct Sing-box destination-IP semantics.

@@ -110,8 +110,22 @@ def merge_metadata(providers: list[dict[str, Any]]) -> dict[str, Any] | None:
     return result
 
 
-def iter_ruleset_blocks(rules: list[Any], providers: dict[str, dict[str, Any]]) -> Iterator[tuple[int, int, tuple[str, str], tuple[str, str], list[str]]]:
-    """Yield contiguous, wrapper- and routing-compatible RULE-SET blocks."""
+def matching_segment_anchors(names: list[str], mapping: dict[str, str]) -> list[tuple[str, str]]:
+    """Use the same anchor contract for raw and normalized provider names."""
+    return [
+        (anchor, label) for anchor, label in mapping.items()
+        if any(name == anchor or name.startswith(anchor + "-")
+               or ((identity := parse_provider_identity(name)) is not None and identity.segment == anchor)
+               for name in names)
+    ]
+
+
+def iter_ruleset_blocks(rules: list[Any], providers: dict[str, dict[str, Any]], segment_mapping: dict[str, str] | None = None) -> Iterator[tuple[int, int, tuple[str, str], tuple[str, str], list[str]]]:
+    """Yield compatible blocks, stopping before a different explicit anchor.
+
+    Unnamed providers retain their existing block membership. Normalized variants
+    of one anchor stay together; a second anchor starts a new block in place.
+    """
     index = 0
     while index < len(rules):
         wrapper = simple_ruleset_wrapper(rules[index])
@@ -124,6 +138,7 @@ def iter_ruleset_blocks(rules: list[Any], providers: dict[str, dict[str, Any]]) 
         routing = ruleset_routing_signature(reference)
         wrapper_signature = (wrapper[1], wrapper[2])
         names = [wrapper[0][1]]
+        anchors = matching_segment_anchors(names, segment_mapping or {})
         end = index + 1
         while end < len(rules):
             candidate = simple_ruleset_wrapper(rules[end])
@@ -134,6 +149,10 @@ def iter_ruleset_blocks(rules: list[Any], providers: dict[str, dict[str, Any]]) 
                 raise ValueError(f"invalid ruleset reference: {rules[end]}")
             if ruleset_routing_signature(next_reference) != routing or (candidate[1], candidate[2]) != wrapper_signature:
                 break
+            next_anchors = matching_segment_anchors([candidate[0][1]], segment_mapping or {})
+            if anchors and next_anchors and next_anchors != anchors:
+                break
+            anchors = anchors or next_anchors
             names.append(candidate[0][1])
             end += 1
         yield index, end, routing, wrapper_signature, names
@@ -155,7 +174,7 @@ def optimize_config(
     segment_index = 0
     matched_anchors: set[str] = set()
 
-    block_by_start = {start: (end, routing, wrapper, names) for start, end, routing, wrapper, names in iter_ruleset_blocks(rules, providers)}
+    block_by_start = {start: (end, routing, wrapper, names) for start, end, routing, wrapper, names in iter_ruleset_blocks(rules, providers, segment_mapping)}
     index = 0
     while index < len(rules):
         if index not in block_by_start:
@@ -167,16 +186,7 @@ def optimize_config(
         end, routing, wrapper_signature, names = block_by_start[index]
         segment_index += 1
         segment_key = f"merged-segment-{segment_index:02d}"
-        matches = [
-            (anchor, mapped_name)
-            for anchor, mapped_name in (segment_mapping or {}).items()
-            if any(
-                name == anchor
-                or name.startswith(anchor + "-")
-                or (parse_provider_identity(name) and parse_provider_identity(name).segment == anchor)
-                for name in names
-            )
-        ]
+        matches = matching_segment_anchors(names, segment_mapping or {})
         if len(matches) > 1:
             raise ValueError(f"{segment_key}: multiple configured anchors match providers {names}")
         mapped_segment_name = matches[0][1] if matches else None
@@ -253,6 +263,21 @@ def optimize_config(
             final_providers[name] = provider
             final_payloads[name] = list(payloads[name])
             rename_map.setdefault(name, []).append(name)
+
+    # A merged union is valid only at that contiguous occurrence. References
+    # elsewhere (nested expressions or sub-rules) must keep the original set.
+    external_refs = {
+        name for members in (config.get("sub-rules") or {}).values()
+        for item in members for name in find_ruleset_refs(item)
+    }
+    external_refs.update(
+        name for item in rewritten_rules for name in find_ruleset_refs(item)
+        if name in providers and name not in final_providers
+    )
+    for name in external_refs:
+        final_providers[name] = providers[name]
+        final_payloads[name] = list(payloads[name])
+        rename_map[name] = [name]
 
     final_behaviors = {
         name: provider.get("behavior", "") for name, provider in final_providers.items()
