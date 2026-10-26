@@ -10,9 +10,9 @@
       },
       {
         "type": "remote",
-        "tag": "Global-First",
+        "tag": "merged-segment-02",
         "format": "binary",
-        "url": "https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/singbox/Global-First.srs",
+        "url": "https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/singbox/merged-segment-02.srs",
         "update_interval": "2d"
       },
       {
@@ -20,6 +20,13 @@
         "tag": "AI",
         "format": "binary",
         "url": "https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/singbox/AI.srs",
+        "update_interval": "2d"
+      },
+      {
+        "type": "remote",
+        "tag": "Global-First",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/singbox/Global-First.srs",
         "update_interval": "2d"
       },
       {
@@ -47,7 +54,7 @@
       },
       {
         "rule_set": [
-          "Global-First"
+          "merged-segment-02"
         ],
         "action": "route",
         "outbound": "🌍 国外流量"
@@ -67,6 +74,13 @@
         ],
         "action": "route",
         "outbound": "🤖 AI"
+      },
+      {
+        "rule_set": [
+          "Global-First"
+        ],
+        "action": "route",
+        "outbound": "🌍 国外流量"
       },
       {
         "rule_set": [

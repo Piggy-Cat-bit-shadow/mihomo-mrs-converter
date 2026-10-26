@@ -4,7 +4,7 @@ rules:
     policy: DIRECT
     update_interval: 172800
 - rule_set:
-    match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/Global-First.yaml
+    match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/merged-segment-02.yaml
     policy: 🌍 国外流量
     update_interval: 172800
 - and:
@@ -18,6 +18,10 @@ rules:
 - rule_set:
     match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/AI.yaml
     policy: 🤖 AI
+    update_interval: 172800
+- rule_set:
+    match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/Global-First.yaml
+    policy: 🌍 国外流量
     update_interval: 172800
 - rule_set:
     match: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/egern/Global.yaml

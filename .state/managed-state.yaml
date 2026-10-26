@@ -15,27 +15,20 @@ providers:
     behavior: classical
     format: yaml
     fingerprint: 0538f2f350dbfd7b23d4e5f7f255a52fb2f317f3e6db4401ccccc1bb8015133a
-  Global-First-domain:
-    name: Global-First-domain
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/Global-First-domain.mrs
-    path: ./ruleset/Global-First-domain.mrs
+  merged-segment-02-domain:
+    name: merged-segment-02-domain
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/merged-segment-02-domain.mrs
+    path: ./ruleset/merged-segment-02-domain.mrs
     behavior: domain
     format: mrs
-    fingerprint: 346ab6fb80954457fe4799fa37ef54179784fcad0764bed0869392c43ef10901
-  Global-First-classical:
-    name: Global-First-classical
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/Global-First-classical.yaml
-    path: ./ruleset/Global-First-classical.yaml
+    fingerprint: 0f2fd5db2f77dc51155775bb5e8cdf795e13859b60a9253113139b89b6df26d4
+  merged-segment-02-classical:
+    name: merged-segment-02-classical
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/merged-segment-02-classical.yaml
+    path: ./ruleset/merged-segment-02-classical.yaml
     behavior: classical
     format: yaml
-    fingerprint: 3f0a1c9aac47bc6da46f09f623c4621ec647efc1c62602a2eed6248520b22353
-  Global-First-ip:
-    name: Global-First-ip
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/Global-First-ip.mrs
-    path: ./ruleset/Global-First-ip.mrs
-    behavior: ipcidr
-    format: mrs
-    fingerprint: ec01033bb6ebeb5d7d05a4070e4967886914cdb0cf3633c5cd1b6a02f9084fd2
+    fingerprint: 7f7e48f6c7e94a719d0a90affe88c0d03ecb866c606d63a20fb12fa9b65cbc59
   AI-domain:
     name: AI-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/AI-domain.mrs
@@ -57,6 +50,27 @@ providers:
     behavior: ipcidr
     format: mrs
     fingerprint: e71cc5c58add5a1e0ca1fb5467fc192fb30703eac250fb2e94c342657fddd99d
+  Global-First-domain:
+    name: Global-First-domain
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/Global-First-domain.mrs
+    path: ./ruleset/Global-First-domain.mrs
+    behavior: domain
+    format: mrs
+    fingerprint: 346ab6fb80954457fe4799fa37ef54179784fcad0764bed0869392c43ef10901
+  Global-First-classical:
+    name: Global-First-classical
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/Global-First-classical.yaml
+    path: ./ruleset/Global-First-classical.yaml
+    behavior: classical
+    format: yaml
+    fingerprint: 3f0a1c9aac47bc6da46f09f623c4621ec647efc1c62602a2eed6248520b22353
+  Global-First-ip:
+    name: Global-First-ip
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/Global-First-ip.mrs
+    path: ./ruleset/Global-First-ip.mrs
+    behavior: ipcidr
+    format: mrs
+    fingerprint: ec01033bb6ebeb5d7d05a4070e4967886914cdb0cf3633c5cd1b6a02f9084fd2
   Global-domain:
     name: Global-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/Global-domain.mrs
@@ -99,4 +113,4 @@ providers:
     behavior: ipcidr
     format: mrs
     fingerprint: 89f8d5f243c3c645b9a123c079de7ff6b8ba18d5eea227aada41a75f193dea00
-generation: f709a410292d04a5bb8c3efc22ee92aa8022281659c35479c724785b1d28aaab
+generation: 821847b71349042b00170465995c994af1556ca95c9e1db99d42f68ac8b96d8b
