@@ -13,20 +13,20 @@ rule-providers:
     format: yaml
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/Direct-classical.yaml
     path: ./ruleset/Direct-classical.yaml
-  merged-segment-02-domain:
+  Global-First-domain:
     behavior: domain
     interval: 172800
     type: http
     format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/merged-segment-02-domain.mrs
-    path: ./ruleset/merged-segment-02-domain.mrs
-  merged-segment-02-classical:
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/Global-First-domain.mrs
+    path: ./ruleset/Global-First-domain.mrs
+  Global-First-classical:
     behavior: classical
     interval: 172800
     type: http
     format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/merged-segment-02-classical.yaml
-    path: ./ruleset/merged-segment-02-classical.yaml
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/Global-First-classical.yaml
+    path: ./ruleset/Global-First-classical.yaml
   AI-domain:
     behavior: domain
     interval: 172800
@@ -48,27 +48,6 @@ rule-providers:
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/AI-ip.mrs
     path: ./ruleset/AI-ip.mrs
-  Global-First-domain:
-    behavior: domain
-    interval: 172800
-    type: http
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/Global-First-domain.mrs
-    path: ./ruleset/Global-First-domain.mrs
-  Global-First-classical:
-    behavior: classical
-    interval: 172800
-    type: http
-    format: yaml
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/Global-First-classical.yaml
-    path: ./ruleset/Global-First-classical.yaml
-  Global-First-ip:
-    behavior: ipcidr
-    interval: 172800
-    type: http
-    format: mrs
-    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/Global-First-ip.mrs
-    path: ./ruleset/Global-First-ip.mrs
   Global-domain:
     behavior: domain
     interval: 172800
@@ -114,16 +93,13 @@ rule-providers:
 rules:
 - RULE-SET,Direct-domain,DIRECT
 - RULE-SET,Direct-classical,DIRECT,no-resolve
-- RULE-SET,merged-segment-02-domain,🌍 国外流量
-- RULE-SET,merged-segment-02-classical,🌍 国外流量,no-resolve
+- RULE-SET,Global-First-domain,🌍 国外流量
+- RULE-SET,Global-First-classical,🌍 国外流量,no-resolve
 - SUB-RULE,(RULE-SET,AI-domain),AI-Routing
 - SUB-RULE,(RULE-SET,AI-classical,no-resolve),AI-Routing
 - SUB-RULE,(RULE-SET,AI-ip,no-resolve),AI-Routing
-- RULE-SET,Global-First-domain,🌍 国外流量
-- RULE-SET,Global-First-classical,🌍 国外流量,no-resolve
-- RULE-SET,Global-First-ip,🌍 国外流量,no-resolve
 - RULE-SET,Global-domain,🌍 国外流量
-- RULE-SET,Global-classical,🌍 国外流量
+- RULE-SET,Global-classical,🌍 国外流量,no-resolve
 - RULE-SET,Global-ip,🌍 国外流量,no-resolve
 - RULE-SET,China-domain,DIRECT
 - RULE-SET,China-classical,DIRECT,no-resolve
