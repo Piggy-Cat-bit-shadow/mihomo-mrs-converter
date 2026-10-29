@@ -1,7 +1,7 @@
 rule-providers:
   Direct-domain:
     behavior: domain
-    interval: 172800
+    interval: 86400
     type: http
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/Direct-domain.mrs
@@ -15,18 +15,25 @@ rule-providers:
     path: ./ruleset/Direct-classical.yaml
   Global-First-domain:
     behavior: domain
-    interval: 172800
+    interval: 86400
     type: http
     format: mrs
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/Global-First-domain.mrs
     path: ./ruleset/Global-First-domain.mrs
   Global-First-classical:
     behavior: classical
-    interval: 172800
+    interval: 86400
     type: http
     format: yaml
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/classical/Global-First-classical.yaml
     path: ./ruleset/Global-First-classical.yaml
+  Global-First-ip:
+    behavior: ipcidr
+    interval: 86400
+    type: http
+    format: mrs
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/Global-First-ip.mrs
+    path: ./ruleset/Global-First-ip.mrs
   AI-domain:
     behavior: domain
     interval: 172800
@@ -95,6 +102,7 @@ rules:
 - RULE-SET,Direct-classical,DIRECT,no-resolve
 - RULE-SET,Global-First-domain,🌍 国外流量
 - RULE-SET,Global-First-classical,🌍 国外流量,no-resolve
+- RULE-SET,Global-First-ip,🌍 国外流量,no-resolve
 - SUB-RULE,(RULE-SET,AI-domain),AI-Routing
 - SUB-RULE,(RULE-SET,AI-classical,no-resolve),AI-Routing
 - SUB-RULE,(RULE-SET,AI-ip,no-resolve),AI-Routing

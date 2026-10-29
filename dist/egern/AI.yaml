@@ -56,6 +56,7 @@ domain_suffix_set:
 - anythingllm.com
 - apps.mzstatic.com
 - arena.ai
+- artificialanalysis.ai
 - byteoversea.com
 - cerebras.ai
 - chat.com
@@ -78,6 +79,7 @@ domain_suffix_set:
 - claudestudio.com
 - claudeusercontent.com
 - clawhub.ai
+- cline.bot
 - clipdrop.co
 - cloudcode-pa.googleapis.com
 - codeium.com
@@ -89,6 +91,8 @@ domain_suffix_set:
 - comfy.org
 - comfyci.org
 - comfyregistry.org
+- commandcode.ai
+- context7.com
 - copilot-stg.com
 - copilot.cloud.microsoft
 - copilot.com
@@ -154,6 +158,7 @@ domain_suffix_set:
 - manuscdn.com
 - marscode.com
 - meta.ai
+- metaaiusercontent.com
 - metaaivm.com
 - midjourney.com
 - minimax.io
@@ -166,6 +171,7 @@ domain_suffix_set:
 - notebooklm.google
 - notebooklm.google.com
 - notegpt.io
+- nousresearch.com
 - novelai.net
 - oaistatsig.com
 - ollama.com
@@ -729,6 +735,9 @@ domain_set:
 - antigravity.googleapis.com
 - api.github.com
 - api.together.xyz
+- appsgenaiserver-pa.clients.google.com
+- appsgenaiserver-pa.clients6.google.com
+- appsgenaiserver-pa.googleapis.com
 - cloudaicompanion.googleapis.com
 - copilot-proxy.githubusercontent.com
 - copilot-telemetry-service.githubusercontent.com

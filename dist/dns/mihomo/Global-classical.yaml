@@ -1,4 +1,7 @@
 payload:
+- DOMAIN-KEYWORD,steambroadcast
+- DOMAIN-KEYWORD,steamstore
+- DOMAIN-KEYWORD,steamuserimages
 - DOMAIN-KEYWORD,nicegram
 - DOMAIN-KEYWORD,github
 - DOMAIN-WILDCARD,clients*.google.com

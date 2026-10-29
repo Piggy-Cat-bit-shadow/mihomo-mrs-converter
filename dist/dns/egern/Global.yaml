@@ -1,4 +1,46 @@
 domain_suffix_set:
+- cdn-ali.content.steamchina.com
+- cdn-qc.content.steamchina.com
+- cdn-ws.content.steamchina.com
+- csgo.wmsj.cn
+- dl.steam.clngaa.com
+- dl.steam.ksyna.com
+- dota2.com
+- dota2.wmsj.cn
+- edge.steam-dns.top.comcast.net
+- fanatical.com
+- humblebundle.com
+- playartifact.com
+- s.team
+- st.dl.bscstorage.net
+- st.dl.eccdnx.com
+- st.dl.pinyuncloud.com
+- steam-api.com
+- steam-chat.com
+- steam.apac.qtlglb.com
+- steam.cdn.on.net
+- steam.cdn.orcon.net.nz
+- steam.cdn.slingshot.co.nz
+- steam.cdn.webra.ru
+- steam.eca.qtlglb.com
+- steam.naeu.qtlglb.com
+- steam.ru.qtlglb.com
+- steam.tv
+- steamcommunity.com
+- steamconnecttest.com
+- steamcontent.tnkjmec.com
+- steamdeck.com
+- steamgames.com
+- steampowered.com
+- steampowered.com.8686c.com
+- steamstat.us
+- steamstatic.com
+- steamstatic.com.8686c.com
+- steamunlocked.net
+- underlords.com
+- valve.net
+- valvesoftware.com
+- wmsjsteam.com
 - apps.mzstatic.com
 - cdn-apple.com
 - pages.dev
@@ -342,6 +384,7 @@ domain_suffix_set:
 - antspace.dev
 - anythingllm.com
 - arena.ai
+- artificialanalysis.ai
 - byteoversea.com
 - cerebras.ai
 - chat.com
@@ -364,6 +407,7 @@ domain_suffix_set:
 - claudestudio.com
 - claudeusercontent.com
 - clawhub.ai
+- cline.bot
 - clipdrop.co
 - codeium.com
 - codeiumdata.com
@@ -373,6 +417,8 @@ domain_suffix_set:
 - comfy.org
 - comfyci.org
 - comfyregistry.org
+- commandcode.ai
+- context7.com
 - copilot-stg.com
 - copilot.cloud.microsoft
 - copilot.com
@@ -426,6 +472,7 @@ domain_suffix_set:
 - manuscdn.com
 - marscode.com
 - meta.ai
+- metaaiusercontent.com
 - metaaivm.com
 - midjourney.com
 - minimax.io
@@ -436,6 +483,7 @@ domain_suffix_set:
 - notebook.google
 - notebooklm.google
 - notegpt.io
+- nousresearch.com
 - novelai.net
 - oaistatsig.com
 - ollama.com
@@ -3295,6 +3343,7 @@ domain_suffix_set:
 - addison-wesley.ch
 - addthiscdn.com
 - addtoany.com
+- addtodropbox.com
 - addyoutube.com
 - adelaidenow.com.au
 - adguard-dns.com
@@ -7737,6 +7786,7 @@ domain_suffix_set:
 - darwinsource.org
 - darwinsourcecode.com
 - dasaob.online
+- dash.ai
 - dashly.app
 - dashly.help
 - dashly.io
@@ -8315,6 +8365,7 @@ domain_suffix_set:
 - docs.com
 - docs.rs
 - docs.rw
+- docsend.com
 - doctor-videos.com
 - documentforce.com
 - dodgersexcartoons.com
@@ -8357,7 +8408,6 @@ domain_suffix_set:
 - doseofporn.com
 - dot-mac.de
 - dot.net
-- dota2.com
 - dotcernpilot.info
 - dotdeb.org
 - dotfreesex.com
@@ -8467,12 +8517,15 @@ domain_suffix_set:
 - dropboxapi.com
 - dropboxbusiness.com
 - dropboxcaptcha.com
+- dropboxexperiment.com
 - dropboxforum.com
 - dropboxforums.com
 - dropboxinsiders.com
+- dropboxlegal.com
 - dropboxmail.com
 - dropboxpartners.com
 - dropboxstatic.com
+- dropboxteam.com
 - dropboxusercontent.com
 - drpc.org
 - drunk6.com
@@ -10983,8 +11036,10 @@ domain_suffix_set:
 - heinonline.org
 - heise360181.buzz
 - heise360182.buzz
+- hellofax.com
 - hellokittybeats.com
 - hellomoto.com
+- hellosign.com
 - hellosmartbook.com
 - hellporno.com
 - hellven.net
@@ -13538,6 +13593,7 @@ domain_suffix_set:
 - library.lol
 - librarylovefest.com
 - libraryofthumbs.com
+- librewolf.dev
 - librewolf.net
 - licensebuttons.net
 - licenseparser.com
@@ -19479,7 +19535,6 @@ domain_suffix_set:
 - staxus.com
 - stc-server.com
 - stealthex.io
-- steamconnecttest.com
 - steamos.cloud
 - steelbrick.com
 - steemitwallet.com
@@ -20816,7 +20871,6 @@ domain_suffix_set:
 - value-domain.com
 - value-server.com
 - valuegb.com
-- valve.net
 - vamo.com
 - vamzakaz.ru
 - vanadium.app
@@ -24950,7 +25004,6 @@ domain_suffix_set:
 - familyfed.org
 - famunion.com
 - fan-qiang.com
-- fanatical.com
 - fanbox.cc
 - fandom.com
 - fangbinxing.com
@@ -25816,7 +25869,6 @@ domain_suffix_set:
 - humanparty.me
 - humanrightsbriefing.org
 - humanrightspressawards.org
-- humblebundle.com
 - hung-ya.com
 - hungerstrikeforaids.org
 - huobi.co
@@ -27444,7 +27496,6 @@ domain_suffix_set:
 - pkuanvil.com
 - placemix.com
 - play-asia.com
-- playartifact.com
 - playboy.com
 - playboyplus.com
 - player.fm
@@ -27811,7 +27862,6 @@ domain_suffix_set:
 - s-cute.com
 - s-dragon.org
 - s-nbcnews.com
-- s.team
 - s1heng.com
 - s1s1s1.com
 - s4miniarchive.com
@@ -28934,7 +28984,6 @@ domain_suffix_set:
 - uncyclomedia.org
 - uncyclopedia.hk
 - uncyclopedia.tw
-- underlords.com
 - underwoodammo.com
 - unholyknight.com
 - uni.cc
@@ -29032,7 +29081,6 @@ domain_suffix_set:
 - v2ray.com
 - v2raycn.com
 - valeursactuelles.com
-- valvesoftware.com
 - van001.com
 - van698.com
 - vanilla-jp.com
@@ -29768,6 +29816,7 @@ domain_set:
 - courier-push-apple.com.akadns.net
 - crl.versign.net
 - datarouter.apps.netherrealm.com
+- dc.services.visualstudio.com
 - deutschewelle.h-cdn.com
 - dl.begellhouse.com
 - ea.tt.omtrdc.net
@@ -29832,6 +29881,7 @@ domain_set:
 - rsshub.umzzz.com
 - rsshub.woodland.cafe
 - rsshub2.asailor.org
+- rt.services.visualstudio.com
 - standchartbank.sc.omtrdc.net
 - standchartbank.tt.omtrdc.net
 - straitsx-826709081262441084-b790f87a2ae6fd417434295.freshchat.com
@@ -29860,6 +29910,9 @@ domain_set:
 - cloud.oracle.com
 - login.microsoftonline.com
 domain_keyword_set:
+- steambroadcast
+- steamstore
+- steamuserimages
 - nicegram
 - github
 - openai
