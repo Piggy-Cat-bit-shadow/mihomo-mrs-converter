@@ -39,11 +39,7 @@ class PreflightError(Exception):
     """Raised when configuration violates static structural or contract requirements."""
 
 
-def _expected_reject_policy(spec: SegmentSpec) -> str:
-    try:
-        return expected_reject_policy(spec)
-    except ValueError as exc:
-        raise PreflightError(str(exc)) from exc
+
 
 
 def _check_sub_rules(sub_rules: dict[str, Any]) -> None:
@@ -181,12 +177,13 @@ def run_preflight(
                 resolve_segment_roles(blocks, segment_roles(specs))
             except ValueError as exc:
                 raise PreflightError(str(exc)) from exc
-            _check_reject_routing(
-                blocks,
-                rules,
-                sub_rules,
-                {spec.name: _expected_reject_policy(spec) for spec in specs if spec.role == "reject"},
-            )
+            try:
+                reject_policies = {
+                    spec.name: expected_reject_policy(spec) for spec in specs if spec.role == "reject"
+                }
+            except ValueError as exc:
+                raise PreflightError(str(exc)) from exc
+            _check_reject_routing(blocks, rules, sub_rules, reject_policies)
 
     profile: ExportProfile | None = None
     if export_config_path is not None:
@@ -209,7 +206,7 @@ def run_preflight(
                 )
 
     if specs is not None and profile is not None:
-        all_spec_roles = {spec.role for spec in specs}
+        all_spec_roles = {spec.role for spec in specs if spec.role is not None}
         for group_name, roles in profile.dns_groups.items():
             for role in roles:
                 if role not in all_spec_roles:

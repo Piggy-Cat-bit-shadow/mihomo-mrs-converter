@@ -66,9 +66,6 @@ def _assert_no_legacy_top_level_rules(root: Path) -> None:
             raise ValueError(f"production Sing-box route contains removed zero-address rule: {item}")
 
 
-def _expected_reject_policy(spec) -> str:
-    return expected_reject_policy(spec)
-
 
 def audit_production(root: Path, segment_names: Path | None = None, export_config: Path | None = None) -> None:
     metadata_path = segment_names or root.parent / "segment-names.yaml"
@@ -108,7 +105,7 @@ def audit_production(root: Path, segment_names: Path | None = None, export_confi
     ]
     expected_order = canonical_order
     expected_reject_policies = {
-        spec.name: _expected_reject_policy(spec)
+        spec.name: expected_reject_policy(spec)
         for spec in specs
         if spec.role == "reject"
     }

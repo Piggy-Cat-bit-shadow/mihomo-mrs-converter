@@ -1,3 +1,5 @@
+import contextlib
+import io
 import itertools
 import unittest
 
@@ -195,13 +197,19 @@ class SubRuleReferenceTest(unittest.TestCase):
         self.assertEqual(final.rules[-1], nested)
         self.assertEqual(rendered(final.provider_map()["A"].payload), ["a.example"])
 
-    def test_segment_anchor_rejects_unmatched_configuration(self):
+    def test_unmatched_anchor_falls_back_to_a_generated_identity(self):
         semantic = semantic_config(
             providers=[normalized("Inserted", "Inserted", "domain", ["inserted.example"]), normalized("AI", "AI", "domain", ["ai.example"])],
             rules=["RULE-SET,Inserted,Proxy", "DOMAIN,barrier.example,DIRECT", "RULE-SET,AI,Proxy"],
         )
-        with self.assertRaisesRegex(ValueError, "anchor"):
-            optimize_config(semantic, {"Direct": "Direct"})
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            final = optimize_config(semantic, {"Direct": "Direct"})
+        self.assertEqual(
+            [provider.name for provider in final.providers],
+            ["merged-segment-01-domain", "merged-segment-02-domain"],
+        )
+        self.assertIn("did not match any provider: ['Direct']", stderr.getvalue())
 
     def test_segment_anchor_maps_expected_provider(self):
         semantic = semantic_config(

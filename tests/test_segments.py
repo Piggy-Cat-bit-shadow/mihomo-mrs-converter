@@ -1,3 +1,5 @@
+import contextlib
+import io
 import tempfile
 import unittest
 from pathlib import Path
@@ -17,43 +19,114 @@ class SegmentMetadataTest(unittest.TestCase):
         path.write_text(value, encoding="utf-8")
         return path
 
-    def test_loader_exposes_one_validated_identity_model(self):
+    def load(self, text: str):
         with tempfile.TemporaryDirectory() as tmp:
-            specs = load_segment_specs(self.write(Path(tmp), """segments:
+            path = self.write(Path(tmp), text)
+            stderr = io.StringIO()
+            with contextlib.redirect_stderr(stderr):
+                specs = load_segment_specs(path)
+        return specs, stderr.getvalue()
+
+    def test_loader_exposes_one_validated_identity_model(self):
+        specs, warnings = self.load("""segments:
   ExampleReject:
     name: ExampleReject
     role: reject
     reject-mode: reject
-"""))
+""")
         self.assertEqual(segment_mapping(specs), {"ExampleReject": "ExampleReject"})
         self.assertEqual(segment_roles(specs), {"ExampleReject": "reject"})
+        self.assertEqual(warnings, "")
 
-    def test_missing_role_is_fail_fast(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            with self.assertRaisesRegex(SystemExit, "requires a non-empty string role"):
-                load_segment_specs(self.write(Path(tmp), """segments:
+    def test_missing_role_is_tolerated_and_excluded_from_dns_grouping(self):
+        specs, warnings = self.load("""segments:
   Example:
     name: Example
-"""))
+""")
+        self.assertIsNone(specs[0].role)
+        self.assertEqual(segment_roles(specs), {})
+        self.assertIn("no role configured", warnings)
 
-    def test_duplicate_names_are_rejected(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            with self.assertRaisesRegex(SystemExit, "duplicate segment name"):
-                load_segment_specs(self.write(Path(tmp), """segments:
+    def test_duplicate_names_fall_back_to_a_stable_anchor_name(self):
+        specs, warnings = self.load("""segments:
   one: {name: Same, role: direct}
-  two: {name: Same, role: reject, reject-mode: reject}
-"""))
+  two: {name: Same, role: global}
+""")
+        self.assertEqual([spec.name for spec in specs], ["Same", "two"])
+        self.assertIn("already used by segment 'one'", warnings)
+        # Deterministic: repeating the load yields the same fallback.
+        again, _ = self.load("""segments:
+  one: {name: Same, role: direct}
+  two: {name: Same, role: global}
+""")
+        self.assertEqual([spec.name for spec in again], ["Same", "two"])
+
+    def test_invalid_and_blank_names_fall_back_without_failing(self):
+        specs, warnings = self.load("""segments:
+  one: {name: "bad/name", role: direct}
+  two: {name: "   ", role: global}
+""")
+        self.assertEqual([spec.name for spec in specs], ["one", "two"])
+        self.assertIn("not a safe artifact name", warnings)
+        self.assertIn("non-empty string name is required", warnings)
+
+    def test_unknown_role_is_tolerated_but_kept_semantic_for_dns(self):
+        specs, warnings = self.load("""segments:
+  one: {name: One, role: rejct}
+""")
+        self.assertIsNone(specs[0].role)
+        self.assertIn("unknown role 'rejct'", warnings)
+
+    def test_reserved_namespace_is_reported_and_ignored(self):
+        specs, warnings = self.load("""segments:
+  "merged-segment-01": {name: Example, role: direct}
+  two: {name: "merged-segment-02", role: direct}
+""")
+        self.assertEqual([spec.anchor for spec in specs], ["two"])
+        self.assertEqual([spec.name for spec in specs], ["two"])
+        self.assertIn("reserved", warnings)
+
+    def test_fallback_never_displaces_a_configured_name(self):
+        specs, warnings = self.load("""segments:
+  A: {name: "bad/name", role: direct}
+  B: {name: A, role: global}
+""")
+        # "A" is configured for anchor B, so anchor A's fallback must avoid it.
+        self.assertEqual([spec.name for spec in specs], ["A-2", "A"])
+        self.assertIn("using 'A-2'", warnings)
+
+    def test_case_insensitive_duplicate_names_fall_back(self):
+        specs, warnings = self.load("""segments:
+  A: {name: Same, role: direct}
+  B: {name: same, role: global}
+""")
+        self.assertEqual([spec.name for spec in specs], ["Same", "B"])
+        self.assertIn("already used by segment 'A'", warnings)
+
+    def test_unusable_anchor_is_ignored_with_a_warning(self):
+        specs, warnings = self.load("""segments:
+  1: {name: One, role: direct}
+  "bad anchor": {name: Two, role: direct}
+  Good: {name: Good, role: direct}
+""")
+        self.assertEqual([spec.anchor for spec in specs], ["Good"])
+        self.assertIn("not a usable identifier", warnings)
 
     def test_reject_mode_is_required_and_validated(self):
-        cases = (
-            ("role: reject\n", "requires reject-mode"),
-            ("role: reject\n    reject-mode: invalid\n", "requires reject-mode"),
-            ("role: direct\n    reject-mode: reject\n", "only valid for role=reject"),
-        )
-        for body, message in cases:
+        for body in ("role: reject\n", "role: reject\n    reject-mode: invalid\n"):
             with self.subTest(body=body), tempfile.TemporaryDirectory() as tmp:
-                with self.assertRaisesRegex(SystemExit, message):
+                with self.assertRaisesRegex(SystemExit, "requires reject-mode"):
                     load_segment_specs(self.write(Path(tmp), f"segments:\n  Example:\n    name: Example\n    {body}"))
+
+    def test_reject_mode_on_a_non_reject_segment_is_ignored_with_a_warning(self):
+        specs, warnings = self.load("""segments:
+  Example:
+    name: Example
+    role: direct
+    reject-mode: reject
+""")
+        self.assertIsNone(specs[0].reject_mode)
+        self.assertIn("only used by reject segments", warnings)
 
 
 class InheritedRoleTest(unittest.TestCase):
@@ -115,9 +188,19 @@ class InheritedRoleTest(unittest.TestCase):
                 roles = self.resolve([f'RULE-SET,{name},Proxy' for name in order])
                 self.assertEqual(roles, {'First': 'global', 'Second': 'global'})
 
-    def test_configured_anchor_must_match_a_block(self):
-        with self.assertRaisesRegex(ValueError, "anchor"):
-            self.resolve(['RULE-SET,A,Proxy'], mapping={'A': 'First', 'B': 'Second'})
+    def test_unmatched_anchor_is_reported_and_ignored(self):
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            blocks = plan_blocks(['RULE-SET,A,Proxy'], {'A': 'A'}, {'A': 'First', 'B': 'Second'})
+        self.assertEqual([block.name for block in blocks], ['First'])
+        self.assertIn("did not match any provider: ['B']", stderr.getvalue())
+
+    def test_named_segment_without_role_is_excluded_without_failing(self):
+        roles = resolve_segment_roles(
+            plan_blocks(['RULE-SET,A,Proxy'], {'A': 'A'}, {'A': 'First'}),
+            {'First': None},
+        )
+        self.assertEqual(roles, {})
 
 
 if __name__ == "__main__":

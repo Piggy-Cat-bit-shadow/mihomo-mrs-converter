@@ -182,11 +182,21 @@ class PreflightTest(unittest.TestCase):
             # Segment-only validation passes when segments are valid
             run_preflight(None, segment_path, None)
 
-            # Invalid segment role fails fast in segment-only mode
-            bad_seg = Path(tmp) / "bad-seg.yaml"
+    def test_invalid_role_is_tolerated_until_a_dns_group_requires_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bad_seg = root / "bad-seg.yaml"
             bad_seg.write_text(yaml.safe_dump({"segments": {"Lan": {"name": "Direct", "role": "invalid_role"}}}))
-            with self.assertRaisesRegex(PreflightError, "unknown role"):
-                run_preflight(None, bad_seg, None)
+            # Segment-only mode tolerates the broken optional role (with a warning).
+            run_preflight(None, bad_seg, None)
+
+            # A DNS group that requires the discarded role still fails closed.
+            export_path = root / "export.yaml"
+            export_path.write_text(yaml.safe_dump({
+                "dns": {"groups": {"China": {"roles": ["direct"]}}},
+            }))
+            with self.assertRaisesRegex(PreflightError, "not assigned to any configured segment"):
+                run_preflight(None, bad_seg, export_path)
 
     def test_decoupled_preflight_export_only(self):
         with tempfile.TemporaryDirectory() as tmp:

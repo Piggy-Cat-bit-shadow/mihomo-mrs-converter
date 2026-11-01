@@ -65,13 +65,18 @@ segments:
     role: china
 ```
 
-键是输入 `rule-providers` 的 key（anchor），必须与输入完全一致：项目不再从生成文件的 `-domain` / `-ip` / `-classical` 后缀或前缀猜测来源，因此插入无关规则、重排分组或给 provider 改名，都不会让其他 segment 静默改身份。没有配置身份的分组会得到 `merged-segment-NN` 这样的确定性名称，但没有稳定来源可依据时不会假装稳定。
+键是输入 `rule-providers` 的 key（anchor），必须与输入完全一致：项目不再从生成文件的 `-domain` / `-ip` / `-classical` 后缀或前缀猜测来源，因此插入无关规则、重排分组或给 provider 改名，都不会让其他 segment 静默改身份。
 
-显示名称可以调整，DNS role 用于保持 DNS 分组身份不变。
+`name` 和 `role` 是可选元数据，出错时不会让整个构建失败：
+
+- 空白、含路径字符或与已用名称重复的 `name`（按大小写不敏感比较，`merged-segment-` 为保留前缀）会回退到由 anchor 派生的确定性名称，并在 stderr 输出 `warning`，指出原值与回退值；回退名称不会覆盖其他 segment 已配置的名称。
+- 缺失或未知的 `role` 会让该 segment 不参与 DNS 分组，同样输出 `warning`；如果 `config/export.yaml` 的 DNS 分组需要这个 role，构建仍会明确失败，而不是静默少输出。
+- 只有真正影响语义的配置才会中断：`role: reject` 缺少合法的 `reject-mode`；`merged-segment-` 保留前缀被用作 anchor；DNS role 无法唯一继承；以及缺失 provider、非法 wrapper/policy/SUB-RULE 等。
+- 未配置 anchor 的分组仍使用 `merged-segment-NN` 名称，并按顺序继承同名 routing 的显式 role；构建会 `warning` 提示这些名称是位置身份，插入新分组可能改变它们。没有稳定外部 ID 时项目不会假装它稳定。
 
 `segment-names.yaml` 是生产 segment metadata 的唯一来源。生产构建会从生成的 Mihomo route 中读取实际 segment 顺序，并要求 Egern、Loon、Sing-box 与之保持一致；新增、删除、重命名或重排 segment 时只需同步 metadata 和输入规则。
 
-`role` 表示 segment 的语义类别。对 `role: reject` 的 segment，`reject-mode` 明确具体拒绝方式，只允许 `reject` 或 `drop`：前者映射为各客户端的普通 `REJECT`，后者映射为 `REJECT-DROP` / Sing-box `method: drop`。因此 `role: reject` 不等于 `REJECT-DROP`；reject segment 必须显式填写 `reject-mode`，其他 role 不得填写该字段。
+`role` 表示 segment 的语义类别。对 `role: reject` 的 segment，`reject-mode` 明确具体拒绝方式，只允许 `reject` 或 `drop`：前者映射为各客户端的普通 `REJECT`，后者映射为 `REJECT-DROP` / Sing-box `method: drop`。因此 `role: reject` 不等于 `REJECT-DROP`；reject segment 必须显式填写 `reject-mode`，其他 role 上出现的该字段会被忽略并给出 `warning`。
 
 例如：
 
