@@ -390,6 +390,25 @@ class SingBoxRouteTest(unittest.TestCase):
             self.assertEqual(len(tags), 3)
             self.assertEqual([item["outbound"] for item in result["route"]["route"]["rules"] if "outbound" in item], ["direct", "🤖 AI", "direct", "🤖 AI"])
 
+    def test_non_terminal_match_in_sub_rule_is_rejected(self):
+        config = optimized_config(
+            providers=[provider("A", "domain", ["a.example"], segment="A")],
+            rules=["SUB-RULE,(RULE-SET,A),R", "MATCH,DIRECT"],
+            sub_rules={"R": ["MATCH,Proxy", "NETWORK,UDP,REJECT"]},
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(SingBoxExportError, "MATCH must be the terminal member"):
+                export_singbox(config, Path(tmp), "https://x", SING_BOX)
+
+    def test_undefined_sub_rule_is_rejected(self):
+        config = optimized_config(
+            providers=[provider("A", "domain", ["a.example"], segment="A")],
+            rules=["SUB-RULE,(RULE-SET,A),Missing", "MATCH,DIRECT"],
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(SingBoxExportError, "SUB-RULE 'Missing' is not defined"):
+                export_singbox(config, Path(tmp), "https://x", SING_BOX)
+
     def test_unsupported_rule_fails_closed(self):
         config = optimized_config(
             providers=[provider("A", "classical", ["GEOIP,CN"], segment="A")],

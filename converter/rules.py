@@ -213,7 +213,12 @@ def parse_ruleset_reference(rule: Any) -> RulesetReference | None:
     if len(parts) < 2 or not parts[1]:
         raise SystemExit(f"invalid RULE-SET reference: {rule!r}")
     wrapper_kind = prefix.upper() if prefix else "RULE-SET"
-    if prefix and prefix.upper() == "SUB-RULE":
+    if wrapper_kind not in {"RULE-SET", "SUB-RULE"}:
+        # AND/OR/NOT and any other wrapper express semantics this converter does
+        # not model; treating them as a bare RULE-SET would silently change
+        # routing, so refuse instead.
+        raise SystemExit(f"unsupported RULE-SET wrapper {wrapper_kind!r}: {rule!r}")
+    if wrapper_kind == "SUB-RULE":
         policy = suffix.strip()
         modifiers = tuple(parts[2:])
     elif suffix:
@@ -275,11 +280,16 @@ def parse_egern_network_rule(rule: Any) -> tuple[str, str] | None:
 
 
 def parse_egern_sub_rule_members(members: Any) -> list[tuple[str, str]] | None:
-    """Parse the conservative NETWORK/MATCH subset used by Egern expansion."""
+    """Parse the conservative NETWORK/MATCH subset used by Egern expansion.
+
+    ``MATCH`` is the fallback and must be the final member: the exporters emit
+    rules in member order, so an earlier ``MATCH`` would shadow the conditional
+    members that follow it.
+    """
     if not isinstance(members, list):
         return None
     parsed: list[tuple[str, str]] = []
-    for member in members:
+    for index, member in enumerate(members):
         if not isinstance(member, str):
             return None
         network = parse_egern_network_rule(member)
@@ -287,6 +297,8 @@ def parse_egern_sub_rule_members(members: Any) -> list[tuple[str, str]] | None:
         if network is not None:
             parsed.append(network)
         elif len(parts) == 2 and parts[0].upper() == "MATCH" and parts[1]:
+            if index != len(members) - 1:
+                return None
             parsed.append(("match", parts[1]))
         else:
             return None

@@ -263,11 +263,14 @@ def export_egern(
                 raise ValueError(f"Egern rule references an empty or unsupported segment: {rule}")
 
             sub_rule_name = reference.policy
-            if prefix.upper() == "SUB-RULE" and sub_rule_name in sub_rules:
-                members = parse_egern_sub_rule_members(list(sub_rules[sub_rule_name]))
+            if prefix.upper() == "SUB-RULE":
+                members = sub_rules.get(sub_rule_name)
                 if members is None:
-                    raise ValueError(f"Egern unsupported SUB-RULE member: {sub_rule_name}: {list(sub_rules[sub_rule_name])}")
-                for protocol, member_policy in members:
+                    raise ValueError(f"Egern SUB-RULE {sub_rule_name!r} is not defined (rule: {rule!r})")
+                parsed_members = parse_egern_sub_rule_members(list(members))
+                if parsed_members is None:
+                    raise ValueError(f"Egern unsupported SUB-RULE member: {sub_rule_name}: {list(members)}")
+                for protocol, member_policy in parsed_members:
                     if protocol == "match":
                         for target in targets:
                             emit_ruleset(target, member_policy)

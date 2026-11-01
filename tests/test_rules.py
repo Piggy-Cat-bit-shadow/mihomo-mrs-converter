@@ -32,6 +32,14 @@ class RulesTest(unittest.TestCase):
             with self.subTest(raw=raw):
                 self.assertEqual(rule_policy(raw), expected)
 
+    def test_unsupported_rule_wrapper_is_rejected(self):
+        with self.assertRaisesRegex(SystemExit, "unsupported RULE-SET wrapper 'NOT'"):
+            parse_ruleset_reference("NOT,(RULE-SET,A),REJECT")
+
+    def test_sub_rule_reference_kind_is_explicit(self):
+        reference = parse_ruleset_reference("SUB-RULE,(RULE-SET,A),Routing")
+        self.assertEqual((reference.provider, reference.policy, reference.wrapper_kind), ("A", "Routing", "SUB-RULE"))
+
 
 if __name__ == "__main__":
     unittest.main()

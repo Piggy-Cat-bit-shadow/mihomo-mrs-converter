@@ -67,5 +67,25 @@ class EgernExporterTest(unittest.TestCase):
             self.assertEqual(rules[1]["default"]["policy"], "🤖 AI")
 
 
+    def test_undefined_sub_rule_is_rejected_instead_of_becoming_a_policy(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = optimized_config(
+                providers=[provider("AI-domain", "domain", ["ai.example"], segment="AI")],
+                rules=["SUB-RULE,(RULE-SET,AI-domain),DoesNotExist", "MATCH,DIRECT"],
+            )
+            with self.assertRaisesRegex(ValueError, "SUB-RULE 'DoesNotExist' is not defined"):
+                export_egern(config, segment_views(config), Path(tmp), "https://example.invalid")
+
+    def test_non_terminal_match_in_sub_rule_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = optimized_config(
+                providers=[provider("AI-domain", "domain", ["ai.example"], segment="AI")],
+                rules=["SUB-RULE,(RULE-SET,AI-domain),R", "MATCH,DIRECT"],
+                sub_rules={"R": ["MATCH,Proxy", "NETWORK,UDP,REJECT"]},
+            )
+            with self.assertRaisesRegex(ValueError, "unsupported SUB-RULE member"):
+                export_egern(config, segment_views(config), Path(tmp), "https://example.invalid")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -156,6 +156,20 @@ class PreflightTest(unittest.TestCase):
             with self.assertRaisesRegex(PreflightError, "no terminal MATCH"):
                 run_preflight(input_path, segment_path, export_path)
 
+    def test_undefined_sub_rule_fails_fast(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            rules = ["SUB-RULE,(RULE-SET,Lan),Missing", "MATCH,DIRECT"]
+            input_path, segment_path, export_path = self.make_config(Path(tmp), rules=rules)
+            with self.assertRaisesRegex(PreflightError, "SUB-RULE 'Missing' is not defined"):
+                run_preflight(input_path, segment_path, export_path)
+
+    def test_unsupported_rule_wrapper_fails_fast(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            rules = ["NOT,(RULE-SET,Lan),DIRECT", "MATCH,DIRECT"]
+            input_path, segment_path, export_path = self.make_config(Path(tmp), rules=rules)
+            with self.assertRaisesRegex(PreflightError, "unsupported RULE-SET wrapper"):
+                run_preflight(input_path, segment_path, export_path)
+
     def test_decoupled_preflight_rules_only(self):
         with tempfile.TemporaryDirectory() as tmp:
             input_path, _, _ = self.make_config(Path(tmp))

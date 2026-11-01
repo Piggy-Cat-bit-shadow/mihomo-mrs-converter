@@ -151,6 +151,18 @@ def run_preflight(
         if not isinstance(rules[-1], str) or not rules[-1].strip().upper().startswith("MATCH,"):
             raise PreflightError("MATCH rule must be the final rule in rules")
 
+        for index, raw in enumerate(rules):
+            if simple_ruleset_wrapper(raw) is None:
+                continue
+            try:
+                reference = parse_ruleset_reference(raw)
+            except SystemExit:
+                continue  # already reported by the RULE-SET structure check above
+            if reference is not None and reference.wrapper_kind == "SUB-RULE" and reference.policy not in sub_rules:
+                raise PreflightError(
+                    f"rules[{index}]: SUB-RULE {reference.policy!r} is not defined in sub-rules"
+                )
+
     specs: tuple[SegmentSpec, ...] | None = None
     if segment_names_path is not None:
         if not segment_names_path.exists():

@@ -428,10 +428,12 @@ def _subrule_actions(sub_rules: dict[str, Any], name: str, policy_map: dict[str,
         if len(parts) == 3 and parts[0].upper() == "NETWORK" and parts[1].upper() in {"TCP", "UDP"}:
             actions.append(({"network": [parts[1].lower()]}, _policy_action(parts[2], policy_map)))
         elif len(parts) == 2 and parts[0].upper() == "MATCH":
+            if index != len(members) - 1:
+                raise SingBoxExportError(f"sub-rules[{name!r}][{index}]: MATCH must be the terminal member")
             actions.append(({}, _policy_action(parts[1], policy_map)))
         else:
             raise SingBoxExportError(f"sub-rules[{name!r}][{index}]: unsupported member {raw!r}")
-    if not actions or not any(not match for match, _ in actions):
+    if not actions or actions[-1][0]:
         raise SingBoxExportError(f"SUB-RULE {name!r} has no terminal MATCH")
     return actions
 
