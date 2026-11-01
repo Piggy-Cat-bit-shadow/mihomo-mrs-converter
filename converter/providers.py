@@ -254,32 +254,30 @@ def process_provider(
     raw = payload_from_remote(name, remote, fmt, allow_integer_items=behavior == "ipcidr")
     if not raw:
         raise SystemExit(f"{name}: provider contains no rules")
-    parsed = [parse_rule(rule) for rule in raw]
     original = Counter(raw)
     rebuilt: Counter[str] = Counter()
     metadata = ProviderMetadata.from_mapping(provider)
     generated: list[NormalizedProvider] = []
 
     if behavior == "domain":
-        payload = parse_domain_payload(raw)
-        generated.append(NormalizedProvider(name, name, Behavior.DOMAIN, payload, metadata))
+        generated.append(NormalizedProvider(name, name, Behavior.DOMAIN, parse_domain_payload(raw), metadata))
         rebuilt.update(raw)
     elif behavior == "ipcidr":
         valid: list[IpEntry] = []
         asns: list[str] = []
-        for item in parsed:
-            network = parse_ip_network(item.raw)
+        for value in raw:
+            network = parse_ip_network(value)
             if network is not None:
-                valid.append(IpEntry(item.raw, network))
+                valid.append(IpEntry(value, network))
             else:
-                asns.append(item.raw)
+                asns.append(value)
         if asns:
             counts = re.findall(r"(?im)^\s*#\s*IP-ASN\s*:\s*(\d+)\s*$", remote)
             if len(counts) != 1 or any(not item.isdigit() for item in asns) or len(asns) != int(counts[0]):
                 raise SystemExit(f"{name}: invalid ipcidr payload entries cannot be safely classified: {asns}")
         if valid:
             generated.append(NormalizedProvider(name, name, Behavior.IPCIDR, tuple(valid), metadata))
-            rebuilt.update(item.raw for item in valid)
+            rebuilt.update(entry.raw for entry in valid)
         if asns:
             asn_payload = parse_classical_payload([f"IP-ASN,{asn}" for asn in asns])
             generated.append(
@@ -287,6 +285,7 @@ def process_provider(
             )
             rebuilt.update(asns)
     else:
+        parsed = [parse_rule(rule) for rule in raw]
         generated = _classical_payloads(name, parsed, metadata, context)
         rebuilt.update(item.raw for item in parsed)
 
