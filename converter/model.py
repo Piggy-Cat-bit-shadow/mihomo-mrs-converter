@@ -153,7 +153,6 @@ class BuildConfig:
 @dataclass
 class BuildResult:
     final_config: dict[str, Any]
-    final_payloads: dict[str, Payload]
 
 
 @dataclass

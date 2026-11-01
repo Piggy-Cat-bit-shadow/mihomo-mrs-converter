@@ -29,7 +29,6 @@ class RulesetReference:
     wrapper_kind: str
 
 TARGET_IP_KINDS = frozenset({"IP-CIDR", "IP-CIDR6", "IP-ASN", "GEOIP"})
-SOURCE_IP_KINDS = frozenset({"SRC-IP-CIDR", "SRC-IP-ASN"})
 IPCIDR_RULES = frozenset({"IP-CIDR", "IP-CIDR6"})
 
 

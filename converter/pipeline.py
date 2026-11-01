@@ -100,7 +100,7 @@ def build(config: BuildConfig) -> BuildResult:
         for provider in optimized.providers
         if provider.segment in segment_roles_map
     }
-    final_payloads = {provider.name: provider.payload for provider in optimized.providers}
+
 
     previous = read_managed_manifest(config.dist)
     dist_existed_before = config.dist.exists()
@@ -203,4 +203,4 @@ def build(config: BuildConfig) -> BuildResult:
     timing.notes["artifacts generated"] = f"{mrs_count} MRS, {yaml_count} YAML"
     timing.print_report()
     timing.write_step_summary()
-    return BuildResult(final, final_payloads)
+    return BuildResult(final)

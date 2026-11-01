@@ -168,4 +168,4 @@ Egern、Loon 和 Sing-box 也支持当前项目使用的部分简单 `SUB-RULE` 
 - 所有生成的文本文件固定使用 LF，Windows 与 Linux 构建产生相同字节。
 - 独立的 MRS / SRS 编译并行执行；每个产物有独立文件，顺序与内容不受线程数影响。
 
-在本机（Windows，51 个 provider，热缓存）实测：同一次生产构建的核心耗时从 43.4s 降到约 13.3s，`dist/` 与 `.state/` 输出与重构前逐字节一致。
+在本机（Windows，51 个 provider，同一缓存与同一 mihomo/sing-box 二进制，交替运行取中位数）实测：热缓存下核心构建从 35.5s 降到 13.6s，冷缓存从 43.4s 降到 18.1s。`dist/`（43 个文件）与 `.state/managed-state.yaml` 与重构前逐字节一致；重构前的 Windows 构建因换行符差异需按 LF 归一后比较，该差异已在本轮修复。
