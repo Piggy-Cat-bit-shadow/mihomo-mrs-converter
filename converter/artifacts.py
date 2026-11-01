@@ -3,10 +3,11 @@
 import os
 import subprocess
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
-from .timing import observe_external
+from .timing import BuildTiming, activate, current_timing, observe_external
 from .yamlio import dump_yaml
 
 
@@ -65,3 +66,28 @@ def convert_source_to_mrs(mihomo: str, behavior: str, source: Path, output: Path
         capture_output=True,
         text=True,
     )
+
+
+def convert_sources_to_mrs(mihomo: str, jobs: Iterable[tuple[str, Path, Path]]) -> None:
+    """Compile independent payloads in parallel; each artifact has its own file."""
+    items = list(jobs)
+    if not items:
+        return
+    timing = current_timing()
+
+    def compile_one(item: tuple[str, Path, Path]) -> BuildTiming:
+        behavior, source, output = item
+        worker_timing = BuildTiming()
+        with activate(worker_timing):
+            convert_source_to_mrs(mihomo, behavior, source, output)
+        return worker_timing
+
+    workers = max(1, min(8, os.cpu_count() or 1, len(items)))
+    if workers == 1:
+        worker_timings = [compile_one(item) for item in items]
+    else:
+        with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="mrs") as pool:
+            worker_timings = list(pool.map(compile_one, items))
+    if timing is not None:
+        for worker_timing in worker_timings:
+            timing.merge(worker_timing)

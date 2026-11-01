@@ -1,18 +1,10 @@
-import json
-import shutil
-import tempfile
 import unittest
 from unittest.mock import patch
 from pathlib import Path
 import yaml
 
-from converter.audit import audit_dist, validate_mihomo
-from converter.rules import parse_rule
-from converter.semantics import ensure_single_no_resolve, is_target_ip_kind
-
-
-ROOT = Path(__file__).resolve().parents[1]
-DIST = ROOT / "dist"
+from converter.audit import validate_mihomo
+from converter.rules import ensure_single_no_resolve, is_target_ip_kind, parse_rule
 
 
 class NoActiveResolveTest(unittest.TestCase):

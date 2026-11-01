@@ -31,7 +31,7 @@ class DuplicateKeyError(ValueError):
         self.column = column
 
 
-class UniqueKeyLoader(_BaseLoader):
+class UniqueKeyLoader(_BaseLoader):  # type: ignore[misc, valid-type]
     """Safe loader that rejects duplicate mapping keys at any depth."""
 
 

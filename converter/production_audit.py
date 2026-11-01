@@ -2,21 +2,40 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from .export_config import load_export_profile
 from .rules import find_ruleset_refs, iter_all_rules
-from .model import provider_segment
-from .segments import load_segment_specs, resolve_segment_roles, segment_mapping, segment_roles
-from .optimize import iter_ruleset_blocks, matching_segment_anchors
+from .segments import (
+    expected_reject_policy,
+    load_segment_specs,
+    plan_config,
+    resolve_segment_roles,
+    segment_mapping,
+    segment_roles,
+)
 from .yamlio import load_yaml_unique
+
+_ARTIFACT_NAME = re.compile(r"(.+?)-(domain|classical|ip)(?:-part-\d+)?\Z")
+
+
+def artifact_segment(name: str) -> str:
+    """Recover the segment identity of a published artifact name.
+
+    Published artifacts are named ``<segment>-<behavior>[-part-NN]``; this is the
+    only place that contract is parsed, and it is parsed for auditing output
+    that no longer carries in-memory identity.
+    """
+    match = _ARTIFACT_NAME.fullmatch(name)
+    return match.group(1) if match else name
 
 
 def _canonical_route_order(config: dict, expected_names: set[str] | None = None) -> list[str]:
     order: list[str] = []
     for raw in iter_all_rules(config):
         for provider in find_ruleset_refs(raw):
-            name = provider_segment(provider)
+            name = artifact_segment(provider)
             if (expected_names is None or name in expected_names) and name not in order:
                 order.append(name)
     return order
@@ -48,11 +67,7 @@ def _assert_no_legacy_top_level_rules(root: Path) -> None:
 
 
 def _expected_reject_policy(spec) -> str:
-    if spec.reject_mode == "reject":
-        return "REJECT"
-    if spec.reject_mode == "drop":
-        return "REJECT-DROP"
-    raise ValueError(f"production reject segment has no valid reject-mode: {spec.name}")
+    return expected_reject_policy(spec)
 
 
 def audit_production(root: Path, segment_names: Path | None = None, export_config: Path | None = None) -> None:
@@ -75,15 +90,9 @@ def audit_production(root: Path, segment_names: Path | None = None, export_confi
     if input_path.exists():
         source = load_yaml_unique(input_path)
         mapping = segment_mapping(specs)
-        resolve_segment_roles(source, mapping, segment_roles(specs))
-        source_order = []
-        for ordinal, (_, _, _, _, names) in enumerate(
-            iter_ruleset_blocks(source["rules"], source["rule-providers"], mapping), 1
-        ):
-            matches = matching_segment_anchors(names, mapping)
-            if len(matches) > 1:
-                raise ValueError(f"ambiguous source segment anchors: {matches}")
-            source_order.append(matches[0][1] if matches else f"merged-segment-{ordinal:02d}")
+        blocks = plan_config(source, mapping)
+        resolve_segment_roles(blocks, segment_roles(specs))
+        source_order = [block.name for block in blocks]
         if canonical_order != source_order:
             raise ValueError(f"production segment order differs from input: {canonical_order} != {source_order}")
     egern = load_yaml_unique(root / "generated/egern-rules.yaml") or {}
@@ -109,7 +118,7 @@ def audit_production(root: Path, segment_names: Path | None = None, export_confi
         refs = find_ruleset_refs(raw)
         if len(refs) != 1:
             continue
-        provider = provider_segment(refs[0])
+        provider = artifact_segment(refs[0])
         if provider not in expected_reject_policies:
             continue
         parts = [part.strip() for part in raw.split(",")]
@@ -155,7 +164,7 @@ def audit_production(root: Path, segment_names: Path | None = None, export_confi
                 raise ValueError(f"production Loon reject policy mismatch for {spec.name}: expected {expected}")
     route = json.loads((root / "generated/singbox-rules.json").read_text(encoding="utf-8")).get("route", {})
     route_sets = route.get("rule_set", [])
-    tags = [item.get("tag") for item in route_sets if isinstance(item, dict)]
+    tags = [tag for item in route_sets if isinstance(item, dict) and isinstance((tag := item.get("tag")), str)]
     if len(tags) != len(set(tags)):
         raise ValueError("production Sing-box route contains duplicate SRS tags")
     if tags != expected_order:

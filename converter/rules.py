@@ -1,13 +1,53 @@
-"""Mihomo rule and RULE-SET parser shared by all exporters."""
+"""Mihomo rule text layer: tokenizing, expressions, references and rewriting.
+
+Everything here is pure text handling.  Providers, optimization and exporters
+share this module so a rule is parsed the same way everywhere.
+"""
 
 from collections.abc import Iterator
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, Callable
 
-from .model import RuleLine, RulesetReference
-from .semantics import is_target_ip_kind
+DOMAIN_KINDS = frozenset({"DOMAIN", "DOMAIN-SUFFIX", "DOMAIN-KEYWORD", "DOMAIN-REGEX", "DOMAIN-WILDCARD"})
 
+
+@dataclass(frozen=True)
+class RuleLine:
+    raw: str
+    kind: str
+    parts: tuple[str, ...]
+
+    def as_rule(self) -> str:
+        return self.raw
+
+
+@dataclass(frozen=True)
+class RulesetReference:
+    provider: str
+    policy: str
+    modifiers: tuple[str, ...]
+    wrapper_kind: str
+
+TARGET_IP_KINDS = frozenset({"IP-CIDR", "IP-CIDR6", "IP-ASN", "GEOIP"})
+SOURCE_IP_KINDS = frozenset({"SRC-IP-CIDR", "SRC-IP-ASN"})
 IPCIDR_RULES = frozenset({"IP-CIDR", "IP-CIDR6"})
-DNS_DOMAIN_KINDS = frozenset({"DOMAIN", "DOMAIN-SUFFIX", "DOMAIN-KEYWORD", "DOMAIN-REGEX", "DOMAIN-WILDCARD"})
+
+
+def parse_ip_network(rule: str) -> Any | None:
+    import ipaddress
+
+    try:
+        return ipaddress.ip_network(rule.strip(), strict=False)
+    except ValueError:
+        return None
+
+
+def is_target_ip_kind(kind: str) -> bool:
+    return kind.upper() in TARGET_IP_KINDS
+
+
+def ensure_single_no_resolve(parts: list[str]) -> list[str]:
+    return [*parts[:2], *(part for part in parts[2:] if part.lower() != "no-resolve"), "no-resolve"]
 
 
 def iter_all_rules(config: dict[str, Any]) -> Iterator[Any]:
@@ -31,6 +71,7 @@ def ruleset_suffix_for_behavior(suffix: tuple[str, ...], behavior: str) -> list[
     if behavior in {"domain", "classical"}:
         return [modifier for modifier in suffix if modifier.lower() != "no-resolve"]
     return list(suffix)
+
 
 def split_top_level_commas(text: str) -> list[str]:
     """Split a Mihomo rule without treating commas in expressions or quotes as fields."""
@@ -96,80 +137,61 @@ def strip_balanced_outer_parentheses(text: str) -> tuple[str, bool]:
     return value, False
 
 
-def _ruleset_parts_in_expression(text: str) -> list[str] | None:
-    inner, _ = strip_balanced_outer_parentheses(text)
+def ruleset_parts(expression: str) -> list[str] | None:
+    """Return the fields of a direct RULE-SET expression, if that is what it is."""
+    inner, _ = strip_balanced_outer_parentheses(expression)
     parts = split_top_level_commas(inner)
     if parts and parts[0].upper() == "RULE-SET":
         if len(parts) < 2 or not parts[1]:
-            raise SystemExit(f"RULE-SET is missing a provider name in rule: {text}")
+            raise SystemExit(f"RULE-SET is missing a provider name in rule: {expression}")
         return parts
     return None
+
+
+RuleSetRewrite = Callable[[list[str], bool], "str | None"]
+
+
+def rewrite_ruleset_expressions(text: str, rewrite: RuleSetRewrite) -> str:
+    """Rewrite every RULE-SET expression inside a rule, preserving its structure.
+
+    ``rewrite`` receives the RULE-SET fields and whether the expression was
+    parenthesized; returning ``None`` keeps it untouched.  This is the single
+    traversal used by reference collection, provider renaming and no-resolve
+    normalization, so all three agree on what counts as a RULE-SET expression.
+    """
+    inner, wrapped = strip_balanced_outer_parentheses(text)
+    direct = ruleset_parts(text)
+    if direct is not None:
+        replacement = rewrite(direct, wrapped)
+        return text.strip() if replacement is None else replacement
+    parts = split_top_level_commas(inner if wrapped else text)
+    rewritten: list[str] = []
+    for part in parts:
+        _, nested = strip_balanced_outer_parentheses(part)
+        rewritten.append(rewrite_ruleset_expressions(part, rewrite) if nested else part)
+    result = ",".join(rewritten)
+    return f"({result})" if wrapped else result
 
 
 def find_ruleset_refs(rule: Any) -> list[str]:
     """Find provider names in a rule, including parenthesized Mihomo expressions."""
     if not isinstance(rule, str):
         return []
+    references: list[str] = []
 
-    def visit(expression: str) -> list[str]:
-        direct = _ruleset_parts_in_expression(expression)
-        if direct is not None:
-            return [direct[1]]
-        inner, wrapped = strip_balanced_outer_parentheses(expression)
-        parts = split_top_level_commas(inner if wrapped else expression)
-        result: list[str] = []
-        for part in parts:
-            nested, is_wrapped = strip_balanced_outer_parentheses(part)
-            if is_wrapped:
-                result.extend(visit(part))
-        return result
+    def collect(parts: list[str], _wrapped: bool) -> None:
+        references.append(parts[1])
+        return None
 
-    return visit(rule)
-
-
-def _rewrite_expression(
-    expression: str, replacements: dict[str, list[str]], provider_behaviors: dict[str, str]
-) -> str:
-    _, was_wrapped = strip_balanced_outer_parentheses(expression)
-    direct = _ruleset_parts_in_expression(expression)
-    if direct is not None:
-        name = direct[1]
-        try:
-            reference = parse_ruleset_reference(expression)
-            policy = reference.policy if reference is not None else None
-            suffix = reference.modifiers if reference is not None else tuple(direct[2:])
-        except SystemExit:
-            policy = None
-            suffix = tuple(direct[2:])
-        names = replacements.get(name)
-        if not names:
-            return expression.strip()
-        variants = [
-            ",".join(["RULE-SET", generated, *( [policy] if policy else [] ), *ruleset_suffix_for_behavior(suffix, provider_behaviors[generated])])
-            for generated in names
-        ]
-        if len(variants) == 1:
-            return f"({variants[0]})" if was_wrapped else variants[0]
-        # A provider split is a union.  Within a boolean expression it must remain
-        # one predicate, rather than copying its containing AND/NOT/etc. rule.
-        rewritten = "OR,(" + ",".join(f"({variant})" for variant in variants) + ")"
-        return f"({rewritten})" if was_wrapped else rewritten
-
-    inner, wrapped = strip_balanced_outer_parentheses(expression)
-    parts = split_top_level_commas(inner if wrapped else expression)
-    rewritten_parts: list[str] = []
-    for part in parts:
-        _, is_wrapped = strip_balanced_outer_parentheses(part)
-        rewritten_parts.append(_rewrite_expression(part, replacements, provider_behaviors) if is_wrapped else part)
-    result = ",".join(rewritten_parts)
-    return f"({result})" if wrapped else result
+    rewrite_ruleset_expressions(rule, collect)
+    return references
 
 
 def simple_ruleset_wrapper(rule: Any) -> tuple[list[str], str, str] | None:
     """Return direct RULE-SET parts plus a replaceable wrapper template, if simple."""
     if not isinstance(rule, str):
         return None
-    direct = _ruleset_parts_in_expression(rule)
+    direct = ruleset_parts(rule)
     if direct is not None:
         return direct, "", ""
     parts = split_top_level_commas(rule)
@@ -177,7 +199,7 @@ def simple_ruleset_wrapper(rule: Any) -> tuple[list[str], str, str] | None:
         inner, wrapped = strip_balanced_outer_parentheses(part)
         inner_parts = split_top_level_commas(inner) if wrapped else []
         if wrapped and inner_parts and inner_parts[0].upper() == "RULE-SET":
-            direct = _ruleset_parts_in_expression(inner)
+            direct = ruleset_parts(inner)
             assert direct is not None  # checked above without stripping another layer
             return direct, ",".join(parts[:index]), ",".join(parts[index + 1:])
     return None
@@ -229,7 +251,7 @@ def egern_udp_and_ruleset(rule: Any) -> tuple[str, str] | None:
     expression_parts = split_top_level_commas(expression_inner if expression_wrapped else parts[1])
     if len(expression_parts) != 2:
         return None
-    ruleset = _ruleset_parts_in_expression(expression_parts[0])
+    ruleset = ruleset_parts(expression_parts[0])
     network_inner, network_wrapped = strip_balanced_outer_parentheses(expression_parts[1])
     network = split_top_level_commas(network_inner if network_wrapped else expression_parts[1])
     if (
@@ -346,3 +368,58 @@ def source_ip_value(rule: RuleLine) -> str | None:
     if len(rule.parts) != 2:
         return None
     return rule.parts[1] if rule.kind in IPCIDR_RULES else None
+
+
+def _renamed_ruleset(
+    parts: list[str], wrapped: bool, replacements: dict[str, list[str]], behaviors: dict[str, str]
+) -> str | None:
+    """Expand one RULE-SET reference into its generated provider variants."""
+    name = parts[1]
+    names = replacements.get(name)
+    if not names:
+        return None
+    try:
+        reference = parse_ruleset_reference(",".join(["RULE-SET", *parts[1:]]))
+        policy = reference.policy if reference is not None else None
+        suffix = reference.modifiers if reference is not None else tuple(parts[2:])
+    except SystemExit:
+        policy = None
+        suffix = tuple(parts[2:])
+    variants = [
+        ",".join(["RULE-SET", generated, *([policy] if policy else []), *ruleset_suffix_for_behavior(suffix, behaviors[generated])])
+        for generated in names
+    ]
+    if len(variants) == 1:
+        return f"({variants[0]})" if wrapped else variants[0]
+    # A provider split is a union.  Within a boolean expression it must remain
+    # one predicate, rather than copying its containing AND/NOT/etc. rule.
+    rewritten = "OR,(" + ",".join(f"({variant})" for variant in variants) + ")"
+    return f"({rewritten})" if wrapped else rewritten
+
+
+def rewrite_rules(rules: Any, replacements: dict[str, list[str]], behaviors: dict[str, str]) -> list[Any]:
+    """Point every rule at the providers generated for its source provider."""
+    output: list[Any] = []
+    for item in rules:
+        if not isinstance(item, str):
+            output.append(item)
+            continue
+        wrapper = simple_ruleset_wrapper(item)
+        if wrapper is not None and wrapper[0][1] in replacements:
+            parts, prefix, suffix = wrapper
+            reference = parse_ruleset_reference(item)
+            if reference is None:
+                raise ValueError(f"invalid ruleset reference: {item}")
+            for name in replacements[parts[1]]:
+                if prefix.upper() == "SUB-RULE":
+                    nested = ",".join(["RULE-SET", name, *ruleset_suffix_for_behavior(tuple(parts[2:]), behaviors[name])])
+                else:
+                    nested = ",".join(["RULE-SET", name, reference.policy, *ruleset_suffix_for_behavior(reference.modifiers, behaviors[name])])
+                output.append(",".join(part for part in (prefix, f"({nested})" if prefix or suffix else nested, suffix) if part))
+            continue
+        output.append(
+            rewrite_ruleset_expressions(
+                item, lambda parts, wrapped: _renamed_ruleset(parts, wrapped, replacements, behaviors)
+            )
+        )
+    return output

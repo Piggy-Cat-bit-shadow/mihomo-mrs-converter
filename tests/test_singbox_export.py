@@ -3,16 +3,29 @@ import shutil
 import subprocess
 import tempfile
 import unittest
-import io
 import os
-import urllib.error
 import inspect
 import hashlib
 from email.message import Message
 from pathlib import Path
 from unittest.mock import patch
 
-from converter.exporters.singbox import SingBoxExportError, _aggregate_buckets, _collect_required_asns, _default_asn_resolver, _groups, _policy_action, _provider_matchers, _semantic_matcher_equivalent, export_singbox, export_singbox_dns
+from converter.export_config import DEFAULT_DNS_GROUPS
+from converter.exporters.singbox import (
+    SingBoxExportError,
+    _aggregate,
+    _compile_and_verify,
+    _default_asn_resolver,
+    _groups,
+    _payload_matchers,
+    _policy_action,
+    _semantic_matcher_equivalent,
+    collect_required_asns,
+    export_singbox,
+    export_singbox_dns,
+)
+from converter.views import build_dns_views
+from tests.support import optimized_config, provider
 
 
 SING_BOX = shutil.which("sing-box") or "sing-box"
@@ -34,7 +47,7 @@ class Response:
         return False
 
 
-class SingBoxExportTest(unittest.TestCase):
+class PolicyAndMatcherTest(unittest.TestCase):
     def test_policy_map_translates_client_policy_without_changing_intrinsics(self):
         self.assertEqual(_policy_action("🏠 国内流量", {"🏠 国内流量": "direct"}), {"action": "route", "outbound": "direct"})
         self.assertEqual(_policy_action("CUSTOM", {}), {"action": "route", "outbound": "CUSTOM"})
@@ -71,7 +84,41 @@ class SingBoxExportTest(unittest.TestCase):
             )
         )
 
-    def test_github_api_uses_token_but_asset_does_not(self):
+    def test_classical_ip_modifiers_share_one_aggregate_rule(self):
+        entry = provider("Direct-classical", "classical", [
+            "DOMAIN,example.com", "IP-CIDR,10.0.0.0/8,no-resolve", "IP-CIDR,8.8.8.0/24",
+        ], segment="Direct")
+        aggregated = _aggregate(_payload_matchers(entry, {}))
+        self.assertEqual(len(aggregated), 1)
+        self.assertIn("domain", aggregated[0])
+        self.assertEqual(aggregated[0]["ip_cidr"], ["10.0.0.0/8", "8.8.8.0/24"])
+
+    def test_artifact_tags_come_from_segment_identity(self):
+        config = optimized_config(
+            providers=[
+                provider("Direct-domain", "domain", ["direct.example"], segment="Direct"),
+                provider("China-domain", "domain", ["china.example"], segment="China"),
+            ],
+            rules=["RULE-SET,Direct-domain,DIRECT", "NETWORK,TCP,DIRECT", "RULE-SET,China-domain,DIRECT", "MATCH,DIRECT"],
+        )
+        self.assertEqual([group["tag"] for group in _groups(config)], ["Direct", "China"])
+
+    def test_no_resolve_variant_stays_in_the_same_group(self):
+        config = optimized_config(
+            providers=[
+                provider("China-domain", "domain", ["cn.example"], segment="China"),
+                provider("China-ip", "ipcidr", ["192.0.2.0/24"], segment="China"),
+            ],
+            rules=["RULE-SET,China-domain,DIRECT", "RULE-SET,China-ip,DIRECT,no-resolve", "MATCH,DIRECT"],
+        )
+        self.assertEqual([group["tag"] for group in _groups(config)], ["China"])
+
+    def test_asn_discovery_has_empty_fast_path(self):
+        self.assertEqual(collect_required_asns([provider("A", "classical", ["DOMAIN,example.com"], segment="A")]), set())
+
+
+class GeoLiteTest(unittest.TestCase):
+    def test_asset_download_does_not_forward_github_token(self):
         payload = b"network,autonomous_system_number\n192.0.2.0/24,64512\n"
         assets = ({"name": "GeoLite2-ASN-Blocks-IPv4.csv", "url": "https://github.com/example/asset", "sha256": hashlib.sha256(payload).hexdigest()},)
         requests = []
@@ -228,45 +275,28 @@ class SingBoxExportTest(unittest.TestCase):
                     _default_asn_resolver({"100", "200"})
             self.assertEqual(json.loads(index.read_text(encoding="utf-8"))["asns"]["100"], ["192.0.2.0/24"])
 
-    def test_canonical_names_do_not_use_policy_occurrence(self):
-        config = {
-            "rule-providers": {
-                "Direct-domain": {"behavior": "domain"},
-                "China-domain": {"behavior": "domain"},
-            },
-            "rules": ["RULE-SET,Direct-domain,DIRECT", "NETWORK,TCP,DIRECT", "RULE-SET,China-domain,DIRECT", "MATCH,DIRECT"],
-        }
-        groups = _groups(config)
-        self.assertEqual([group["tag"] for group in groups], ["Direct", "China"])
 
-    def test_canonical_no_resolve_variant_uses_semantic_suffix(self):
-        config = {
-            "rule-providers": {
-                "China-domain": {"behavior": "domain"},
-                "China-ip": {"behavior": "ipcidr"},
-            },
-            "rules": ["RULE-SET,China-domain,DIRECT", "RULE-SET,China-ip,DIRECT,no-resolve", "MATCH,DIRECT"],
-        }
-        groups = _groups(config)
-        self.assertEqual([group["tag"] for group in groups], ["China"])
-
+class SingBoxRouteTest(unittest.TestCase):
     def test_route_artifacts_are_canonical_only(self):
-        config = {
-            "rule-providers": {"Direct-domain": {"behavior": "domain"}, "AI-domain": {"behavior": "domain"}},
-            "rules": ["RULE-SET,Direct-domain,DIRECT", "RULE-SET,AI-domain,🤖 AI", "MATCH,DIRECT"],
-        }
+        config = optimized_config(
+            providers=[
+                provider("Direct-domain", "domain", ["direct.example"], segment="Direct"),
+                provider("AI-domain", "domain", ["ai.example"], segment="AI"),
+            ],
+            rules=["RULE-SET,Direct-domain,DIRECT", "RULE-SET,AI-domain,🤖 AI", "MATCH,DIRECT"],
+        )
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            result = export_singbox(config, {"Direct-domain": ["direct.example"], "AI-domain": ["ai.example"]}, root, "https://x", SING_BOX)
+            result = export_singbox(config, root, "https://x", SING_BOX)
             route_tags = [item["tag"] for item in result["route"]["route"]["rule_set"]]
             self.assertEqual(route_tags, ["Direct", "AI"])
             self.assertEqual({path.stem for path in (root / "singbox").glob("*.srs")}, set(route_tags))
 
     def test_configured_reject_segment_extends_route_without_fixed_count(self):
-        names = {name: name for name in ("ExampleReject", "Direct", "AI", "Global", "China")}
-        config = {
-            "rule-providers": {f"{name}-domain": {"behavior": "domain"} for name in names},
-            "rules": [
+        names = ("ExampleReject", "Direct", "AI", "Global", "China")
+        config = optimized_config(
+            providers=[provider(f"{name}-domain", "domain", [f"{name.lower()}.example"], segment=name) for name in names],
+            rules=[
                 "RULE-SET,ExampleReject-domain,REJECT-DROP,no-resolve",
                 "RULE-SET,Direct-domain,DIRECT",
                 "RULE-SET,AI-domain,AI",
@@ -274,10 +304,9 @@ class SingBoxExportTest(unittest.TestCase):
                 "RULE-SET,China-domain,DIRECT",
                 "MATCH,DIRECT",
             ],
-        }
-        payloads = {f"{name}-domain": [f"{name.lower()}.example"] for name in names}
+        )
         with tempfile.TemporaryDirectory() as tmp:
-            result = export_singbox(config, payloads, Path(tmp), "https://x", SING_BOX, segment_names=names)
+            result = export_singbox(config, Path(tmp), "https://x", SING_BOX)
             route = result["route"]["route"]
             tags = [item["tag"] for item in route["rule_set"]]
             self.assertEqual(tags, list(names))
@@ -287,10 +316,13 @@ class SingBoxExportTest(unittest.TestCase):
             self.assertEqual({path.stem for path in (Path(tmp) / "singbox").glob("*.srs")}, set(names))
 
     def test_each_artifact_gets_its_own_decompile_identity(self):
-        config = {
-            "rule-providers": {"Direct-domain": {"behavior": "domain"}, "AI-domain": {"behavior": "domain"}},
-            "rules": ["RULE-SET,Direct-domain,DIRECT", "RULE-SET,AI-domain,🤖 AI", "MATCH,DIRECT"],
-        }
+        config = optimized_config(
+            providers=[
+                provider("Direct-domain", "domain", ["direct.example"], segment="Direct"),
+                provider("AI-domain", "domain", ["ai.example"], segment="AI"),
+            ],
+            rules=["RULE-SET,Direct-domain,DIRECT", "RULE-SET,AI-domain,🤖 AI", "MATCH,DIRECT"],
+        )
         seen = []
         original = subprocess.run
         def record(command, *args, **kwargs):
@@ -298,78 +330,84 @@ class SingBoxExportTest(unittest.TestCase):
                 seen.append(Path(command[command.index("-o") + 1]).name)
             return original(command, *args, **kwargs)
         with tempfile.TemporaryDirectory() as tmp, patch("converter.exporters.singbox.subprocess.run", side_effect=record):
-            export_singbox(config, {"Direct-domain": ["direct.example"], "AI-domain": ["ai.example"]}, Path(tmp), "https://x", SING_BOX)
+            export_singbox(config, Path(tmp), "https://x", SING_BOX)
         self.assertEqual(seen, ["Direct.decompiled.json", "AI.decompiled.json"])
-        self.assertIn('f"{artifact_tag}.decompiled.json"', inspect.getsource(export_singbox))
-
-    def test_classical_ip_modifiers_share_one_bucket(self):
-        matchers = _provider_matchers("Direct-classical", "classical", [
-            "DOMAIN,example.com", "IP-CIDR,10.0.0.0/8,no-resolve", "IP-CIDR,8.8.8.0/24",
-        ], lambda _: {})
-        buckets = _aggregate_buckets(matchers)
-        self.assertEqual(list(buckets), ["base"])
-        self.assertIn("domain", buckets["base"][0])
-        self.assertEqual(buckets["base"][0]["ip_cidr"], ["10.0.0.0/8", "8.8.8.0/24"])
+        self.assertIn('f"{tag}.decompiled.json"', inspect.getsource(_compile_and_verify))
 
     def test_ip_rules_never_have_active_resolve_path(self):
-        normal = {"rule-providers": {"A": {"behavior": "classical"}}, "rules": ["RULE-SET,A,DIRECT", "MATCH,DIRECT"]}
+        normal = optimized_config(
+            providers=[provider("A", "classical", ["IP-CIDR,8.8.8.0/24"], segment="A")],
+            rules=["RULE-SET,A,DIRECT", "MATCH,DIRECT"],
+        )
         with tempfile.TemporaryDirectory() as tmp:
-            result = export_singbox(normal, {"A": ["IP-CIDR,8.8.8.0/24"]}, Path(tmp), "https://x", SING_BOX)
+            result = export_singbox(normal, Path(tmp), "https://x", SING_BOX)
             self.assertNotIn({"action": "resolve"}, result["route"]["route"]["rules"])
-        no_resolve = {"rule-providers": {"A": {"behavior": "classical"}}, "rules": ["RULE-SET,A,DIRECT,no-resolve", "MATCH,DIRECT"]}
+        no_resolve = optimized_config(
+            providers=[provider("A", "classical", ["IP-CIDR,10.0.0.0/8"], segment="A")],
+            rules=["RULE-SET,A,DIRECT,no-resolve", "MATCH,DIRECT"],
+        )
         with tempfile.TemporaryDirectory() as tmp:
-            result = export_singbox(no_resolve, {"A": ["IP-CIDR,10.0.0.0/8"]}, Path(tmp), "https://x", SING_BOX)
+            result = export_singbox(no_resolve, Path(tmp), "https://x", SING_BOX)
             self.assertNotIn({"action": "resolve"}, result["route"]["route"]["rules"])
 
     def test_provider_serialization_and_policy_preservation(self):
-        config = {
-            "rule-providers": {"A": {"behavior": "classical"}},
-            "rules": ["RULE-SET,A,🤖 AI", "MATCH,DIRECT"],
-        }
+        config = optimized_config(
+            providers=[provider("A", "classical", [
+                "DOMAIN,exact.example",
+                "DOMAIN-SUFFIX,suffix.example",
+                "DOMAIN-KEYWORD,needle",
+                "DOMAIN-WILDCARD,*.wild.example",
+                "IP-CIDR,192.0.2.0/24",
+                "IP-CIDR6,2001:db8::/32",
+                "SRC-IP-CIDR,198.51.100.0/24",
+                "DST-PORT,443",
+                "NETWORK,TCP",
+                "PROCESS-NAME,example",
+            ], segment="A")],
+            rules=["RULE-SET,A,🤖 AI", "MATCH,DIRECT"],
+        )
         with tempfile.TemporaryDirectory() as tmp:
-            result = export_singbox(
-                config,
-                {"A": [
-                    "DOMAIN,exact.example",
-                    "DOMAIN-SUFFIX,suffix.example",
-                    "DOMAIN-KEYWORD,needle",
-                    "DOMAIN-WILDCARD,*.wild.example",
-                    "IP-CIDR,192.0.2.0/24",
-                    "IP-CIDR6,2001:db8::/32",
-                    "SRC-IP-CIDR,198.51.100.0/24",
-                    "DST-PORT,443",
-                    "NETWORK,TCP",
-                    "PROCESS-NAME,example",
-                ]},
-                Path(tmp), "https://example.test/repo", SING_BOX,
-            )
-            route = json.loads((Path(tmp) / "generated/singbox-rules.json").read_text())
+            result = export_singbox(config, Path(tmp), "https://example.test/repo", SING_BOX)
+            route = json.loads((Path(tmp) / "generated/singbox-rules.json").read_text(encoding="utf-8"))
             self.assertEqual(route["route"]["final"], "direct")
             self.assertEqual(route["route"]["rules"][0]["outbound"], "🤖 AI")
             self.assertEqual(result["segments"], 1)
-            self.assertTrue((Path(tmp) / "singbox/segment-01-01.srs").exists())
+            self.assertTrue((Path(tmp) / "singbox/A.srs").exists())
 
     def test_sub_rule_udp_precedes_fallback_and_noncontiguous_policy_is_not_merged(self):
-        config = {
-            "sub-rules": {"AI-Routing": ["NETWORK,UDP,REJECT", "MATCH,🤖 AI"]},
-            "rule-providers": {"A": {"behavior": "domain"}, "B": {"behavior": "domain"}, "C": {"behavior": "domain"}},
-            "rules": ["RULE-SET,A,DIRECT", "RULE-SET,B,🤖 AI", "NETWORK,TCP,DIRECT", "RULE-SET,C,🤖 AI", "MATCH,DIRECT"],
-        }
+        config = optimized_config(
+            providers=[
+                provider("A", "domain", ["a.example"], segment="A"),
+                provider("B", "domain", ["b.example"], segment="B"),
+                provider("C", "domain", ["c.example"], segment="C"),
+            ],
+            rules=["RULE-SET,A,DIRECT", "RULE-SET,B,🤖 AI", "NETWORK,TCP,DIRECT", "RULE-SET,C,🤖 AI", "MATCH,DIRECT"],
+            sub_rules={"AI-Routing": ["NETWORK,UDP,REJECT", "MATCH,🤖 AI"]},
+        )
         with tempfile.TemporaryDirectory() as tmp:
-            result = export_singbox(config, {"A": ["a.example"], "B": ["b.example"], "C": ["c.example"]}, Path(tmp), "https://x", SING_BOX)
+            result = export_singbox(config, Path(tmp), "https://x", SING_BOX)
             tags = [item["tag"] for item in result["route"]["route"]["rule_set"]]
             self.assertEqual(len(tags), 3)
             self.assertEqual([item["outbound"] for item in result["route"]["route"]["rules"] if "outbound" in item], ["direct", "🤖 AI", "direct", "🤖 AI"])
 
     def test_unsupported_rule_fails_closed(self):
-        config = {"rule-providers": {"A": {"behavior": "classical"}}, "rules": ["RULE-SET,A,DIRECT"]}
+        config = optimized_config(
+            providers=[provider("A", "classical", ["GEOIP,CN"], segment="A")],
+            rules=["RULE-SET,A,DIRECT"],
+        )
         with tempfile.TemporaryDirectory() as tmp:
             with self.assertRaises(SingBoxExportError):
-                export_singbox(config, {"A": ["GEOIP,CN"]}, Path(tmp), "https://x", SING_BOX)
+                export_singbox(config, Path(tmp), "https://x", SING_BOX)
 
     def test_asn_expansion_is_injected_and_source_is_not_mutated(self):
-        config = {"rule-providers": {"A": {"behavior": "classical"}, "B": {"behavior": "classical"}, "C": {"behavior": "classical"}}, "rules": ["RULE-SET,A,DIRECT", "RULE-SET,B,AI", "RULE-SET,C,GLOBAL", "MATCH,DIRECT"]}
-        payload = {"A": ["IP-ASN,64512"], "B": ["SRC-IP-ASN,64513"], "C": ["IP-ASN,64512", "IP-ASN,64514"]}
+        config = optimized_config(
+            providers=[
+                provider("A", "classical", ["IP-ASN,64512"], segment="A"),
+                provider("B", "classical", ["SRC-IP-ASN,64513"], segment="B"),
+                provider("C", "classical", ["IP-ASN,64512", "IP-ASN,64514"], segment="C"),
+            ],
+            rules=["RULE-SET,A,DIRECT", "RULE-SET,B,AI", "RULE-SET,C,GLOBAL", "MATCH,DIRECT"],
+        )
         calls = []
 
         def resolve(asns):
@@ -377,31 +415,23 @@ class SingBoxExportTest(unittest.TestCase):
             return {asn: ["192.0.2.0/24"] for asn in asns}
 
         with tempfile.TemporaryDirectory() as tmp:
-            export_singbox(config, payload, Path(tmp), "https://x", SING_BOX, resolve)
+            export_singbox(config, Path(tmp), "https://x", SING_BOX, resolve)
             self.assertEqual(calls, [{"64512", "64513", "64514"}])
-            self.assertEqual(payload["A"], ["IP-ASN,64512"])
+            self.assertEqual([entry.raw for entry in config.provider_map()["A"].payload], ["IP-ASN,64512"])
 
-    def test_asn_discovery_has_empty_fast_path(self):
-        groups = [{"providers": ["A"]}]
-        self.assertEqual(_collect_required_asns(groups, {"A": ["DOMAIN,example.com"]}), set())
 
+class SingBoxDnsTest(unittest.TestCase):
     def test_dns_export_contains_only_domain_matchers_from_shared_payloads(self):
-        config = {
-            "rule-providers": {
-                "Direct-domain": {"behavior": "domain"},
-                "China-classical": {"behavior": "classical"},
-                "AI-domain": {"behavior": "domain"},
-                "Global-classical": {"behavior": "classical"},
-            }
-        }
-        payloads = {
-            "Direct-domain": ["direct.example"],
-            "China-classical": ["DOMAIN-SUFFIX,cn.example", "IP-CIDR,192.0.2.0/24", "PROCESS-NAME,foo"],
-            "AI-domain": ["+.ai.example"],
-            "Global-classical": ["DOMAIN-KEYWORD,global", "DOMAIN-WILDCARD,*.cloud.example", "DST-PORT,443"],
-        }
+        providers = [
+            provider("Direct-domain", "domain", ["direct.example"], segment="Direct"),
+            provider("China-classical", "classical", ["DOMAIN-SUFFIX,cn.example", "IP-CIDR,192.0.2.0/24", "PROCESS-NAME,foo"], segment="China"),
+            provider("AI-domain", "domain", ["+.ai.example"], segment="AI"),
+            provider("Global-classical", "classical", ["DOMAIN-KEYWORD,global", "DOMAIN-WILDCARD,*.cloud.example", "DST-PORT,443"], segment="Global"),
+        ]
+        roles = {"Direct": "direct", "China": "china", "AI": "ai", "Global": "global"}
+        views = build_dns_views(providers, roles, DEFAULT_DNS_GROUPS)
         with tempfile.TemporaryDirectory() as tmp:
-            result = export_singbox_dns(config, payloads, Path(tmp), "https://x", SING_BOX, {"Direct": "direct", "China": "china", "AI": "ai", "Global": "global"})
+            result = export_singbox_dns(views, Path(tmp), SING_BOX)
             self.assertEqual(result["srs"], ["China-domain.srs", "Global-domain.srs"])
             for group in ("China", "Global"):
                 srs = Path(tmp) / "dns/singbox" / f"{group}-domain.srs"

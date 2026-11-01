@@ -1,10 +1,11 @@
-"""Small immutable models shared by normalization, optimization and exporters."""
+"""Immutable core models shared by normalization, optimization and exporters."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
-from collections import Counter
 from pathlib import Path
 from typing import Any
+
+from .payload import Payload
 
 
 class Behavior(str, Enum):
@@ -12,27 +13,8 @@ class Behavior(str, Enum):
     CLASSICAL = "classical"
     IPCIDR = "ipcidr"
 
-
-@dataclass(frozen=True)
-class RuleLine:
-    raw: str
-    kind: str
-    parts: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class RulesetReference:
-    provider: str
-    policy: str
-    modifiers: tuple[str, ...]
-    wrapper_kind: str
-
-
-@dataclass(frozen=True)
-class ProviderIdentity:
-    segment: str
-    behavior: Behavior
-    part: int = 1
+    def __str__(self) -> str:  # pragma: no cover - convenience only
+        return self.value
 
 
 @dataclass(frozen=True)
@@ -58,27 +40,99 @@ class ProviderMetadata:
             if value is not None
         }
 
+    def merged_with(self, others: list["ProviderMetadata"]) -> "ProviderMetadata | None":
+        """Combine metadata of providers that are about to become one artifact.
+
+        Returns ``None`` when the providers disagree on attributes clients would
+        see, in which case the caller must keep them as separate providers.
+        """
+        every = [self, *others]
+        for attribute in ("proxy", "size_limit"):
+            values = [getattr(item, attribute) for item in every]
+            if any(value is None for value in values) and any(value is not None for value in values):
+                return None
+            if len({repr(value) for value in values}) > 1:
+                return None
+        intervals = [item.interval for item in every if isinstance(item.interval, int)]
+        return ProviderMetadata(min(intervals) if intervals else None, self.proxy, self.size_limit)
+
 
 @dataclass(frozen=True)
 class NormalizedProvider:
-    """Provider state before final serialization; it contains no artifact identity."""
+    """A provider generated from one input source, before segment identity exists."""
 
     name: str
+    source: str
     behavior: Behavior
-    payload: tuple[str, ...]
+    payload: Payload
     metadata: ProviderMetadata = ProviderMetadata()
 
     def as_config(self) -> dict[str, Any]:
         return {"behavior": self.behavior.value, **self.metadata.as_mapping()}
 
 
-@dataclass
-class ProviderResult:
+@dataclass(frozen=True)
+class Provider:
+    """A published provider artifact with explicit segment identity."""
+
     name: str
-    providers: list[NormalizedProvider]
-    generated_names: list[str]
-    original_rules: Counter[str]
-    rebuilt_rules: Counter[str]
+    segment: str
+    behavior: Behavior
+    payload: Payload
+    metadata: ProviderMetadata = ProviderMetadata()
+
+    def as_config(self) -> dict[str, Any]:
+        return {"behavior": self.behavior.value, **self.metadata.as_mapping()}
+
+
+@dataclass(frozen=True)
+class PlannedBlock:
+    """A contiguous block of compatible RULE-SET rules before provider merging."""
+
+    start: int
+    end: int
+    ordinal: int
+    routing: tuple[str, str]
+    wrapper: tuple[str, str]
+    providers: tuple[str, ...]
+    sources: tuple[str, ...]
+    segment: str | None
+    name: str
+
+
+@dataclass(frozen=True)
+class SemanticConfig:
+    """Normalized build input: providers plus rewritten rule text."""
+
+    providers: tuple[NormalizedProvider, ...]
+    rules: tuple[str, ...]
+    sub_rules: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    extras: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class OptimizedConfig:
+    """Final in-memory build state after merging, deduplication and renaming."""
+
+    providers: tuple[Provider, ...]
+    rules: tuple[str, ...]
+    sub_rules: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    extras: dict[str, Any] = field(default_factory=dict)
+    blocks: tuple[PlannedBlock, ...] = ()
+
+    def provider_map(self) -> dict[str, Provider]:
+        return {provider.name: provider for provider in self.providers}
+
+    def provider_segments(self) -> dict[str, str]:
+        return {provider.name: provider.segment for provider in self.providers}
+
+    def as_config(self) -> dict[str, Any]:
+        return {
+            **self.extras,
+            "rule-providers": {provider.name: provider.as_config() for provider in self.providers},
+            "rules": list(self.rules),
+            "sub-rules": {name: list(members) for name, members in self.sub_rules.items()},
+        }
 
 
 @dataclass(frozen=True)
@@ -86,8 +140,8 @@ class BuildConfig:
     input: Path
     dist: Path
     base_url: str
-    mihomo_bin: str
-    sing_box_bin: str
+    mihomo_bin: str | None
+    sing_box_bin: str | None
     complete_config: Path | None = None
     complete_output: Path | None = None
     segment_names: Path | None = None
@@ -99,9 +153,7 @@ class BuildConfig:
 @dataclass
 class BuildResult:
     final_config: dict[str, Any]
-    final_payloads: dict[str, list[str]]
-    dedup_stats: dict[str, Any]
-    exporter_stats: dict[str, Any]
+    final_payloads: dict[str, Payload]
 
 
 @dataclass
@@ -110,38 +162,3 @@ class BuildContext:
 
     memory_cache: dict[object, str]
     used_names: set[str]
-
-
-@dataclass
-class DedupStats:
-    input_count: int = 0
-    exact_duplicates_removed: int = 0
-    domain_covered_by_suffix: int = 0
-    suffix_covered_by_parent_suffix: int = 0
-    ipcidr_duplicates_removed: int = 0
-    ipcidr_covered_by_parent: int = 0
-    output_count: int = 0
-
-    @property
-    def removed(self) -> int:
-        return self.input_count - self.output_count
-
-
-def format_provider_name(identity: ProviderIdentity) -> str:
-    suffix = {Behavior.DOMAIN: "domain", Behavior.CLASSICAL: "classical", Behavior.IPCIDR: "ip"}[identity.behavior]
-    base = f"{identity.segment}-{suffix}"
-    return base if identity.part == 1 else f"{base}-part-{identity.part:02d}"
-
-
-def parse_provider_identity(name: str) -> ProviderIdentity | None:
-    import re
-    match = re.fullmatch(r"(.+?)-(domain|classical|ip)(?:-part-(\d+))?", name)
-    if not match:
-        return None
-    behavior = {"domain": Behavior.DOMAIN, "classical": Behavior.CLASSICAL, "ip": Behavior.IPCIDR}[match.group(2)]
-    return ProviderIdentity(match.group(1), behavior, int(match.group(3) or 1))
-
-
-def provider_segment(name: str) -> str:
-    identity = parse_provider_identity(name)
-    return identity.segment if identity else name

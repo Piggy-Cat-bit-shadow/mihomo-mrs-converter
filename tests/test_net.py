@@ -181,7 +181,6 @@ class RetryAfterTest(unittest.TestCase):
             cache_path.parent.mkdir(parents=True, exist_ok=True)
             cache_path.write_text("tampered body", encoding="utf-8")
             os.utime(cache_path, (net.time.time() - 90000, net.time.time() - 90000))
-            meta_path = net._cache_meta_path(cache_path)
             net._write_cache_meta(cache_path, {
                 "etag": '"etag-abc"',
                 "body_sha256": "expected_different_sha256_hash",

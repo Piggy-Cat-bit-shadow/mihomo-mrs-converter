@@ -9,21 +9,22 @@ from pathlib import Path
 from typing import Any
 
 from .artifacts import write_yaml_atomic
+from .export_config import load_export_profile
 from .exporters.dns import export_dns
 from .exporters.egern import export_egern
 from .exporters.loon import export_loon
 from .exporters.mihomo import materialize_final_config, normalize_no_active_resolve
 from .exporters.singbox import export_singbox, export_singbox_dns
-from .export_config import ExportProfile, load_export_profile
-from .model import BuildConfig, BuildContext, BuildResult
+from .model import BuildConfig, BuildContext, BuildResult, NormalizedProvider, SemanticConfig
 from .optimize import optimize_config
 from .providers import prefetch_provider_texts, process_provider
-from .rules import find_ruleset_refs, iter_all_rules
+from .rules import find_ruleset_refs, iter_all_rules, rewrite_rules
 from .segments import load_segment_specs, resolve_segment_roles, segment_mapping, segment_roles
 from .spec import validate_input_schema
 from .state import bootstrap_managed_manifest, build_managed_manifest, read_managed_manifest, refresh_complete_config, write_managed_manifest
 from .timing import BuildTiming, activate
 from .validate import validate_final_config
+from .views import build_dns_views, build_segment_views
 from .yamlio import load_yaml_unique
 
 
@@ -31,18 +32,6 @@ def _load_yaml(path: Path) -> dict[str, Any]:
     value = load_yaml_unique(path)
     validate_input_schema(path, value)
     return value
-
-
-def _load_export_config(path: Path | None) -> ExportProfile:
-    return load_export_profile(path)
-
-
-def _segment_mapping(path: Path | None) -> dict[str, str]:
-    return segment_mapping(load_segment_specs(path))
-
-
-def _segment_roles(path: Path | None) -> dict[str, str]:
-    return segment_roles(load_segment_specs(path))
 
 
 def build(config: BuildConfig) -> BuildResult:
@@ -68,44 +57,50 @@ def build(config: BuildConfig) -> BuildResult:
         f"provider prefetch: {len(referenced)} providers in {timing.phases['provider prefetch']:.2f}s "
         f"(unique requests: {prefetch.unique_requests}, memory hits: {prefetch.cache_hits}, disk hits: {prefetch.disk_hits}, downloads: {prefetch.downloads})"
     )
-    generated: dict[str, dict[str, Any]] = {}
-    payloads: dict[str, list[str]] = {}
-    replacements: dict[str, list[str]] = {}
-    behaviors: dict[str, str] = {}
+    normalized: list[NormalizedProvider] = []
     processing_started = time.perf_counter()
     for name, provider in providers.items():
         if name not in referenced:
             continue
-        result = process_provider(name, provider, context, prefetch.texts.get(name))
-        replacements[name] = result.generated_names
-        for normalized in result.providers:
-            generated[normalized.name] = normalized.as_config()
-            payloads[normalized.name] = list(normalized.payload)
-            behaviors[normalized.name] = normalized.behavior.value
-        print(f"{name}: ok ({sum(result.original_rules.values())} rules -> {', '.join(result.generated_names)})")
+        generated = process_provider(name, provider, context, prefetch.texts.get(name))
+        normalized.extend(generated)
+        print(f"{name}: ok ({sum(len(item.payload) for item in generated)} rules -> {', '.join(item.name for item in generated)})")
     timing.phases["provider processing"] = time.perf_counter() - processing_started
     print(f"provider processing: {timing.phases['provider processing']:.2f}s")
 
-    from .optimize import rewrite_rules
-    rewritten = rewrite_rules(rules, replacements, behaviors)
+    replacements: dict[str, list[str]] = {}
+    behaviors: dict[str, str] = {}
+    for provider in normalized:
+        replacements.setdefault(provider.source, []).append(provider.name)
+        behaviors[provider.name] = provider.behavior.value
+    rewritten_rules = rewrite_rules(rules, replacements, behaviors)
     rewritten_sub_rules = {
-        name: rewrite_rules(members, replacements, behaviors)
+        name: tuple(rewrite_rules(members, replacements, behaviors))
         for name, members in (data.get("sub-rules") or {}).items()
     }
-    semantic = {
-        **{key: value for key, value in data.items() if key not in {"rule-providers", "rules", "sub-rules"}},
-        "rule-providers": generated,
-        "rules": rewritten,
-        "sub-rules": rewritten_sub_rules,
-    }
-    mapping = _segment_mapping(config.segment_names)
-    segment_roles = _segment_roles(config.segment_names)
-    if mapping:
-        segment_roles = resolve_segment_roles(semantic, mapping, segment_roles)
-    export_profile = _load_export_config(config.export_config)
+    semantic = SemanticConfig(
+        providers=tuple(normalized),
+        rules=tuple(rewritten_rules),
+        sub_rules=rewritten_sub_rules,
+        extras={key: value for key, value in data.items() if key not in {"rule-providers", "rules", "sub-rules"}},
+    )
+    specs = load_segment_specs(config.segment_names)
+    mapping = segment_mapping(specs)
+    explicit_roles = segment_roles(specs)
+    export_profile = load_export_profile(config.export_config)
     with timing.phase("optimize config"):
-        optimized, final_payloads, dedup_stats = optimize_config(semantic, payloads, mapping)
-        optimized = normalize_no_active_resolve(optimized, final_payloads)
+        optimized = optimize_config(semantic, mapping)
+        optimized = normalize_no_active_resolve(optimized)
+        segment_roles_map = resolve_segment_roles(optimized.blocks, explicit_roles) if mapping else {}
+    with timing.phase("build views"):
+        views = build_segment_views(optimized.providers)
+        dns_views = build_dns_views(optimized.providers, segment_roles_map, export_profile.dns_groups)
+    present_roles = {
+        segment_roles_map[provider.segment]
+        for provider in optimized.providers
+        if provider.segment in segment_roles_map
+    }
+    final_payloads = {provider.name: provider.payload for provider in optimized.providers}
 
     previous = read_managed_manifest(config.dist)
     dist_existed_before = config.dist.exists()
@@ -118,18 +113,19 @@ def build(config: BuildConfig) -> BuildResult:
     publish_dist = Path(tempfile.mkdtemp(prefix="mihomo-mrs-publish-", dir=config.dist.parent))
     old_dist = config.dist.with_name(f".{config.dist.name}.previous")
     export_started = time.perf_counter()
+    required_roles = frozenset().union(*export_profile.dns_groups.values())
     try:
         with activate(timing):
             with timing.phase("materialize Mihomo"):
-                final = materialize_final_config(optimized, final_payloads, publish_dist, config.base_url, config.mihomo_bin)
+                final = materialize_final_config(optimized, publish_dist, config.base_url, config.mihomo_bin)
             with timing.phase("validate final config"):
                 validate_final_config(publish_dist, final)
             exporter_calls: dict[str, tuple[str, Any, tuple[Any, ...]]] = {
-                "egern": ("Egern export", export_egern, (final, final_payloads, publish_dist, config.base_url, export_profile.egern_policy_map, export_profile.allowed_unsupported.get("egern", frozenset()))),
-                "loon": ("Loon export", export_loon, (final, final_payloads, publish_dist, config.base_url, export_profile.allowed_unsupported.get("loon", frozenset()))),
-                "singbox": ("Sing-box route export", export_singbox, (final, final_payloads, publish_dist, config.base_url, config.sing_box_bin, None, mapping, export_profile.singbox_policy_map)),
-                "singbox-dns": ("Sing-box DNS export", export_singbox_dns, (final, final_payloads, publish_dist, config.base_url, config.sing_box_bin, segment_roles, export_profile.dns_groups)),
-                "dns": ("DNS export", export_dns, (final, final_payloads, publish_dist, config.base_url, config.mihomo_bin, segment_roles, export_profile.dns_groups)),
+                "egern": ("Egern export", export_egern, (optimized, views, publish_dist, config.base_url, export_profile.egern_policy_map, export_profile.allowed_unsupported.get("egern", frozenset()))),
+                "loon": ("Loon export", export_loon, (optimized, views, publish_dist, config.base_url, export_profile.allowed_unsupported.get("loon", frozenset()))),
+                "singbox": ("Sing-box route export", export_singbox, (optimized, publish_dist, config.base_url, config.sing_box_bin, None, export_profile.singbox_policy_map)),
+                "singbox-dns": ("Sing-box DNS export", export_singbox_dns, (dns_views, publish_dist, config.sing_box_bin)),
+                "dns": ("DNS export", export_dns, (dns_views, publish_dist, config.mihomo_bin, required_roles, present_roles)),
             }
             def run_export(item: tuple[str, tuple[str, Any, tuple[Any, ...]]]) -> tuple[str, Any, BuildTiming]:
                 key, (_label, function, args) = item
@@ -146,10 +142,8 @@ def build(config: BuildConfig) -> BuildResult:
             with ThreadPoolExecutor(max_workers=worker_count, thread_name_prefix="export") as pool:
                 completed = list(pool.map(run_export, exporter_calls.items()))
             timing.phases["parallel exporter wall-clock"] = time.perf_counter() - parallel_started
-            exporter_stats = {}
             for key, result, worker_timing in completed:
                 timing.merge(worker_timing)
-                exporter_stats[key] = result
             with timing.phase("write generated Mihomo"):
                 write_yaml_atomic(publish_dist / "generated" / "mihomo-rules.yaml", final)
             if config.complete_config:
@@ -209,4 +203,4 @@ def build(config: BuildConfig) -> BuildResult:
     timing.notes["artifacts generated"] = f"{mrs_count} MRS, {yaml_count} YAML"
     timing.print_report()
     timing.write_step_summary()
-    return BuildResult(final, final_payloads, dedup_stats, exporter_stats)
+    return BuildResult(final, final_payloads)

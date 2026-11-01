@@ -6,8 +6,8 @@ import argparse
 import tempfile
 from pathlib import Path
 
-from .rules import iter_all_rules, parse_rule, rule_policy
-from .semantics import is_target_ip_kind
+from .rules import is_target_ip_kind, iter_all_rules, parse_rule, rule_policy
+
 from .validate import validate_final_config
 from .yamlio import dump_yaml, load_yaml_unique
 
@@ -83,7 +83,7 @@ def audit_dist(root: Path, mihomo: str | None = None, sing_box: str | None = Non
     singbox = json.loads((root / "generated/singbox-rules.json").read_text(encoding="utf-8"))
     route = singbox.get("route", {})
     route_sets = route.get("rule_set", [])
-    tags = [item.get("tag") for item in route_sets if isinstance(item, dict)]
+    tags = [tag for item in route_sets if isinstance(item, dict) and isinstance((tag := item.get("tag")), str)]
     if len(tags) != len(set(tags)):
         raise ValueError("Sing-box: generated route contains duplicate rule-set tags")
     if any(rule.get("action") == "resolve" for rule in route.get("rules", []) if isinstance(rule, dict)):

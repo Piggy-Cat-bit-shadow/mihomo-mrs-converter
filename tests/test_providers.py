@@ -88,10 +88,10 @@ class ProvidersTest(unittest.TestCase):
     def test_normalization_contains_payload_but_no_url_or_path(self):
         context = BuildContext({}, {"A"})
         with patch("converter.net.fetch_text", return_value="payload:\n- example.com\n"):
-            result = process_provider("A", {"type": "http", "behavior": "domain", "format": "yaml", "url": "https://example.invalid/a"}, context)
-        provider = result.providers[0]
+            providers = process_provider("A", {"type": "http", "behavior": "domain", "format": "yaml", "url": "https://example.invalid/a"}, context)
+        provider = providers[0]
         self.assertEqual(provider.behavior, Behavior.DOMAIN)
-        self.assertEqual(provider.payload, ("example.com",))
+        self.assertEqual([entry.as_rule() for entry in provider.payload], ["example.com"])
         self.assertNotIn("url", provider.as_config())
         self.assertNotIn("path", provider.as_config())
 
@@ -102,8 +102,9 @@ class ProvidersTest(unittest.TestCase):
     def test_mixed_provider_splits_in_memory(self):
         context = BuildContext({}, {"A"})
         with patch("converter.net.fetch_text", return_value="payload:\n- DOMAIN,example.com\n- IP-CIDR,192.0.2.0/24\n"):
-            result = process_provider("A", {"type": "http", "behavior": "classical", "format": "yaml", "url": "https://example.invalid/a"}, context)
-        self.assertEqual({provider.behavior for provider in result.providers}, {Behavior.DOMAIN, Behavior.IPCIDR})
+            providers = process_provider("A", {"type": "http", "behavior": "classical", "format": "yaml", "url": "https://example.invalid/a"}, context)
+        self.assertEqual({provider.behavior for provider in providers}, {Behavior.DOMAIN, Behavior.IPCIDR})
+        self.assertEqual([provider.source for provider in providers], ["A", "A"])
 
     def test_fetch_text_streams_and_caches_normal_response(self):
         with patch("converter.net.urllib.request.urlopen", return_value=Response(b"payload")):
@@ -172,7 +173,6 @@ class ProvidersTest(unittest.TestCase):
                     {"type": "http", "behavior": "domain", "format": "text", "url": "https://example.invalid/rules", "size-limit": 10},
                     BuildContext({}, {"A"}),
                 )
-
 
 
 if __name__ == "__main__":

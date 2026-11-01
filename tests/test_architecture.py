@@ -12,10 +12,12 @@ class ArchitectureTest(unittest.TestCase):
         self.assertNotIn('"stage-merge"', source)
         self.assertNotIn('"stage-final"', source)
 
-    def test_production_modules_do_not_import_core(self):
+    def test_production_modules_do_not_import_the_removed_core_module(self):
         root = Path(__file__).parents[1] / "converter"
         for path in root.rglob("*.py"):
-            self.assertNotIn("core", path.read_text(encoding="utf-8"), path.as_posix())
+            source = path.read_text(encoding="utf-8")
+            self.assertNotRegex(source, r"(?m)^\s*from\s+\.{1,2}core\b", path.as_posix())
+            self.assertNotRegex(source, r"(?m)^\s*import\s+converter\.core\b", path.as_posix())
 
     def test_ci_separates_read_verify_from_write_publish_and_pins_actions(self):
         root = Path(__file__).parents[1]

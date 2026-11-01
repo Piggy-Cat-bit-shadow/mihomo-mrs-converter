@@ -65,6 +65,8 @@ segments:
     role: china
 ```
 
+键是输入 `rule-providers` 的 key（anchor），必须与输入完全一致：项目不再从生成文件的 `-domain` / `-ip` / `-classical` 后缀或前缀猜测来源，因此插入无关规则、重排分组或给 provider 改名，都不会让其他 segment 静默改身份。没有配置身份的分组会得到 `merged-segment-NN` 这样的确定性名称，但没有稳定来源可依据时不会假装稳定。
+
 显示名称可以调整，DNS role 用于保持 DNS 分组身份不变。
 
 `segment-names.yaml` 是生产 segment metadata 的唯一来源。生产构建会从生成的 Mihomo route 中读取实际 segment 顺序，并要求 Egern、Loon、Sing-box 与之保持一致；新增、删除、重命名或重排 segment 时只需同步 metadata 和输入规则。
@@ -149,3 +151,21 @@ Egern、Loon 和 Sing-box 也支持当前项目使用的部分简单 `SUB-RULE` 
 - Sing-box：不生成主动 `resolve` 的路由动作
 
 这些输出仍然是规则片段；项目不会生成完整的 Mihomo、Egern、Loon 或 Sing-box 客户端配置。
+
+## 内部实现
+
+构建按“解析一次、到处投影”组织，避免每个客户端重复解析同一批规则：
+
+- `converter/segments.py`：唯一的 segment 规划器。按连续 RULE-SET、wrapper、policy 和显式 source key 规划分组，同时服务构建、静态 preflight 和生产审计；不再按序号或文件名后缀推断身份。
+- `converter/providers.py` + `converter/payload.py`：provider 下载与规范化，把每条规则解析成类型化 payload（domain 条目、CIDR 条目、classical 规则），后续阶段不再重新 split 字符串。
+- `converter/optimize.py`：在规划好的分组上合并相邻 provider、按语义安全去重、生成最终 provider 身份，并改写规则引用。
+- `converter/views.py`：按 segment 与 DNS group 生成共享视图（已去重），Mihomo / Egern / Loon / Sing-box / DNS 导出器只负责投影到各自格式。
+- `converter/spec.py`、`validate.py`、`preflight.py`、`audit.py`、`production_audit.py`：输入契约与产物审计相互独立，preflight 不导入构建管线。
+
+其他确定性约定：
+
+- YAML 读写优先使用 libyaml（`CSafeLoader`/`CSafeDumper`），含 emoji 等非 BMP 字符时回退到纯 Python dumper，保持既有字节表示。
+- 所有生成的文本文件固定使用 LF，Windows 与 Linux 构建产生相同字节。
+- 独立的 MRS / SRS 编译并行执行；每个产物有独立文件，顺序与内容不受线程数影响。
+
+在本机（Windows，51 个 provider，热缓存）实测：同一次生产构建的核心耗时从 43.4s 降到约 13.3s，`dist/` 与 `.state/` 输出与重构前逐字节一致。

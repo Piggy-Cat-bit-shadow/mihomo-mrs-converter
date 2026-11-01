@@ -1,14 +1,26 @@
-"""Validated segment metadata shared by the build pipeline and audits."""
+"""Validated segment metadata and the single segment planner.
+
+A *segment* is a contiguous run of RULE-SET rules that share routing (wrapper,
+policy) and source identity.  Planning segments is pure text work, so the same
+planner serves the build, static preflight and the production audit instead of
+each of them re-deriving block order.
+
+Segment identity is explicit: a configured anchor matches a block when one of
+the block's **source provider keys** is that anchor.  Nothing here inspects
+artifact name suffixes, so inserting an unrelated provider can neither rename a
+neighbouring segment nor make one segment look like another.
+"""
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from .identifiers import validate_artifact_id
-from .optimize import iter_ruleset_blocks, matching_segment_anchors
+from .model import PlannedBlock
+from .rules import parse_ruleset_reference, ruleset_routing_signature, simple_ruleset_wrapper
 from .yamlio import load_yaml_unique
-
 
 VALID_ROLES = frozenset({"direct", "ai", "global", "china", "reject"})
 VALID_REJECT_MODES = frozenset({"reject", "drop"})
@@ -75,33 +87,122 @@ def segment_roles(specs: tuple[SegmentSpec, ...]) -> dict[str, str]:
     return {spec.name: spec.role for spec in specs}
 
 
-def resolve_segment_roles(
-    config: dict[str, Any], mapping: dict[str, str], explicit_roles: dict[str, str],
-) -> dict[str, str]:
-    """Inherit unnamed block roles only from unanimous explicit routing peers.
+def expected_reject_policy(spec: SegmentSpec) -> str:
+    if spec.reject_mode == "reject":
+        return "REJECT"
+    if spec.reject_mode == "drop":
+        return "REJECT-DROP"
+    raise ValueError(f"production reject segment has no valid reject-mode: {spec.name}")
 
-    Routing peers have both the same policy and the same wrapper. Inheritance
-    changes DNS metadata only; it never joins blocks or rewrites routing rules.
+
+def _matched_anchors(sources: Sequence[str], mapping: Mapping[str, str]) -> tuple[str, ...]:
+    return tuple(anchor for anchor in mapping if anchor in sources)
+
+
+def plan_blocks(
+    rules: Sequence[Any],
+    provider_sources: Mapping[str, str],
+    mapping: Mapping[str, str] | None = None,
+) -> tuple[PlannedBlock, ...]:
+    """Group compatible RULE-SET rules into planned blocks with stable identity.
+
+    ``provider_sources`` maps the provider names used by ``rules`` to the input
+    provider key they were generated from; a configured anchor matches a block
+    when it is one of those keys.
     """
-    roles = dict(explicit_roles)
+    segment_mapping_ = dict(mapping or {})
+    provider_names = set(provider_sources)
+    blocks: list[PlannedBlock] = []
+    matched: set[str] = set()
+    index = 0
+    while index < len(rules):
+        wrapper = simple_ruleset_wrapper(rules[index])
+        if wrapper is None or wrapper[0][1] not in provider_names:
+            index += 1
+            continue
+        reference = parse_ruleset_reference(rules[index])
+        if reference is None:
+            raise ValueError(f"invalid ruleset reference: {rules[index]}")
+        routing = ruleset_routing_signature(reference)
+        wrapper_signature = (wrapper[1], wrapper[2])
+        providers = [wrapper[0][1]]
+        sources = [provider_sources[providers[0]]]
+        anchors = _matched_anchors(sources, segment_mapping_)
+        end = index + 1
+        while end < len(rules):
+            candidate = simple_ruleset_wrapper(rules[end])
+            if candidate is None or candidate[0][1] not in provider_names:
+                break
+            next_reference = parse_ruleset_reference(rules[end])
+            if next_reference is None:
+                raise ValueError(f"invalid ruleset reference: {rules[end]}")
+            if ruleset_routing_signature(next_reference) != routing or (candidate[1], candidate[2]) != wrapper_signature:
+                break
+            next_sources = [provider_sources[candidate[0][1]]]
+            next_anchors = _matched_anchors(next_sources, segment_mapping_)
+            if anchors and next_anchors and next_anchors != anchors:
+                break
+            anchors = anchors or next_anchors
+            providers.append(candidate[0][1])
+            sources.extend(next_sources)
+            end += 1
+        ordinal = len(blocks) + 1
+        segment = segment_mapping_[anchors[0]] if anchors else None
+        if anchors:
+            matched.add(anchors[0])
+        blocks.append(
+            PlannedBlock(
+                start=index,
+                end=end,
+                ordinal=ordinal,
+                routing=routing,
+                wrapper=wrapper_signature,
+                providers=tuple(providers),
+                sources=tuple(dict.fromkeys(sources)),
+                segment=segment,
+                name=segment if segment is not None else f"merged-segment-{ordinal:02d}",
+            )
+        )
+        index = end
+    unused = sorted(set(segment_mapping_) - matched)
+    if unused:
+        raise ValueError(f"configured segment anchor(s) did not match any merged segment: {unused}")
+    return tuple(blocks)
+
+
+def plan_config(config: dict[str, Any], mapping: Mapping[str, str] | None = None) -> tuple[PlannedBlock, ...]:
+    """Plan the segments of a raw input config (provider names are their sources)."""
+    providers = config.get("rule-providers") or {}
+    return plan_blocks(config.get("rules") or [], {name: name for name in providers}, mapping)
+
+
+def resolve_segment_roles(
+    blocks: Sequence[PlannedBlock], explicit_roles: Mapping[str, str]
+) -> dict[str, str]:
+    """Assign a DNS role to every planned segment.
+
+    Unnamed blocks inherit a role only from the unanimous explicit peers that
+    share their routing.  Inheritance changes DNS metadata only; it never joins
+    blocks or rewrites routing rules.
+    """
+    roles: dict[str, str] = {}
     peers: dict[tuple[str, str], set[str]] = {}
-    unnamed: list[tuple[str, tuple[str, str]]] = []
-    for ordinal, (_, _, routing, _, names) in enumerate(
-        iter_ruleset_blocks(config.get("rules", []), config["rule-providers"], mapping), 1
-    ):
-        matches = matching_segment_anchors(names, mapping)
-        if len(matches) > 1:
-            raise ValueError(f"multiple configured anchors match providers {names}: {matches}")
-        if matches:
-            peers.setdefault(routing, set()).add(explicit_roles[matches[0][1]])
-        else:
-            unnamed.append((f"merged-segment-{ordinal:02d}", routing))
-    for name, routing in unnamed:
-        candidates = peers.get(routing, set())
+    unnamed: list[PlannedBlock] = []
+    for block in blocks:
+        if block.segment is None:
+            unnamed.append(block)
+            continue
+        role = explicit_roles.get(block.segment)
+        if role is None:
+            raise ValueError(f"segment {block.segment!r} has no configured role")
+        roles[block.name] = role
+        peers.setdefault(block.routing, set()).add(role)
+    for block in unnamed:
+        candidates = peers.get(block.routing, set())
         if len(candidates) != 1:
             raise ValueError(
-                f"DNS segment {name!r} cannot inherit an unambiguous role for "
-                f"wrapper/policy {routing}: explicit peer roles={sorted(candidates)}"
+                f"DNS segment {block.name!r} cannot inherit an unambiguous role for "
+                f"wrapper/policy {block.routing}: explicit peer roles={sorted(candidates)}"
             )
-        roles[name] = next(iter(candidates))
+        roles[block.name] = next(iter(candidates))
     return roles

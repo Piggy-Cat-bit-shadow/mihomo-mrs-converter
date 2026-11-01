@@ -67,11 +67,14 @@ def semantic_matcher_equivalent(source: list[dict[str, Any]], decoded: list[dict
             return networks
 
         def collapsed(networks: list[ipaddress._BaseNetwork]) -> list[str]:
-            return sorted(
-                str(network)
+            addresses = (
+                network
                 for version in (4, 6)
-                for network in ipaddress.collapse_addresses([item for item in networks if item.version == version])
+                for network in ipaddress.collapse_addresses(  # type: ignore[type-var]
+                    [item for item in networks if item.version == version]
+                )
             )
+            return sorted(str(network) for network in addresses)
 
         try:
             for field in source_fields.keys() | decoded_fields.keys():

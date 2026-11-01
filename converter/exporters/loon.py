@@ -1,14 +1,24 @@
-"""Independent loon exporter implementation."""
+"""Loon rule-resource and route exporter."""
 
 from collections import Counter
 from pathlib import Path
 from typing import Any
-import ipaddress
 
 from ..artifacts import public_url, write_text_atomic
-from ..model import provider_segment
-from ..rules import find_ruleset_refs, parse_egern_sub_rule_members, parse_rule, parse_ruleset_reference, simple_ruleset_wrapper, split_top_level_commas
-from ..semantics import is_target_ip_kind, parse_ip_network
+from ..model import OptimizedConfig
+from ..rules import RuleLine
+from ..payload import DomainEntry, IpEntry
+from ..rules import (
+    find_ruleset_refs,
+    is_target_ip_kind,
+    parse_egern_sub_rule_members,
+    parse_ip_network,
+    parse_rule,
+    parse_ruleset_reference,
+    simple_ruleset_wrapper,
+    split_top_level_commas,
+)
+from ..views import SegmentView
 
 LOON_RULE_PRIORITY = {
     "DOMAIN": 0,
@@ -40,60 +50,52 @@ LOON_CLASSICAL_KINDS = {
 }
 
 
-def loon_segment_name(provider_name: str) -> str:
-    return provider_segment(provider_name)
+def loon_domain_rule(entry: DomainEntry) -> tuple[str, str]:
+    if entry.suffix:
+        return "DOMAIN-SUFFIX", f"DOMAIN-SUFFIX,{entry.value}"
+    return "DOMAIN", f"DOMAIN,{entry.value}"
 
 
-def loon_rule_from_provider(
-    behavior: str, rule: str, segment: str, modifiers: tuple[str, ...] = ()
-) -> tuple[str, str] | None:
-    """Convert one normalized provider entry to a native Loon rule."""
-    if behavior == "domain":
-        if rule.startswith("+."):
-            return "DOMAIN-SUFFIX", f"DOMAIN-SUFFIX,{rule[2:]}"
-        return "DOMAIN", f"DOMAIN,{rule}"
-    if behavior == "ipcidr":
-        network = parse_ip_network(rule)
-        if network is None:
-            raise ValueError("normalized ipcidr provider entry is not a CIDR")
-        kind = "IP-CIDR" if network.version == 4 else "IP-CIDR6"
-        return kind, ",".join([kind, rule, "no-resolve"])
+def loon_network_rule(entry: IpEntry) -> tuple[str, str]:
+    kind = "IP-CIDR" if entry.version == 4 else "IP-CIDR6"
+    return kind, ",".join([kind, entry.raw, "no-resolve"])
 
-    parsed = parse_rule(rule)
-    kind = parsed.kind
+
+def loon_classical_rule(rule: RuleLine) -> tuple[str, str]:
+    """Convert one normalized classical entry to a native Loon rule."""
+    kind = rule.kind
     if kind == "DST-PORT":
         kind = "DEST-PORT"
     elif kind == "NETWORK":
         kind = "PROTOCOL"
     if kind not in LOON_CLASSICAL_KINDS and kind not in {"DST-PORT"}:
-        raise ValueError(f"unsupported Loon rule type {parsed.kind or '<empty>'}")
-    if len(parsed.parts) not in {2, 3}:
+        raise ValueError(f"unsupported Loon rule type {rule.kind or '<empty>'}")
+    if len(rule.parts) not in {2, 3}:
         raise ValueError("rule has unsupported fields or an embedded policy")
-    if len(parsed.parts) == 3 and (
-        parsed.parts[2].lower() != "no-resolve"
+    if len(rule.parts) == 3 and (
+        rule.parts[2].lower() != "no-resolve"
         or not is_target_ip_kind(kind)
     ):
         raise ValueError("only IP-CIDR/IP-CIDR6/IP-ASN may use no-resolve")
     if kind == "IP-CIDR":
-        try:
-            if ipaddress.ip_network(parsed.parts[1], strict=False).version != 4:
-                raise ValueError("IP-CIDR contains an IPv6 network")
-        except ValueError as exc:
-            raise ValueError(f"invalid IPv4 CIDR: {exc}") from exc
+        network = parse_ip_network(rule.parts[1])
+        if network is None or network.version != 4:
+            raise ValueError("IP-CIDR contains an invalid or IPv6 network")
     if kind == "IP-CIDR6":
-        try:
-            if ipaddress.ip_network(parsed.parts[1], strict=False).version != 6:
-                raise ValueError("IP-CIDR6 contains an IPv4 network")
-        except ValueError as exc:
-            raise ValueError(f"invalid IPv6 CIDR: {exc}") from exc
-    values = list(parsed.parts[1:])
+        network = parse_ip_network(rule.parts[1])
+        if network is None or network.version != 6:
+            raise ValueError("IP-CIDR6 contains an invalid or IPv4 network")
+    values = list(rule.parts[1:])
     if is_target_ip_kind(kind) and "no-resolve" not in {item.lower() for item in values[1:]}:
         values.append("no-resolve")
     return kind, ",".join([kind, *values])
 
 
 def export_loon(
-    config: dict[str, Any], final_payloads: dict[str, list[str]], output_dist: Path, base_url: str,
+    optimized: OptimizedConfig,
+    views: dict[str, SegmentView],
+    output_dist: Path,
+    base_url: str,
     allowed_unsupported: frozenset[str] | set[str] | None = None,
 ) -> dict[str, int]:
     """Export final normalized providers directly as independent Loon rule lists."""
@@ -101,52 +103,52 @@ def export_loon(
     unsupported: Counter[str] = Counter()
     top_level_unsupported: Counter[str] = Counter()
     unsupported_examples: dict[str, list[str]] = {}
-    first_segment_index: dict[str, int] = {}
-    provider_modifiers: dict[str, set[str]] = {}
+    policies: dict[str, str] = {}
+    remote_order: list[str] = []
     conditional_by_provider: dict[str, list[tuple[str, str]]] = {}
     subrule_fallback_policy: dict[str, str] = {}
     subrule_conditional_policy: dict[tuple[str, str], str] = {}
-    seen_by_segment: dict[str, set[str]] = {}
 
-    for raw_rule in config.get("rules", []):
-        reference = parse_ruleset_reference(raw_rule)
-        if reference is not None:
-            provider_modifiers.setdefault(reference.provider, set()).update(
-                modifier.lower() for modifier in reference.modifiers
-)
-
-    for name, provider in config["rule-providers"].items():
-        segment = loon_segment_name(name)
-        payload = final_payloads.get(name, [])
-        entries = rules_by_segment.setdefault(segment, [])
-        seen = seen_by_segment.setdefault(segment, set())
-        for raw_rule in payload:
+    for segment, view in views.items():
+        converted: list[tuple[str, str]] = []
+        seen: set[str] = set()
+        for domain in view.domains:
+            line = loon_domain_rule(domain)
+            if line[1] not in seen:
+                seen.add(line[1])
+                converted.append(line)
+        for rule in view.classical:
             try:
-                converted = loon_rule_from_provider(
-                    provider.get("behavior", ""),
-                    raw_rule,
-                    segment,
-                    tuple(provider_modifiers.get(name, set())),
-                )
+                line = loon_classical_rule(rule)
             except ValueError:
-                kind = parse_rule(raw_rule).kind or "<empty>"
+                kind = rule.kind or "<empty>"
                 unsupported[kind] += 1
                 unsupported_examples.setdefault(kind, [])
                 if len(unsupported_examples[kind]) < 5:
-                    unsupported_examples[kind].append(raw_rule)
+                    unsupported_examples[kind].append(rule.raw)
                 continue
-            if converted[1] not in seen:
-                entries.append(converted)
-                seen.add(converted[1])
+            if line[1] not in seen:
+                seen.add(line[1])
+                converted.append(line)
+        for network in view.networks:
+            line = loon_network_rule(network)
+            if line[1] not in seen:
+                seen.add(line[1])
+                converted.append(line)
+        rules_by_segment[segment] = converted
 
-    policies: dict[str, str] = {}
-    remote_order: list[str] = []
+    segments_by_provider = optimized.provider_segments()
+    sub_rules = optimized.sub_rules
 
-    sub_rules = config.get("sub-rules") or {}
+    def segment_of(provider_name: str) -> str:
+        try:
+            return segments_by_provider[provider_name]
+        except KeyError:
+            raise SystemExit(f"Loon rule references unknown provider: {provider_name!r}") from None
 
     def parse_loon_subrule(name: str) -> list[tuple[str, str, str]]:
         members = sub_rules.get(name)
-        parsed = parse_egern_sub_rule_members(members)
+        parsed = parse_egern_sub_rule_members(list(members) if members is not None else None)
         if parsed is None:
             raise SystemExit(f"Loon exporter unsupported SUB-RULE member: {name}")
         fallback = [policy for kind, policy in parsed if kind == "match"]
@@ -160,12 +162,10 @@ def export_loon(
             raise SystemExit(f"Loon exporter SUB-RULE has no UDP/TCP conditional member: {name}")
         return result
 
-    def record_policy(provider_name: str, policy: str, raw_rule: str) -> None:
-        segment = loon_segment_name(provider_name)
-        if segment not in first_segment_index:
-            first_segment_index[segment] = len(first_segment_index)
+    def record_policy(segment: str, policy: str, raw_rule: str) -> None:
+        if segment not in policies:
             remote_order.append(segment)
-        if segment in policies and policies[segment] != policy:
+        elif policies[segment] != policy:
             raise SystemExit(
                 f"Loon policy conflict for segment {segment}: {policies[segment]!r} vs {policy!r} in {raw_rule!r}"
             )
@@ -179,7 +179,7 @@ def export_loon(
         if isinstance(raw_rule, str) and len(unsupported_examples[kind]) < 5:
             unsupported_examples[kind].append(raw_rule)
 
-    for raw_rule in config.get("rules", []):
+    for raw_rule in optimized.rules:
         if not isinstance(raw_rule, str):
             record_top_level_unsupported("<non-string>", raw_rule)
             continue
@@ -194,15 +194,15 @@ def export_loon(
             if len(refs) != 1:
                 record_top_level_unsupported(parsed.kind or "<empty>", raw_rule)
                 continue
+            segment = segment_of(refs[0])
             if reference.wrapper_kind == "SUB-RULE":
                 for protocol, conditional_policy, fallback_policy in parse_loon_subrule(reference.policy):
-                    segment = loon_segment_name(refs[0])
                     conditional_by_provider.setdefault(refs[0], []).append((protocol, conditional_policy))
                     subrule_fallback_policy[segment] = fallback_policy
                     subrule_conditional_policy[(segment, protocol)] = conditional_policy
-                record_policy(refs[0], subrule_fallback_policy[loon_segment_name(refs[0])], raw_rule)
+                record_policy(segment, subrule_fallback_policy[segment], raw_rule)
             else:
-                record_policy(refs[0], reference.policy, raw_rule)
+                record_policy(segment, reference.policy, raw_rule)
             continue
         if parsed.kind == "NETWORK" and len(parsed.parts) == 3 and parsed.parts[1].upper() in {"TCP", "UDP"}:
             loon_rules.append(f"PROTOCOL,{parsed.parts[1].upper()},{parsed.parts[2]}")
@@ -222,13 +222,11 @@ def export_loon(
                 and all(item.lower() in {"no-resolve", "src"} for item in modifiers)
             ):
                 try:
-                    converted = loon_rule_from_provider(
-                        "classical", ",".join([*matcher_parts, *modifiers]), "<top-level>", tuple(modifiers)
-                    )
+                    native = loon_classical_rule(parse_rule(",".join([*matcher_parts, *modifiers])))
                 except ValueError:
-                    converted = None
-                if converted is not None:
-                    converted_parts = converted[1].split(",")
+                    native = None
+                if native is not None:
+                    converted_parts = native[1].split(",")
                     modifier_index = next(
                         (index for index, item in enumerate(converted_parts[2:], start=2)
                          if item.lower() in {"no-resolve", "src"}),
@@ -244,16 +242,16 @@ def export_loon(
     conditional_lines: dict[tuple[str, str], list[str]] = {}
     conditional_seen: dict[tuple[str, str], set[str]] = {}
     for provider_name, conditions in conditional_by_provider.items():
-        segment = loon_segment_name(provider_name)
+        segment = segment_of(provider_name)
         entries = rules_by_segment.get(segment, [])
         for protocol, _policy in conditions:
             lines = conditional_lines.setdefault((segment, protocol), [])
             seen = conditional_seen.setdefault((segment, protocol), set())
             for _kind, matcher in entries:
-                line = f"AND,(({matcher}),(PROTOCOL,{protocol.upper()}))"
-                if line not in seen:
-                    seen.add(line)
-                    lines.append(line)
+                conditional_line = f"AND,(({matcher}),(PROTOCOL,{protocol.upper()}))"
+                if conditional_line not in seen:
+                    seen.add(conditional_line)
+                    lines.append(conditional_line)
 
     expected_loon_files = {f"{segment}.lsr" for segment in remote_order if segment in policies}
     expected_loon_files.update(f"{segment}-{protocol}.lsr" for segment, protocol in conditional_lines)
@@ -261,8 +259,6 @@ def export_loon(
         if stale.name not in expected_loon_files:
             stale.unlink()
     for segment in remote_order:
-        if segment not in policies:
-            continue
         entries = rules_by_segment.get(segment, [])
         if not entries:
             print(f"[Loon] segment has no convertible rules: segment={segment}; remote rule omitted")
@@ -290,8 +286,7 @@ def export_loon(
     write_text_atomic(output_dist / "generated" / "loon-rules.conf", "\n".join(remote_lines) + "\n")
     print("Loon outputs:")
     for segment in emitted_segments:
-        with (loon_dir / f"{segment}.lsr").open(encoding="utf-8") as handle:
-            rule_count = sum(1 for _ in handle)
+        rule_count = len(rules_by_segment.get(segment, []))
         print(f"  {segment}.lsr: {rule_count} rules, policy={policies[segment]}")
     total_skipped = sum(unsupported.values()) + sum(top_level_unsupported.values())
     unexpected_unsupported = set(unsupported) - set(allowed_unsupported or ())
@@ -304,10 +299,10 @@ def export_loon(
     type_counts = unsupported + top_level_unsupported
     for kind, count in sorted(type_counts.items()):
         print(f"{kind}: {count}")
-        examples = unsupported_examples.get(kind, [])
-        if examples:
+        kind_examples = unsupported_examples.get(kind, [])
+        if kind_examples:
             print("  examples:")
-            for example in examples:
+            for example in kind_examples:
                 print(f"    {example}")
     print(f"top-level unsupported: {sum(top_level_unsupported.values())}")
     print(f"total skipped: {total_skipped}")

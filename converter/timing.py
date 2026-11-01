@@ -17,6 +17,25 @@ class ExternalTiming:
     slowest_label: str = ""
 
 
+REPORT_PHASES = (
+    "provider prefetch",
+    "provider processing",
+    "optimize config",
+    "build views",
+    "materialize Mihomo",
+    "validate final config",
+    "Egern export",
+    "Loon export",
+    "Sing-box route export",
+    "Sing-box DNS export",
+    "DNS export",
+    "parallel exporter wall-clock",
+    "audit",
+    "total export/publish",
+    "total build",
+)
+
+
 @dataclass
 class BuildTiming:
     phases: dict[str, float] = field(default_factory=dict)
@@ -64,7 +83,7 @@ class BuildTiming:
 
     def print_report(self) -> None:
         print("========== Build Timing ==========")
-        for label in ("provider prefetch", "provider processing", "optimize config", "materialize Mihomo", "validate final config", "Egern export", "Loon export", "Sing-box route export", "Sing-box DNS export", "DNS export", "parallel exporter wall-clock", "audit", "total build"):
+        for label in REPORT_PHASES:
             suffix = " / skipped" if label in self.skipped else ""
             print(f"{label + ':':<28}{self.phases.get(label, 0.0):>8.2f}s{suffix}")
         for label, value in sorted(self.notes.items()):
@@ -79,21 +98,7 @@ class BuildTiming:
             "| Phase | Duration | Status |",
             "| :--- | :--- | :--- |",
         ]
-        for label in (
-            "provider prefetch",
-            "provider processing",
-            "optimize config",
-            "materialize Mihomo",
-            "validate final config",
-            "Egern export",
-            "Loon export",
-            "Sing-box route export",
-            "Sing-box DNS export",
-            "DNS export",
-            "parallel exporter wall-clock",
-            "audit",
-            "total build",
-        ):
+        for label in REPORT_PHASES:
             if label in self.phases or label in self.skipped:
                 duration = f"{self.phases.get(label, 0.0):.2f}s"
                 status = "Skipped" if label in self.skipped else "Completed"

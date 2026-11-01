@@ -1,26 +1,27 @@
-"""Independent egern exporter implementation."""
+"""Egern rule-set and route exporter."""
 
 from collections import Counter
 from pathlib import Path
 from time import perf_counter
-from typing import Any
-import ipaddress
-import re
+from typing import Any, Iterable
 
 from ..artifacts import public_url, write_yaml_atomic
-from ..model import provider_segment
+from ..model import OptimizedConfig
+from ..rules import RuleLine
 from ..rules import (
-    egern_udp_and_ruleset, find_ruleset_refs, parse_egern_network_rule,
-    parse_egern_sub_rule_members, parse_rule, parse_ruleset_reference,
+    DOMAIN_KINDS,
+    egern_udp_and_ruleset,
+    find_ruleset_refs,
+    is_target_ip_kind,
+    parse_egern_network_rule,
+    parse_egern_sub_rule_members,
+    parse_ip_network,
+    parse_rule,
+    parse_ruleset_reference,
     simple_ruleset_wrapper,
 )
-from ..semantics import is_target_ip_kind, parse_ip_network
-from ..optimize import domain_covered_by_suffix, suffix_covered_by_parent_suffix
 from ..timing import current_timing, timed
-
-
-def network_covered_by_parent(network: ipaddress._BaseNetwork, networks: set[ipaddress._BaseNetwork]) -> bool:
-    return any(network.supernet(new_prefix=prefix) in networks for prefix in range(network.prefixlen - 1, -1, -1))
+from ..views import SegmentView
 
 EGERN_FIELD_BY_KIND = {
     "DOMAIN": "domain_set",
@@ -37,174 +38,135 @@ EGERN_FIELD_BY_KIND = {
 }
 
 
-def validate_provider_name(name: str) -> None:
-    if not re.fullmatch(r"[A-Za-z0-9._-]+", name):
-        raise ValueError(f"invalid provider name: {name!r}")
-
-
 def egern_policy(policy: str, policy_map: dict[str, str] | None = None) -> str:
     return (policy_map or {}).get(policy, policy)
 
 
-def egern_segment_name(provider_name: str) -> str:
-    return provider_segment(provider_name)
-
-
-def classify_egern_classical(rule: str) -> tuple[str, str, bool] | None:
-    parsed = parse_rule(rule)
-    field = EGERN_FIELD_BY_KIND.get(parsed.kind)
-    if field is None or len(parsed.parts) not in {2, 3}:
+def egern_rule_field(rule: RuleLine) -> tuple[str, str, bool] | None:
+    """Map one classical rule to an Egern rule-set field, or None if unsupported."""
+    field = EGERN_FIELD_BY_KIND.get(rule.kind)
+    if field is None or len(rule.parts) not in {2, 3}:
         return None
-    no_resolve = len(parsed.parts) == 3
-    if no_resolve and (parsed.parts[2].lower() != "no-resolve" or not is_target_ip_kind(parsed.kind)):
+    no_resolve = len(rule.parts) == 3
+    if no_resolve and (rule.parts[2].lower() != "no-resolve" or not is_target_ip_kind(rule.kind)):
         return None
-    value = parsed.parts[1]
-    if parsed.kind == "IP-CIDR":
-        try:
-            if ipaddress.ip_network(value, strict=False).version != 4:
-                return None
-        except ValueError:
-            return None
-    elif parsed.kind == "IP-CIDR6":
-        try:
-            if ipaddress.ip_network(value, strict=False).version != 6:
-                return None
-        except ValueError:
+    value = rule.parts[1]
+    if rule.kind in {"IP-CIDR", "IP-CIDR6"}:
+        network = parse_ip_network(value)
+        expected = 4 if rule.kind == "IP-CIDR" else 6
+        if network is None or network.version != expected:
             return None
     return field, value, no_resolve
 
 
-def optimize_egern_rule_set(fields: dict[str, Any]) -> tuple[dict[str, Any], Counter[str]]:
-    """Safely remove only coverage-redundant values within one Egern set."""
-    optimized = {field: list(values) if isinstance(values, list) else values for field, values in fields.items()}
-    removed: Counter[str] = Counter()
 
-    suffix_values = optimized.get("domain_suffix_set", [])
-    suffixes = {
-        value.strip().lower().rstrip(".")
-        for value in suffix_values
-        if isinstance(value, str) and value.strip().rstrip(".")
-    }
-    if isinstance(optimized.get("domain_set"), list):
-        retained_domains: list[str] = []
-        for value in optimized["domain_set"]:
-            if isinstance(value, str) and domain_covered_by_suffix(value, suffixes):
-                removed["exact_domains_covered_by_suffix"] += 1
-            else:
-                retained_domains.append(value)
-        optimized["domain_set"] = retained_domains
-    if isinstance(suffix_values, list):
-        retained_suffixes: list[str] = []
-        for value in suffix_values:
-            normalized = value.strip().lower().rstrip(".") if isinstance(value, str) else ""
-            if normalized and suffix_covered_by_parent_suffix(normalized, suffixes):
-                removed["child_suffixes_covered_by_parent"] += 1
-            else:
-                retained_suffixes.append(value)
-        optimized["domain_suffix_set"] = retained_suffixes
 
-    for field, stat_name in (("ip_cidr_set", "ipv4_cidrs_covered_by_parent"), ("ip_cidr6_set", "ipv6_cidrs_covered_by_parent")):
-        values = optimized.get(field)
-        if not isinstance(values, list):
+
+def write_egern_rule_set(path: Path, fields: dict[str, Any]) -> None:
+    write_yaml_atomic(path, fields)
+
+
+def egern_dns_fields(domains: Iterable[Any], classical: Iterable[RuleLine]) -> dict[str, Any]:
+    """Build an Egern rule-set body from authoritative DNS domain rules."""
+    fields: dict[str, Any] = {}
+    for entry in domains:
+        field = "domain_suffix_set" if entry.suffix else "domain_set"
+        fields.setdefault(field, []).append(entry.value)
+    for rule in classical:
+        if rule.kind not in DOMAIN_KINDS:
             continue
-        networks = {
-            network
-            for value in values
-            if isinstance(value, str) and (network := parse_ip_network(value)) is not None
-        }
-        retained: list[Any] = []
-        for value in values:
-            network = parse_ip_network(value) if isinstance(value, str) else None
-            if network is not None and network_covered_by_parent(network, networks):
-                removed[stat_name] += 1
-            else:
-                retained.append(value)
-        optimized[field] = retained
-
-    removed["safe_semantic_duplicates"] = sum(removed.values())
-    return optimized, removed
+        classified = egern_rule_field(rule)
+        if classified is None:
+            continue
+        field, value, no_resolve = classified
+        if not no_resolve:
+            fields.setdefault(field, []).append(value)
+    if any(field in {"ip_cidr_set", "ip_cidr6_set", "asn_set", "geoip_set"} for field in fields):
+        fields["no_resolve"] = True
+    return fields
 
 
-def export_egern(
-    config: dict[str, Any], final_payloads: dict[str, list[str]], output_dist: Path, base_url: str,
-    policy_map: dict[str, str] | None = None, allowed_unsupported: frozenset[str] | set[str] | None = None,
-) -> dict[str, int]:
-    """Serialize the already-final Mihomo config into compact Egern rule sets."""
-    egern_started = perf_counter()
+def _collect_rule_sets(views: dict[str, SegmentView]) -> tuple[dict[str, dict[str, Any]], Counter, Counter, dict[str, list[str]], int]:
     sets: dict[str, dict[str, Any]] = {}
     seen_values: dict[str, dict[str, set[str]]] = {}
-    counts = Counter()
-    unsupported = Counter()
-    unsupported_classical_examples: dict[str, list[str]] = {}
+    counts: Counter = Counter()
+    unsupported: Counter = Counter()
+    examples: dict[str, list[str]] = {}
+    no_resolve_rules = 0
 
-    def add(segment: str, field: str, value: str) -> bool:
+    def add(segment: str, field: str, value: str) -> None:
         values = sets.setdefault(segment, {}).setdefault(field, [])
         seen = seen_values.setdefault(segment, {}).setdefault(field, set())
         if value in seen:
-            return False
+            return
         seen.add(value)
         values.append(value)
-        return True
 
+    for segment, view in views.items():
+        for entry in view.domains:
+            add(segment, "domain_suffix_set" if entry.suffix else "domain_set", entry.value)
+            counts["domain"] += 1
+        for rule in view.classical:
+            classified = egern_rule_field(rule)
+            if classified is None:
+                kind = rule.kind or "unknown"
+                unsupported[kind] += 1
+                examples.setdefault(kind, [])
+                if len(examples[kind]) < 5:
+                    examples[kind].append(rule.raw)
+                continue
+            field, value, _ = classified
+            if is_target_ip_kind(rule.kind):
+                sets.setdefault(segment, {})["no_resolve"] = True
+                no_resolve_rules += 1
+            add(segment, field, value)
+            counts["classical"] += 1
+        for network in view.networks:
+            sets.setdefault(segment, {})["no_resolve"] = True
+            add(segment, "ip_cidr6_set" if network.version == 6 else "ip_cidr_set", network.raw)
+            counts["ipv6" if network.version == 6 else "ipv4"] += 1
+    return sets, counts, unsupported, examples, no_resolve_rules
+
+
+def export_egern(
+    optimized: OptimizedConfig,
+    views: dict[str, SegmentView],
+    output_dist: Path,
+    base_url: str,
+    policy_map: dict[str, str] | None = None,
+    allowed_unsupported: frozenset[str] | set[str] | None = None,
+) -> dict[str, int]:
+    """Serialize the final config into compact Egern rule sets and a route."""
+    started = perf_counter()
     with timed("Egern collect"):
-        for name, provider in config["rule-providers"].items():
-            segment = egern_segment_name(name)
-            behavior = provider.get("behavior")
-            payload = final_payloads.get(name, [])
-            for rule in payload:
-                if behavior == "domain":
-                    value = rule[2:] if rule.startswith("+.") else rule
-                    add(segment, "domain_suffix_set" if rule.startswith("+.") else "domain_set", value)
-                    counts["domain"] += 1
-                elif behavior == "ipcidr":
-                    try:
-                        version = ipaddress.ip_network(rule, strict=False).version
-                    except ValueError:
-                        unsupported["invalid-ip"] += 1
-                        continue
-                    sets.setdefault(segment, {})["no_resolve"] = True
-                    add(segment, "ip_cidr6_set" if version == 6 else "ip_cidr_set", rule)
-                    counts["ipv6" if version == 6 else "ipv4"] += 1
-                elif behavior == "classical":
-                    classified = classify_egern_classical(rule)
-                    if classified is None:
-                        kind = parse_rule(rule).kind or "unknown"
-                        unsupported[kind] += 1
-                        unsupported_classical_examples.setdefault(kind, [])
-                        if len(unsupported_classical_examples[kind]) < 5:
-                            unsupported_classical_examples[kind].append(rule)
-                        continue
-                    field, value, _no_resolve = classified
-                    target = segment
-                    if is_target_ip_kind(parse_rule(rule).kind):
-                        sets.setdefault(target, {})["no_resolve"] = True
-                        counts["no_resolve"] += 1
-                    add(target, field, value)
-                    counts["classical"] += 1
+        sets, counts, unsupported, unsupported_examples, no_resolve_rules = _collect_rule_sets(views)
+    counts["no_resolve"] = no_resolve_rules
+    semantic_removed = Counter(
+        {
+            "exact_domains_covered_by_suffix": sum(view.stats.domain_covered_by_suffix for view in views.values()),
+            "child_suffixes_covered_by_parent": sum(view.stats.suffix_covered_by_parent_suffix for view in views.values()),
+            "ipv4_cidrs_covered_by_parent": sum(view.stats.ipcidr_covered_by_parent for view in views.values()),
+        }
+    )
+    semantic_removed["safe_semantic_duplicates"] = sum(semantic_removed.values())
 
     egern_dir = output_dist / "egern"
-    semantic_removed: Counter[str] = Counter()
     expected_egern_files = {f"{segment}.yaml" for segment in sets}
-    with timed("Egern optimize"):
-        for stale in egern_dir.glob("*.yaml"):
-            if stale.name not in expected_egern_files:
-                stale.unlink()
+    for stale in egern_dir.glob("*.yaml"):
+        if stale.name not in expected_egern_files:
+            stale.unlink()
+    with timed("Egern write rule sets"):
         for segment, fields in sets.items():
             if any(field in {"ip_cidr_set", "ip_cidr6_set", "asn_set", "geoip_set"} for field in fields):
                 fields["no_resolve"] = True
-            validate_provider_name(segment)
-            optimized, removed = optimize_egern_rule_set(fields)
-            sets[segment] = optimized
-            semantic_removed.update(removed)
+            write_egern_rule_set(egern_dir / f"{segment}.yaml", fields)
 
+    segments_by_provider = optimized.provider_segments()
     egern_rules: list[dict[str, Any]] = []
     emitted_keys: set[tuple[str, ...]] = set()
 
     def segment_targets(segment: str) -> list[str]:
         return [segment] if segment in sets else []
-
-    def referenced_segment_targets(segment: str, modifiers: tuple[str, ...]) -> list[str]:
-        return segment_targets(segment)
 
     def emit_ruleset(target: str, policy: str) -> None:
         key = ("rule_set", target, policy)
@@ -217,9 +179,8 @@ def export_egern(
             "update_interval": 172800,
         }})
 
-    def emit_network(segment: str, protocol: str, policy: str, include_no_resolve: bool = False) -> None:
-        targets = segment_targets(segment)
-        for target in targets:
+    def emit_network(segment: str, protocol: str, policy: str) -> None:
+        for target in segment_targets(segment):
             key = ("and-network", target, protocol, policy)
             if key in emitted_keys:
                 continue
@@ -250,8 +211,15 @@ def export_egern(
             "no_resolve": True,
         }})
 
+    def segment_of(provider: str) -> str:
+        try:
+            return segments_by_provider[provider]
+        except KeyError:
+            raise ValueError(f"Egern rule references unknown provider: {provider!r}") from None
+
+    sub_rules = optimized.sub_rules
     with timed("Egern top-level"):
-        for rule in config.get("rules", []):
+        for rule in optimized.rules:
             if not isinstance(rule, str):
                 continue
             parsed = parse_rule(rule)
@@ -274,7 +242,7 @@ def export_egern(
                 if udp_and is None:
                     raise ValueError(f"Egern structural unsupported AND rule: {rule}")
                 provider_name, policy = udp_and
-                segment = egern_segment_name(provider_name)
+                segment = segment_of(provider_name)
                 if segment not in sets:
                     raise ValueError(f"Egern rule references an empty or unsupported segment: {rule}")
                 emit_network(segment, "udp", policy)
@@ -285,42 +253,40 @@ def export_egern(
             reference = parse_ruleset_reference(rule)
             if reference is None:
                 raise ValueError(f"Egern structural unsupported rule: {rule}")
-            parts, prefix, suffix = wrapper
+            prefix = wrapper[1]
             refs = find_ruleset_refs(rule)
             if len(refs) != 1:
                 raise ValueError(f"Egern structural unsupported rule: {rule}")
-            segment = egern_segment_name(refs[0])
-            targets = referenced_segment_targets(segment, reference.modifiers)
+            segment = segment_of(refs[0])
+            targets = segment_targets(segment)
             if not targets:
                 raise ValueError(f"Egern rule references an empty or unsupported segment: {rule}")
 
-            sub_rules = config.get("sub-rules", {})
             sub_rule_name = reference.policy
-            if prefix.upper() == "SUB-RULE" and isinstance(sub_rules, dict) and sub_rule_name in sub_rules:
-                members = parse_egern_sub_rule_members(sub_rules[sub_rule_name])
+            if prefix.upper() == "SUB-RULE" and sub_rule_name in sub_rules:
+                members = parse_egern_sub_rule_members(list(sub_rules[sub_rule_name]))
                 if members is None:
-                    raise ValueError(f"Egern unsupported SUB-RULE member: {sub_rule_name}: {sub_rules[sub_rule_name]}")
+                    raise ValueError(f"Egern unsupported SUB-RULE member: {sub_rule_name}: {list(sub_rules[sub_rule_name])}")
                 for protocol, member_policy in members:
                     if protocol == "match":
                         for target in targets:
                             emit_ruleset(target, member_policy)
                     else:
-                        emit_network(segment, protocol, member_policy, include_no_resolve=True)
+                        emit_network(segment, protocol, member_policy)
                 continue
 
             for target in targets:
                 emit_ruleset(target, reference.policy)
+
     unexpected_unsupported = set(unsupported) - set(allowed_unsupported or ())
     if unexpected_unsupported:
-        examples = {kind: unsupported_classical_examples.get(kind, [])[:1] for kind in sorted(unexpected_unsupported)}
+        examples = {kind: unsupported_examples.get(kind, [])[:1] for kind in sorted(unexpected_unsupported)}
         raise ValueError(f"Egern unsupported matcher(s) not allowlisted: {examples}")
     with timed("Egern write YAML"):
-        for segment, fields in sets.items():
-            write_yaml_atomic(egern_dir / f"{segment}.yaml", fields)
         write_yaml_atomic(output_dist / "generated" / "egern-rules.yaml", {"rules": egern_rules})
     timing = current_timing()
     if timing is not None:
-        timing.phases["Egern total"] = perf_counter() - egern_started
+        timing.phases["Egern total"] = perf_counter() - started
     counts["segments"] = len(sets)
     counts["unsupported"] = sum(unsupported.values())
     print("\n========== Egern Export Summary ==========")
@@ -331,7 +297,7 @@ def export_egern(
         for field, values in fields.items()
         if field != "no_resolve"
         for _ in values
-)
+    )
     print(f"rule set files: {sum(1 for _ in egern_dir.glob('*.yaml'))}")
     print(f"exact domains: {field_counts['domain_set']}")
     print(f"domain suffixes: {field_counts['domain_suffix_set']}")
@@ -348,11 +314,10 @@ def export_egern(
     print(f"exact domains covered by suffix: {semantic_removed['exact_domains_covered_by_suffix']}")
     print(f"child suffixes covered by parent: {semantic_removed['child_suffixes_covered_by_parent']}")
     print(f"IPv4 CIDRs covered by parent: {semantic_removed['ipv4_cidrs_covered_by_parent']}")
-    print(f"IPv6 CIDRs covered by parent: {semantic_removed['ipv6_cidrs_covered_by_parent']}")
     if unsupported:
         print("unsupported classical types: " + ", ".join(f"{k}={v}" for k, v in sorted(unsupported.items())))
-    for kind, examples in sorted(unsupported_classical_examples.items()):
+    for kind, kind_examples in sorted(unsupported_examples.items()):
         print(f"[Egern] unsupported classical rules skipped: {kind}: {unsupported[kind]}")
-        print(f"  examples: {', '.join(examples)}")
+        print(f"  examples: {', '.join(kind_examples)}")
     print("==========================================")
     return dict(counts)

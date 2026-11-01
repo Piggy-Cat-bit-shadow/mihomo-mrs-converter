@@ -1,23 +1,22 @@
 """Fetch and normalize providers into in-memory semantic state."""
 
-import re
+import hashlib
 import os
-from concurrent.futures import ThreadPoolExecutor
+import re
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from typing import Any
 from pathlib import Path
+from typing import Any
 
 from . import net
-from .model import Behavior, BuildContext, NormalizedProvider, ProviderMetadata, ProviderResult
+from .identifiers import validate_artifact_id
+from .model import Behavior, BuildContext, NormalizedProvider, ProviderMetadata
+from .payload import IpEntry, parse_classical_payload, parse_domain_payload, parse_ip_network
 from .rules import parse_rule, source_domain_value, source_ip_value, validate_source_domain_value
-from .semantics import parse_ip_network
 from .yamlio import load_yaml
 
 ALLOWED_PROVIDER_FIELDS = {"type", "behavior", "format", "url", "path", "interval", "proxy", "size-limit", "header"}
-
-
-from .identifiers import validate_artifact_id
 
 
 def validate_provider_name(name: str) -> None:
@@ -129,7 +128,6 @@ def prefetch_provider_texts(
     cache_hits = sum(key in memory_cache for key in requests)
     disk_hits = 0
     if disk_cache_dir:
-        import hashlib
         for key, (url, headers, _names, limits) in requests.items():
             cache_path = net.provider_cache_path(disk_cache_dir, url, headers)
             if key not in memory_cache and net.fresh_provider_cache(cache_path):
@@ -183,9 +181,39 @@ class _NullExecutor:
         return []
 
 
+def _classical_payloads(
+    name: str, parsed: list[Any], metadata: ProviderMetadata, context: BuildContext
+) -> list[NormalizedProvider]:
+    """Split a classical provider into the domain/ip/classical providers it implies."""
+    domains: list[str] = []
+    ips: list[IpEntry] = []
+    classical: list[Any] = []
+    for item in parsed:
+        domain = source_domain_value(item)
+        ip = source_ip_value(item)
+        if domain is not None:
+            validate_source_domain_value(item, domain)
+            domains.append(domain)
+        elif ip is not None:
+            network = parse_ip_network(ip)
+            if network is None:
+                raise SystemExit(f"{name}: invalid IP-CIDR value in classical provider: {item.raw!r}")
+            ips.append(IpEntry(ip, network))
+        else:
+            classical.append(item)
+    generated: list[NormalizedProvider] = []
+    if domains:
+        generated.append(NormalizedProvider(_reserve(name, "domain", context), name, Behavior.DOMAIN, parse_domain_payload(domains), metadata))
+    if ips:
+        generated.append(NormalizedProvider(_reserve(name, "ip", context), name, Behavior.IPCIDR, tuple(ips), metadata))
+    if classical:
+        generated.append(NormalizedProvider(_reserve(name, "classical", context), name, Behavior.CLASSICAL, tuple(classical), metadata))
+    return generated
+
+
 def process_provider(
     name: str, provider: dict[str, Any], context: BuildContext, remote_text: str | None = None
-) -> ProviderResult:
+) -> tuple[NormalizedProvider, ...]:
     validate_provider_name(name)
     unknown = sorted(set(provider) - ALLOWED_PROVIDER_FIELDS)
     if "path-in-bundle" in provider or unknown:
@@ -230,57 +258,40 @@ def process_provider(
     original = Counter(raw)
     rebuilt: Counter[str] = Counter()
     metadata = ProviderMetadata.from_mapping(provider)
-    providers: list[NormalizedProvider] = []
+    generated: list[NormalizedProvider] = []
 
     if behavior == "domain":
-        providers.append(NormalizedProvider(name, Behavior.DOMAIN, tuple(item.raw for item in parsed), metadata))
-        rebuilt.update(item.raw for item in parsed)
+        payload = parse_domain_payload(raw)
+        generated.append(NormalizedProvider(name, name, Behavior.DOMAIN, payload, metadata))
+        rebuilt.update(raw)
     elif behavior == "ipcidr":
-        valid = [item.raw for item in parsed if parse_ip_network(item.raw) is not None]
-        invalid = [item.raw for item in parsed if parse_ip_network(item.raw) is None]
+        valid: list[IpEntry] = []
         asns: list[str] = []
-        if invalid:
-            counts = re.findall(r"(?im)^\s*#\s*IP-ASN\s*:\s*(\d+)\s*$", remote)
-            if len(counts) != 1 or any(not item.isdigit() for item in invalid) or len(invalid) != int(counts[0]):
-                raise SystemExit(f"{name}: invalid ipcidr payload entries cannot be safely classified: {invalid}")
-            asns = invalid
-        if valid:
-            providers.append(NormalizedProvider(name, Behavior.IPCIDR, tuple(valid), metadata))
-            rebuilt.update(valid)
+        for item in parsed:
+            network = parse_ip_network(item.raw)
+            if network is not None:
+                valid.append(IpEntry(item.raw, network))
+            else:
+                asns.append(item.raw)
         if asns:
-            asn_name = _reserve(name, "classical", context)
-            asn_payload = [f"IP-ASN,{asn}" for asn in asns]
-            providers.append(NormalizedProvider(asn_name, Behavior.CLASSICAL, tuple(asn_payload), metadata))
+            counts = re.findall(r"(?im)^\s*#\s*IP-ASN\s*:\s*(\d+)\s*$", remote)
+            if len(counts) != 1 or any(not item.isdigit() for item in asns) or len(asns) != int(counts[0]):
+                raise SystemExit(f"{name}: invalid ipcidr payload entries cannot be safely classified: {asns}")
+        if valid:
+            generated.append(NormalizedProvider(name, name, Behavior.IPCIDR, tuple(valid), metadata))
+            rebuilt.update(item.raw for item in valid)
+        if asns:
+            asn_payload = parse_classical_payload([f"IP-ASN,{asn}" for asn in asns])
+            generated.append(
+                NormalizedProvider(_reserve(name, "classical", context), name, Behavior.CLASSICAL, asn_payload, metadata)
+            )
             rebuilt.update(asns)
     else:
-        domains: list[str] = []
-        ips: list[str] = []
-        classical: list[str] = []
-        for item in parsed:
-            domain = source_domain_value(item)
-            ip = source_ip_value(item)
-            if domain is not None:
-                validate_source_domain_value(item, domain)
-                domains.append(domain)
-            elif ip is not None:
-                ips.append(ip)
-            else:
-                classical.append(item.raw)
-        if domains:
-            generated = _reserve(name, "domain", context)
-            providers.append(NormalizedProvider(generated, Behavior.DOMAIN, tuple(domains), metadata))
-            rebuilt.update(item.raw for item in parsed if source_domain_value(item) is not None)
-        if ips:
-            generated = _reserve(name, "ip", context)
-            providers.append(NormalizedProvider(generated, Behavior.IPCIDR, tuple(ips), metadata))
-            rebuilt.update(item.raw for item in parsed if source_ip_value(item) is not None)
-        if classical:
-            generated = _reserve(name, "classical", context)
-            providers.append(NormalizedProvider(generated, Behavior.CLASSICAL, tuple(classical), metadata))
-            rebuilt.update(classical)
+        generated = _classical_payloads(name, parsed, metadata, context)
+        rebuilt.update(item.raw for item in parsed)
 
-    if not providers:
+    if not generated:
         raise SystemExit(f"{name}: provider produced no generated providers")
     if original != rebuilt:
         raise SystemExit(f"{name}: rule-count conservation failed")
-    return ProviderResult(name, providers, [item.name for item in providers], original, rebuilt)
+    return tuple(generated)
