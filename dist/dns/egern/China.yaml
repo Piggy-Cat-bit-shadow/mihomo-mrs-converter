@@ -655,7 +655,7 @@ domain_suffix_set:
 - itopsdk.com
 - my-imcloud.com
 - my-qcloud.com
-- discuz.org
+- dnspod.org
 - myelasticsearch.com
 - tencentcloud-aiot.com
 - onexmail.com
@@ -670,9 +670,9 @@ domain_suffix_set:
 - qcloudcdn.com
 - qcloudclass.com
 - qcloudcos.com
-- discuz.net
-- comsenz.com
-- dnspod.org
+- dnsv5.com
+- dns.pub
+- dnsv3.com
 - qclouder.com
 - qcloudgme.com
 - qcloudimg.com
@@ -707,7 +707,6 @@ domain_suffix_set:
 - tcdnos.net
 - tcdntip.com
 - tcdnvod.com
-- dnsv5.com
 - tcloudbase.com
 - tcloudbase.net
 - tcloudbaseapp.com
@@ -729,7 +728,7 @@ domain_suffix_set:
 - tencentapps.com
 - tencentbyod.com
 - tencentcdb.com
-- dns.pub
+- doh.pub
 - spcdntipbak.com
 - acctdns.net
 - myqcloud.com
@@ -741,7 +740,7 @@ domain_suffix_set:
 - tencentcloudsec.com
 - tencentcloudses.com
 - tencentcos.com
-- dnsv3.com
+- dnsv2.com
 - tencentcs.com
 - tencentdayu.com
 - tencentdb.com
@@ -760,10 +759,11 @@ domain_suffix_set:
 - tencentyun.com
 - tendbcluster.com
 - tendis.net
+- dnspod.mobi
 - testwaf.com
 - tgovcloud.com
 - tidaas.com
-- doh.pub
+- dot.pub
 - timmerse.com
 - tlivecdn.com
 - tlivemcdn.com
@@ -784,7 +784,7 @@ domain_suffix_set:
 - wework-studio.com
 - xqymuy.com
 - yufuid.com
-- dnsv2.com
+- dnspod.com
 - yufuid.net
 - yunjitele.com
 - dnse0.com
@@ -823,11 +823,11 @@ domain_suffix_set:
 - tdnsv13.net
 - tdnsv14.net
 - tdnsv15.net
-- dnspod.mobi
-- dot.pub
-- dnspod.com
 - dnsv4.com
 - dnspod.net
+- discuz.org
+- discuz.net
+- comsenz.com
 - rumt-zh.com
 - tamaegis.com
 - ym.run
