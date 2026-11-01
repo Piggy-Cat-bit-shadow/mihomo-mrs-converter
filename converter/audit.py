@@ -6,8 +6,8 @@ import argparse
 import tempfile
 from pathlib import Path
 
+from .artifacts import generated_artifact_path
 from .rules import is_target_ip_kind, iter_all_rules, parse_rule, rule_policy
-
 from .validate import validate_final_config
 from .yamlio import dump_yaml, load_yaml_unique
 
@@ -35,10 +35,46 @@ def _validate_srs(binary: str, path: Path, temporary: Path) -> None:
     json.loads(output.read_text(encoding="utf-8"))
 
 
+def _check_provider_artifacts(root: Path, config: dict) -> None:
+    """Every published provider artifact must exist, be non-empty and be readable."""
+    for name, provider in (config.get("rule-providers") or {}).items():
+        artifact = generated_artifact_path(root, provider)
+        if artifact is None:
+            raise ValueError(f"{name}: provider has no resolvable artifact URL")
+        if not artifact.exists():
+            raise ValueError(f"{name}: missing artifact {artifact}")
+        if artifact.stat().st_size == 0:
+            raise ValueError(f"{name}: empty artifact {artifact}")
+        if provider.get("format") == "yaml":
+            payload = (load_yaml_unique(artifact) or {}).get("payload")
+            if not isinstance(payload, list) or not payload:
+                raise ValueError(f"{name}: YAML artifact has no payload: {artifact}")
+
+
+def _check_dns_artifacts(root: Path) -> None:
+    """Each DNS group must be published in every format it is advertised for."""
+    dns_root = root / "dns"
+    groups = sorted(path.name.removesuffix("-domain.srs") for path in (dns_root / "singbox").glob("*-domain.srs"))
+    if not groups:
+        raise ValueError(f"DNS: {dns_root / 'singbox'} contains no SRS artifacts")
+    required = {
+        "mihomo domain MRS": lambda group: dns_root / "mihomo" / f"{group}-domain.mrs",
+        "mihomo classical YAML": lambda group: dns_root / "mihomo" / f"{group}-classical.yaml",
+        "Egern YAML": lambda group: dns_root / "egern" / f"{group}.yaml",
+        "Sing-box SRS": lambda group: dns_root / "singbox" / f"{group}-domain.srs",
+    }
+    for group in groups:
+        for label, resolve in required.items():
+            path = resolve(group)
+            if not path.exists() or path.stat().st_size == 0:
+                raise ValueError(f"DNS {group}: missing or empty {label}: {path}")
+
+
 def audit_dist(root: Path, mihomo: str | None = None, sing_box: str | None = None) -> None:
     mihomo_path = root / "generated/mihomo-rules.yaml"
     config = load_yaml_unique(mihomo_path)
     validate_final_config(root, config)
+    _check_provider_artifacts(root, config)
     for raw in config.get("rules", []):
         if not isinstance(raw, str): continue
         parsed = parse_rule(raw)
@@ -103,6 +139,7 @@ def audit_dist(root: Path, mihomo: str | None = None, sing_box: str | None = Non
     dns_files = sorted(dns_dir.glob("*.srs"))
     if not dns_files:
         raise ValueError(f"DNS: {dns_dir} contains no SRS artifacts")
+    _check_dns_artifacts(root)
     if sing_box:
         with tempfile.TemporaryDirectory(prefix="converter-srs-audit-") as tmp:
             temporary = Path(tmp)

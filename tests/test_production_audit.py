@@ -55,9 +55,22 @@ class ProductionAuditTest(unittest.TestCase):
             for name, policy in (("HTTPDNS", actual_policy), ("Direct", "DIRECT"), ("AI", "🤖 AI"), ("Global", "🌍 国外流量"), ("China", "DIRECT"))
         ) + "\n", encoding="utf-8")
         (root / "dist/dns/singbox").mkdir(parents=True)
+        (root / "dist/dns/mihomo").mkdir(parents=True)
+        (root / "dist/dns/egern").mkdir(parents=True)
         for name in ("China", "Global"):
-            (root / "dist/dns/singbox" / f"{name}-domain.srs").write_bytes(b"")
+            (root / "dist/dns/singbox" / f"{name}-domain.srs").write_bytes(b"binary")
+            (root / "dist/dns/mihomo" / f"{name}-domain.mrs").write_bytes(b"binary")
+            (root / "dist/dns/mihomo" / f"{name}-classical.yaml").write_text("payload: []\n", encoding="utf-8")
+            (root / "dist/dns/egern" / f"{name}.yaml").write_text("{}\n", encoding="utf-8")
         return metadata
+
+    def test_missing_dns_artifact_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            metadata = self.make_fixture(root)
+            (root / "dist/dns/mihomo/China-domain.mrs").unlink()
+            with self.assertRaisesRegex(ValueError, "production DNS artifact missing or empty"):
+                audit_production(root / "dist", segment_names=metadata)
 
     def test_removed_zero_address_rules_are_not_required(self):
         with tempfile.TemporaryDirectory() as tmp:

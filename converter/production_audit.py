@@ -199,6 +199,15 @@ def audit_production(root: Path, segment_names: Path | None = None, export_confi
     expected_dns = {f"{group}-domain.srs" for group in profile.dns_groups}
     if {path.name for path in (root / "dns/singbox").glob("*.srs")} != expected_dns:
         raise ValueError("production DNS files do not match export profile groups")
+    for group in profile.dns_groups:
+        for path in (
+            root / "dns" / "mihomo" / f"{group}-domain.mrs",
+            root / "dns" / "mihomo" / f"{group}-classical.yaml",
+            root / "dns" / "egern" / f"{group}.yaml",
+            root / "dns" / "singbox" / f"{group}-domain.srs",
+        ):
+            if not path.exists() or path.stat().st_size == 0:
+                raise ValueError(f"production DNS artifact missing or empty: {path}")
     print("converter production audit: ok")
 
 
