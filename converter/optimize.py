@@ -98,7 +98,6 @@ def optimize_config(
             continue
         grouped, modifiers = _block_groups(block, rules, providers)
         policy = block.routing[1]
-        segment_providers: list[Provider] = []
         for behavior in sorted(grouped, key=BEHAVIOR_ORDER.__getitem__):
             group = grouped[behavior]
             payload: tuple[Any, ...] = tuple(entry for provider in group for entry in provider.payload)
@@ -112,14 +111,12 @@ def optimize_config(
                         Provider(provider.name, block.name, provider.behavior, provider.payload, provider.metadata),
                         [provider.name], provider.name, policy, behavior_modifiers, block.wrapper,
                     )
-                    segment_providers.append(final[-1])
                 continue
             base = f"{block.name}-{BEHAVIOR_LABEL.get(behavior, behavior)}"
             emit(
                 Provider(base, block.name, group[0].behavior, payload, metadata),
                 [provider.name for provider in group], base, policy, behavior_modifiers, block.wrapper,
             )
-            segment_providers.append(final[-1])
         index = block.end
 
     # Providers that no block consumed keep their own identity: externally
