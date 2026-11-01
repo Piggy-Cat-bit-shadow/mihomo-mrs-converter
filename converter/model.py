@@ -151,11 +151,6 @@ class BuildConfig:
 
 
 @dataclass
-class BuildResult:
-    final_config: dict[str, Any]
-
-
-@dataclass
 class BuildContext:
     """Mutable per-build input context; it never stores artifact paths or payload output."""
 

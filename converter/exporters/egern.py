@@ -69,9 +69,6 @@ def egern_rule_field(rule: RuleLine) -> tuple[str, str, bool] | None:
 
 
 
-def write_egern_rule_set(path: Path, fields: dict[str, Any]) -> None:
-    write_yaml_atomic(path, fields)
-
 
 def egern_dns_fields(domains: Iterable[Any], classical: Iterable[RuleLine]) -> dict[str, Any]:
     """Build an Egern rule-set body from authoritative DNS domain rules."""
@@ -166,7 +163,7 @@ def export_egern(
         for segment, fields in sets.items():
             if any(field in {"ip_cidr_set", "ip_cidr6_set", "asn_set", "geoip_set"} for field in fields):
                 fields["no_resolve"] = True
-            write_egern_rule_set(egern_dir / f"{segment}.yaml", fields)
+            write_yaml_atomic(egern_dir / f"{segment}.yaml", fields)
 
     segments_by_provider = optimized.provider_segments()
     egern_rules: list[dict[str, Any]] = []

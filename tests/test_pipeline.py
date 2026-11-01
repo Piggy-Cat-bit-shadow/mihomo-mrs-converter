@@ -71,7 +71,7 @@ class PipelineTest(unittest.TestCase):
             with patch("converter.net.fetch_text", side_effect=fetch), patch("converter.pipeline.export_egern", return_value=no_op), patch("converter.pipeline.export_loon", return_value=no_op), patch("converter.pipeline.export_singbox", return_value=no_op), patch("converter.pipeline.export_singbox_dns", return_value=no_op), patch("converter.pipeline.export_dns", return_value=no_op):
                 result = build(BuildConfig(input_path, dist, "https://example.invalid/repo/main", mihomo, None))
             self.assertEqual(fetched, ["https://example.invalid/used"])
-            self.assertIn("OnlyInSubRule", result.final_config["rule-providers"])
+            self.assertIn("OnlyInSubRule", result["rule-providers"])
             self.assertTrue((dist / "domain/OnlyInSubRule.mrs").exists())
 
     def test_build_is_atomic_and_has_no_semantic_stage_directories(self):
@@ -104,7 +104,7 @@ class PipelineTest(unittest.TestCase):
                     input_path, dist, "https://example.invalid/repo/main", mihomo, sing_box,
                     segment_names=self.write_segment_names(root),
                 ))
-            self.assertEqual(len(result.final_config["rule-providers"]), 4)
+            self.assertEqual(len(result["rule-providers"]), 4)
             self.assertFalse(any(path.name.startswith("stage-") for path in dist.rglob("*")))
             self.assertTrue((dist / "loon/AI-udp.lsr").exists())
 

@@ -15,11 +15,11 @@ from .exporters.egern import export_egern
 from .exporters.loon import export_loon
 from .exporters.mihomo import materialize_final_config, normalize_no_active_resolve
 from .exporters.singbox import export_singbox, export_singbox_dns
-from .model import BuildConfig, BuildContext, BuildResult, NormalizedProvider, SemanticConfig
+from .model import BuildConfig, BuildContext, NormalizedProvider, SemanticConfig
 from .optimize import optimize_config
 from .providers import prefetch_provider_texts, process_provider
 from .rules import find_ruleset_refs, iter_all_rules, rewrite_rules
-from .segments import load_segment_specs, resolve_segment_roles, segment_mapping, segment_roles
+from .segments import load_segment_specs, resolve_segment_roles, segment_mapping, segment_roles, warn
 from .spec import validate_input_schema
 from .state import bootstrap_managed_manifest, build_managed_manifest, read_managed_manifest, refresh_complete_config, write_managed_manifest
 from .timing import BuildTiming, activate
@@ -34,7 +34,7 @@ def _load_yaml(path: Path) -> dict[str, Any]:
     return value
 
 
-def build(config: BuildConfig) -> BuildResult:
+def build(config: BuildConfig) -> dict[str, Any]:
     build_started = time.perf_counter()
     timing = BuildTiming()
     data = _load_yaml(config.input)
@@ -92,6 +92,12 @@ def build(config: BuildConfig) -> BuildResult:
         optimized = optimize_config(semantic, mapping)
         optimized = normalize_no_active_resolve(optimized)
         segment_roles_map = resolve_segment_roles(optimized.blocks, explicit_roles) if mapping else {}
+        unnamed = [block.name for block in optimized.blocks if block.segment is None]
+        if unnamed:
+            warn(
+                "segment(s) without a configured name keep positional identities and can be "
+                "renamed by inserting another segment: " + ", ".join(unnamed)
+            )
     with timing.phase("build views"):
         views = build_segment_views(optimized.providers)
         dns_views = build_dns_views(optimized.providers, segment_roles_map, export_profile.dns_groups)
@@ -203,4 +209,4 @@ def build(config: BuildConfig) -> BuildResult:
     timing.notes["artifacts generated"] = f"{mrs_count} MRS, {yaml_count} YAML"
     timing.print_report()
     timing.write_step_summary()
-    return BuildResult(final)
+    return final

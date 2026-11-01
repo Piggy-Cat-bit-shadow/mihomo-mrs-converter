@@ -30,7 +30,6 @@ REPORT_PHASES = (
     "Sing-box DNS export",
     "DNS export",
     "parallel exporter wall-clock",
-    "audit",
     "total export/publish",
     "total build",
 )

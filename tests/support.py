@@ -12,8 +12,15 @@ from converter.model import (
     ProviderMetadata,
     SemanticConfig,
 )
-from converter.payload import parse_payload
+from converter.payload import parse_classical_payload, parse_domain_payload, parse_ipcidr_payload
 from converter.views import DnsView, SegmentView, build_dns_views, build_segment_views
+
+
+_PAYLOAD_PARSERS = {
+    "domain": parse_domain_payload,
+    "ipcidr": parse_ipcidr_payload,
+    "classical": parse_classical_payload,
+}
 
 
 def provider(
@@ -28,7 +35,7 @@ def provider(
         name=name,
         segment=segment or name,
         behavior=Behavior(behavior),
-        payload=parse_payload(behavior, list(rules)),
+        payload=_PAYLOAD_PARSERS[behavior](list(rules)),
         metadata=metadata or ProviderMetadata(),
     )
 
@@ -45,7 +52,7 @@ def normalized(
         name=name,
         source=source,
         behavior=Behavior(behavior),
-        payload=parse_payload(behavior, list(rules)),
+        payload=_PAYLOAD_PARSERS[behavior](list(rules)),
         metadata=metadata or ProviderMetadata(),
     )
 

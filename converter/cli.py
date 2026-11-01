@@ -48,14 +48,14 @@ def main() -> None:
         segment_names = candidate if candidate.exists() else None
     if segment_names is None:
         parser.error("multi-client build requires segment metadata; pass --segment-names")
-    result = build(BuildConfig(
+    final_config = build(BuildConfig(
         args.input, args.dist, args.base_url, args.mihomo, args.sing_box,
         args.complete_config, args.complete_output, segment_names, args.export_config, args.bootstrap_managed,
         args.provider_cache,
     ))
     print(f"wrote {args.dist / 'generated/mihomo-rules.yaml'}")
-    print(f"final providers: {len(result.final_config['rule-providers'])}")
-    print(f"MRS outputs: {sum(1 for provider in result.final_config['rule-providers'].values() if provider.get('format') == 'mrs')}")
+    print(f"final providers: {len(final_config['rule-providers'])}")
+    print(f"MRS outputs: {sum(1 for provider in final_config['rule-providers'].values() if provider.get('format') == 'mrs')}")
 
 
 if __name__ == "__main__":

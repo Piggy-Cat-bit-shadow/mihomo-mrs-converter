@@ -18,7 +18,6 @@ from .rules import DOMAIN_KINDS, RuleLine
 
 @dataclass(frozen=True)
 class SegmentView:
-    name: str
     domains: tuple[DomainEntry, ...]
     networks: tuple[IpEntry, ...]
     classical: tuple[RuleLine, ...]
@@ -27,7 +26,6 @@ class SegmentView:
 
 @dataclass(frozen=True)
 class DnsView:
-    name: str
     domains: tuple[DomainEntry, ...]
     classical: tuple[RuleLine, ...]
 
@@ -45,7 +43,7 @@ def build_segment_views(providers: Sequence[Provider]) -> dict[str, SegmentView]
         stats = DedupStats()
         for part in (domain_stats, network_stats, classical_stats):
             stats.merge(part)
-        views[name] = SegmentView(name, domains, networks, classical, stats)
+        views[name] = SegmentView(domains, networks, classical, stats)
     return views
 
 
@@ -74,5 +72,5 @@ def build_dns_views(
     for group in groups:
         domains, _ = dedup_domains(domain_payload[group])
         classical, _ = dedup_rules(classical_payload[group])
-        views[group] = DnsView(group, domains, classical)
+        views[group] = DnsView(domains, classical)
     return views

@@ -180,29 +180,16 @@ def dedup_payload(behavior: str, payload: Payload) -> tuple[Payload, DedupStats]
     return dedup_rules(payload)
 
 
-def parse_payload(behavior: str, values: Sequence[str]) -> Payload:
-    if behavior == "domain":
-        return parse_domain_payload(values)
-    if behavior == "ipcidr":
-        return parse_ipcidr_payload(values)
-    return parse_classical_payload(values)
-
-
-def entry_has_target_ip(entry: Any) -> bool:
-    return isinstance(entry, RuleLine) and is_target_ip_kind(entry.kind)
-
-
 def payload_has_target_ip(behavior: str, payload: Payload) -> bool:
     if behavior == "ipcidr":
         return True
     if behavior != "classical":
         return False
-    return any(entry_has_target_ip(entry) for entry in payload)
+    return any(isinstance(entry, RuleLine) and is_target_ip_kind(entry.kind) for entry in payload)
 
 
 __all__ = [
     "DedupStats", "DomainEntry", "IpEntry", "Payload", "dedup_domains", "dedup_networks",
-    "dedup_payload", "dedup_rules", "entry_has_target_ip", "parse_classical_payload",
-    "parse_domain_payload", "parse_ipcidr_payload", "parse_payload", "payload_has_target_ip",
-    "serialize_payload",
+    "dedup_payload", "dedup_rules", "parse_classical_payload", "parse_domain_payload",
+    "parse_ipcidr_payload", "payload_has_target_ip", "serialize_payload",
 ]
