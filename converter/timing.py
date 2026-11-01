@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from time import perf_counter
@@ -143,6 +143,12 @@ def activate(timing: BuildTiming) -> Iterator[None]:
 
 def current_timing() -> BuildTiming | None:
     return _ACTIVE_TIMING.get()
+
+
+def timed(name: str) -> Any:
+    """Enter a timing phase when a build timing context is active, else a no-op."""
+    timing = _ACTIVE_TIMING.get()
+    return timing.phase(name) if timing is not None else nullcontext()
 
 
 def observe_external(kind: str, label: str, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:

@@ -6,27 +6,26 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-import yaml
-
 from .timing import observe_external
+from .yamlio import dump_yaml
 
 
-def write_yaml_payload(path: Path, rules: list[str]) -> None:
+def write_yaml_payload(path: Path, rules: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(yaml.safe_dump({"payload": rules}, allow_unicode=True, sort_keys=False), encoding="utf-8")
+    path.write_text(dump_yaml({"payload": rules}), encoding="utf-8", newline="\n")
 
 
 def write_yaml_atomic(path: Path, data: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False) as handle:
-        yaml.safe_dump(data, handle, allow_unicode=True, sort_keys=False)
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False, newline="\n") as handle:
+        dump_yaml(data, handle)
         temporary = Path(handle.name)
     os.replace(temporary, path)
 
 
 def write_text_atomic(path: Path, data: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False) as handle:
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False, newline="\n") as handle:
         handle.write(data)
         temporary = Path(handle.name)
     os.replace(temporary, path)

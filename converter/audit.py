@@ -6,11 +6,10 @@ import argparse
 import tempfile
 from pathlib import Path
 
-import yaml
-
 from .rules import iter_all_rules, parse_rule, rule_policy
 from .semantics import is_target_ip_kind
 from .validate import validate_final_config
+from .yamlio import dump_yaml, load_yaml_unique
 
 
 def validate_mihomo(binary: str, config: dict) -> None:
@@ -26,7 +25,7 @@ def validate_mihomo(binary: str, config: dict) -> None:
     candidate["proxy-groups"] = [{"name": policy, "type": "select", "proxies": [base]} for policy in sorted(policies - reserved) if policy]
     with tempfile.TemporaryDirectory(prefix="converter-audit-") as tmp:
         path = Path(tmp) / "config.yaml"
-        path.write_text(yaml.safe_dump(candidate, allow_unicode=True, sort_keys=False), encoding="utf-8")
+        path.write_text(dump_yaml(candidate), encoding="utf-8", newline="\n")
         subprocess.run([binary, "-t", "-f", str(path)], check=True)
 
 
@@ -38,9 +37,8 @@ def _validate_srs(binary: str, path: Path, temporary: Path) -> None:
 
 def audit_dist(root: Path, mihomo: str | None = None, sing_box: str | None = None) -> None:
     mihomo_path = root / "generated/mihomo-rules.yaml"
-    config = yaml.safe_load(mihomo_path.read_text(encoding="utf-8"))
+    config = load_yaml_unique(mihomo_path)
     validate_final_config(root, config)
-    providers = config["rule-providers"]
     for raw in config.get("rules", []):
         if not isinstance(raw, str): continue
         parsed = parse_rule(raw)
@@ -50,11 +48,10 @@ def audit_dist(root: Path, mihomo: str | None = None, sing_box: str | None = Non
     if not egern_files:
         raise ValueError(f"Egern: {root / 'egern'} contains no rule-set artifacts")
     for path in egern_files:
-        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        data = load_yaml_unique(path) or {}
         if any(field in data for field in ("ip_cidr_set", "ip_cidr6_set", "asn_set", "geoip_set")) and data.get("no_resolve") is not True:
             raise ValueError(f"Egern: {path}: target-IP set lacks no_resolve:true")
-    egern_config = yaml.safe_load((root / "generated/egern-rules.yaml").read_text(encoding="utf-8")) or {}
-    egern_rules = egern_config.get("rules", [])
+    egern_config = load_yaml_unique(root / "generated/egern-rules.yaml") or {}
     egern_refs = {
         Path(str(item["rule_set"]["match"])).name
         for item in egern_config.get("rules", [])

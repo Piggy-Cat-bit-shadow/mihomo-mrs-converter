@@ -8,12 +8,11 @@ from dataclasses import dataclass
 from typing import Any
 from pathlib import Path
 
-import yaml
-
 from . import net
 from .model import Behavior, BuildContext, NormalizedProvider, ProviderMetadata, ProviderResult
 from .rules import parse_rule, source_domain_value, source_ip_value, validate_source_domain_value
 from .semantics import parse_ip_network
+from .yamlio import load_yaml
 
 ALLOWED_PROVIDER_FIELDS = {"type", "behavior", "format", "url", "path", "interval", "proxy", "size-limit", "header"}
 
@@ -52,7 +51,7 @@ def payload_from_remote(name: str, text: str, fmt: str, allow_integer_items: boo
         return [line.strip() for line in text.splitlines() if line.strip() and not line.strip().startswith("#")]
     if fmt != "yaml":
         raise SystemExit(f"{name}: external MRS input is unsupported; use YAML/text source")
-    value = yaml.safe_load(text)
+    value = load_yaml(text)
     if isinstance(value, dict):
         value = value.get("payload", value.get("rules"))
     return strict_yaml_rule_list(name, value, allow_integer_items)

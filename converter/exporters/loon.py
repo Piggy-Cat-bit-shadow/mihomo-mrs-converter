@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 import ipaddress
 
-from ..artifacts import public_url, write_text_atomic, write_yaml_atomic
+from ..artifacts import public_url, write_text_atomic
 from ..model import provider_segment
 from ..rules import find_ruleset_refs, parse_egern_sub_rule_members, parse_rule, parse_ruleset_reference, simple_ruleset_wrapper, split_top_level_commas
 from ..semantics import is_target_ip_kind, parse_ip_network
@@ -128,7 +128,7 @@ def export_loon(
                     segment,
                     tuple(provider_modifiers.get(name, set())),
                 )
-            except ValueError as exc:
+            except ValueError:
                 kind = parse_rule(raw_rule).kind or "<empty>"
                 unsupported[kind] += 1
                 unsupported_examples.setdefault(kind, [])

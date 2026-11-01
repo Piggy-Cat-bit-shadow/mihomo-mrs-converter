@@ -1,9 +1,8 @@
 """Pure in-memory provider consolidation, deduplication and naming."""
 
-from collections import Counter
 from typing import Any, Iterator
 
-from .model import DedupStats, NormalizedProvider, ProviderMetadata, parse_provider_identity
+from .model import DedupStats, parse_provider_identity
 from .semantics import parse_ip_network
 from .rules import (
     _rewrite_expression,

@@ -6,8 +6,7 @@ from typing import Any
 from .model import RuleLine, RulesetReference
 from .semantics import is_target_ip_kind
 
-DOMAIN_RULES = {"DOMAIN", "DOMAIN-SUFFIX"}
-IPCIDR_RULES = {"IP-CIDR", "IP-CIDR6"}
+IPCIDR_RULES = frozenset({"IP-CIDR", "IP-CIDR6"})
 DNS_DOMAIN_KINDS = frozenset({"DOMAIN", "DOMAIN-SUFFIX", "DOMAIN-KEYWORD", "DOMAIN-REGEX", "DOMAIN-WILDCARD"})
 
 
@@ -347,11 +346,3 @@ def source_ip_value(rule: RuleLine) -> str | None:
     if len(rule.parts) != 2:
         return None
     return rule.parts[1] if rule.kind in IPCIDR_RULES else None
-
-
-def provider_has_target_ip(behavior: str, payload: list[str]) -> bool:
-    if behavior == "ipcidr":
-        return True
-    if behavior != "classical":
-        return False
-    return any(is_target_ip_kind(parse_rule(rule).kind) for rule in payload)

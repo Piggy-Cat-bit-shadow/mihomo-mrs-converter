@@ -17,14 +17,12 @@ import subprocess
 import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import nullcontext
 import urllib.error
 import urllib.request
 from http.client import IncompleteRead
 
 from pathlib import Path
 from typing import Any, Callable
-from urllib.parse import urlparse
 
 from .dns import collect_dns_domain_payloads
 from ..export_config import DEFAULT_DNS_GROUPS
@@ -32,7 +30,7 @@ from ..rules import DNS_DOMAIN_KINDS, parse_rule, parse_ruleset_reference, simpl
 from ..model import parse_provider_identity
 from ..net import read_capped_response as _read_capped, retry_after_seconds, ssl_context
 from ..data_sources import GEOLITE2_ASSETS, GEOLITE2_RELEASE
-from ..timing import BuildTiming, activate, current_timing, observe_external
+from ..timing import BuildTiming, activate, current_timing, observe_external, timed
 from .singbox_asn import ASN_INDEX_FILENAME, ASN_INDEX_VERSION
 from .singbox_asn import collect_required_asns as _collect_required_asns
 from .singbox_srs import canonicalize_decompiled_rules as _canonicalize_decompiled_rules
@@ -42,53 +40,6 @@ from .singbox_srs import semantic_matcher_equivalent as _semantic_matcher_equiva
 
 class SingBoxExportError(RuntimeError):
     pass
-
-
-def _timed(name: str):
-    timing = current_timing()
-    return timing.phase(name) if timing is not None else nullcontext()
-
-
-def _github_api_json(url: str) -> Any:
-    """Fetch GitHub REST metadata, authenticating only api.github.com."""
-    parsed = urlparse(url)
-    headers = {
-        "User-Agent": "mihomo-mrs-converter",
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-    }
-    token = os.environ.get("GITHUB_TOKEN")
-    if token and parsed.hostname == "api.github.com":
-        headers["Authorization"] = f"Bearer {token}"
-    request = urllib.request.Request(url, headers=headers)
-    context = ssl_context()
-    max_attempts = 4
-    retryable_statuses = {408, 429, 500, 502, 503, 504}
-    for attempt in range(max_attempts):
-        try:
-            with urllib.request.urlopen(request, context=context, timeout=60) as response:
-                return json.loads(_read_capped(response, 4 * 1024 * 1024, url))
-        except urllib.error.HTTPError as exc:
-            remaining = exc.headers.get("X-RateLimit-Remaining") if exc.headers else None
-            reset = exc.headers.get("X-RateLimit-Reset") if exc.headers else None
-            rate_limited = exc.code == 429 or (exc.code == 403 and remaining == "0")
-            if rate_limited:
-                detail = f"status={exc.code}, remaining={remaining or 'unknown'}, reset={reset or 'unknown'}"
-                raise SingBoxExportError(f"GitHub API rate limit exceeded ({detail})") from exc
-            if exc.code not in retryable_statuses or attempt == max_attempts - 1:
-                raise SingBoxExportError(
-                    f"GitHub API request failed: HTTP {exc.code} on attempt {attempt + 1}/{max_attempts}"
-                ) from exc
-            retry_after = exc.headers.get("Retry-After") if exc.headers else None
-            delay = min(retry_after_seconds(retry_after), 8.0) if retry_after else 2 ** attempt
-            time.sleep(delay)
-        except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
-            if attempt == max_attempts - 1:
-                raise SingBoxExportError(
-                    f"GitHub API request failed: {type(exc).__name__} on attempt {attempt + 1}/{max_attempts}"
-                ) from exc
-            time.sleep(2 ** attempt)
-    raise SingBoxExportError("GitHub API request failed")
 
 
 def _policy_action(policy: str, policy_map: dict[str, str] | None = None) -> dict[str, Any]:
@@ -248,10 +199,10 @@ def _default_asn_resolver(asns: set[str]) -> dict[str, list[str]]:
     cache_file_bytes = 0
     if index_path.exists():
         try:
-            with _timed("Sing-box ASN cache file read"):
+            with timed("Sing-box ASN cache file read"):
                 cache_file = index_path.read_text(encoding="utf-8")
             cache_file_bytes = len(cache_file.encode("utf-8"))
-            with _timed("Sing-box ASN cache JSON parse"):
+            with timed("Sing-box ASN cache JSON parse"):
                 cache_value = json.loads(cache_file)
             sparse_value = valid_metadata(cache_value)
             if sparse_value is not None:
@@ -263,7 +214,7 @@ def _default_asn_resolver(asns: set[str]) -> dict[str, list[str]]:
     cached: dict[str, list[str]] = {}
     missing: set[str] = set(asns)
     if cache_valid:
-        with _timed("Sing-box ASN requested-entry validation"):
+        with timed("Sing-box ASN requested-entry validation"):
             cached, missing = requested_entries({"asns": sparse_index})
         if not missing:
             if timing is not None:
@@ -284,9 +235,9 @@ def _default_asn_resolver(asns: set[str]) -> dict[str, list[str]]:
         cache_path = cache_root / asset["name"]
         raw = None
         if cache_path.exists():
-            with _timed(f"Sing-box ASN asset read {asset['name']}"):
+            with timed(f"Sing-box ASN asset read {asset['name']}"):
                 candidate = cache_path.read_bytes()
-            with _timed(f"Sing-box ASN checksum {asset['name']}"):
+            with timed(f"Sing-box ASN checksum {asset['name']}"):
                 valid = hashlib.sha256(candidate).hexdigest() == asset["sha256"]
             if valid:
                 raw = candidate
@@ -294,10 +245,10 @@ def _default_asn_resolver(asns: set[str]) -> dict[str, list[str]]:
             else:
                 cache_path.unlink()
         if raw is None:
-            with _timed(f"Sing-box ASN asset read/download {asset['name']}"):
+            with timed(f"Sing-box ASN asset read/download {asset['name']}"):
                 raw = download(asset["url"])
             downloads += 1
-        with _timed(f"Sing-box ASN checksum {asset['name']}"):
+        with timed(f"Sing-box ASN checksum {asset['name']}"):
             actual_sha256 = hashlib.sha256(raw).hexdigest()
         if actual_sha256 != asset["sha256"]:
             raise SingBoxExportError(
@@ -308,7 +259,7 @@ def _default_asn_resolver(asns: set[str]) -> dict[str, list[str]]:
         if not cache_path.exists():
             cache_path.write_bytes(raw)
         matched_networks: list[tuple[str, str]] = []
-        with _timed(f"Sing-box ASN CSV scan {asset['name']}"):
+        with timed(f"Sing-box ASN CSV scan {asset['name']}"):
             for row in csv.DictReader(io.TextIOWrapper(io.BytesIO(raw), encoding="utf-8")):
                 rows_scanned += 1
                 asn = row.get("autonomous_system_number")
@@ -316,7 +267,7 @@ def _default_asn_resolver(asns: set[str]) -> dict[str, list[str]]:
                     continue
                 matched_rows += 1
                 matched_networks.append((asn, row["network"]))
-        with _timed("Sing-box ASN matched CIDR parse"):
+        with timed("Sing-box ASN matched CIDR parse"):
             for asn, network in matched_networks:
                 new_entries[asn].append(str(ipaddress.ip_network(network, strict=False)))
     cache_root.mkdir(parents=True, exist_ok=True)
@@ -330,7 +281,7 @@ def _default_asn_resolver(asns: set[str]) -> dict[str, list[str]]:
             for asn in sorted(set(retained_entries) | set(new_entries))
         },
     }
-    with _timed("Sing-box ASN cache write"):
+    with timed("Sing-box ASN cache write"):
         temporary = index_path.with_name(f".{index_path.name}.tmp")
         try:
             with temporary.open("w", encoding="utf-8") as handle:
@@ -559,7 +510,7 @@ def export_singbox_dns(
                     raise SingBoxExportError(f"DNS {group}: generated empty SRS")
                 source = source_dir / f"{group}-domain.json"
                 binary = binary_dir / f"{group}-domain.srs"
-                source.write_text(json.dumps({"version": 2, "rules": source_rules}, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
+                source.write_text(json.dumps({"version": 2, "rules": source_rules}, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8", newline="\n")
                 observe_external("sing-box", f"compile DNS {group}", subprocess.run, [sing_box, "rule-set", "compile", str(source), "-o", str(binary)], check=True, capture_output=True, text=True)
                 decompiled = stage / f"{group}-domain.decompiled.json"
                 observe_external("sing-box", f"decompile DNS {group}", subprocess.run, [sing_box, "rule-set", "decompile", str(binary), "-o", str(decompiled)], check=True, capture_output=True, text=True)
@@ -601,11 +552,11 @@ def export_singbox_dns(
 def export_singbox(config: dict[str, Any], final_payloads: dict[str, list[str]], output_dist: Path, base_url: str, sing_box: str | None, asn_resolver: Callable[[set[str]], dict[str, list[str]]] | None = None, segment_names: dict[str, str] | None = None, policy_map: dict[str, str] | None = None) -> dict[str, Any]:
     if not sing_box: raise SingBoxExportError("sing-box binary not found; install Sing-box and retry")
     route_started = time.perf_counter()
-    with _timed("Sing-box group discovery"):
+    with timed("Sing-box group discovery"):
         groups = _groups(config, segment_names)
     asn_resolver = asn_resolver or _default_asn_resolver
     if not groups: raise SingBoxExportError("no RULE-SET segments available for Sing-box export")
-    with _timed("Sing-box ASN discovery"):
+    with timed("Sing-box ASN discovery"):
         required_asns = _collect_required_asns(groups, final_payloads)
     timing = current_timing()
     if timing is not None:
@@ -613,7 +564,7 @@ def export_singbox(config: dict[str, Any], final_payloads: dict[str, list[str]],
         timing.notes["ASN resolver calls"] = "1" if required_asns else "0"
     asn_map: dict[str, list[str]] = {}
     if required_asns:
-        with _timed("Sing-box ASN cache/index lookup"):
+        with timed("Sing-box ASN cache/index lookup"):
             asn_map = asn_resolver(required_asns)
         missing_asns = sorted(asn for asn in required_asns if not asn_map.get(asn))
         if missing_asns:
@@ -639,7 +590,7 @@ def export_singbox(config: dict[str, Any], final_payloads: dict[str, list[str]],
                     if parsed.kind in {"IP-ASN", "SRC-IP-ASN"} and len(parsed.parts) > 1:
                         asn_values.add(parsed.parts[1])
                 if asn_values:
-                    with _timed("Sing-box ASN payload expansion"):
+                    with timed("Sing-box ASN payload expansion"):
                         expanded = asn_map
                         expanded_payload: list[str] = []
                         for raw in payload:
@@ -651,9 +602,9 @@ def export_singbox(config: dict[str, Any], final_payloads: dict[str, list[str]],
                             else:
                                 expanded_payload.append(raw)
                         payload = expanded_payload
-                with _timed("Sing-box matcher conversion"):
+                with timed("Sing-box matcher conversion"):
                         matchers.extend(_provider_matchers(provider, behavior, payload, asn_resolver))
-            with _timed("Sing-box aggregation"):
+            with timed("Sing-box aggregation"):
                 buckets = _aggregate_buckets(matchers)
             group_buckets[group["id"]] = {}
             for bucket, source_rules in buckets.items():
@@ -674,7 +625,7 @@ def export_singbox(config: dict[str, Any], final_payloads: dict[str, list[str]],
             artifact_started = time.perf_counter()
             with activate(artifact_timing):
                 source = source_dir / f"{artifact_tag}.json"
-                source.write_text(json.dumps({"version": 2, "rules": source_rules}, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
+                source.write_text(json.dumps({"version": 2, "rules": source_rules}, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8", newline="\n")
                 binary = binary_dir / f"{artifact_tag}.srs"
                 observe_external("sing-box", f"compile route {artifact_tag}", subprocess.run, [sing_box, "rule-set", "compile", str(source), "-o", str(binary)], check=True, capture_output=True, text=True)
                 decompiled = stage / f"{artifact_tag}.decompiled.json"
@@ -714,18 +665,18 @@ def export_singbox(config: dict[str, Any], final_payloads: dict[str, list[str]],
                         timing.merge(sub_timing)
                         timing.phases[f"Sing-box artifact {tag}"] = elapsed
 
-        with _timed("Sing-box route generation"):
+        with timed("Sing-box route generation"):
             route_rules, final = _route_rules(config, groups, group_buckets, policy_map)
         route = {"route": {"rule_set": [{"type": "remote", "tag": tag, "format": "binary", "url": f"{base_url.rstrip('/')}/dist/singbox/{tag}.srs", "update_interval": "2d"} for tag, _source_rules in artifacts], "rules": route_rules}}
         if final is not None: route["route"]["final"] = final
         route_path = stage / "singbox-rules.json"
-        with _timed("Sing-box source JSON write"):
-            route_path.write_text(json.dumps(route, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        with timed("Sing-box source JSON write"):
+            route_path.write_text(json.dumps(route, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
         target_dir = output_dist / "singbox"
         target_dir.mkdir(parents=True, exist_ok=True)
         for stale in target_dir.glob("*.srs"):
             stale.unlink()
-        with _timed("Sing-box canonical SRS copy"):
+        with timed("Sing-box canonical SRS copy"):
             binaries = list(binary_dir.glob("*.srs"))
             for binary in binaries:
                 shutil.copy2(binary, target_dir / binary.name)

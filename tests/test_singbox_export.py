@@ -12,7 +12,7 @@ from email.message import Message
 from pathlib import Path
 from unittest.mock import patch
 
-from converter.exporters.singbox import SingBoxExportError, _aggregate_buckets, _collect_required_asns, _default_asn_resolver, _github_api_json, _groups, _policy_action, _provider_matchers, _semantic_matcher_equivalent, export_singbox, export_singbox_dns
+from converter.exporters.singbox import SingBoxExportError, _aggregate_buckets, _collect_required_asns, _default_asn_resolver, _groups, _policy_action, _provider_matchers, _semantic_matcher_equivalent, export_singbox, export_singbox_dns
 
 
 SING_BOX = shutil.which("sing-box") or "sing-box"
@@ -228,33 +228,6 @@ class SingBoxExportTest(unittest.TestCase):
                     _default_asn_resolver({"100", "200"})
             self.assertEqual(json.loads(index.read_text(encoding="utf-8"))["asns"]["100"], ["192.0.2.0/24"])
 
-    def test_github_api_without_token_is_anonymous(self):
-        captured = []
-        with patch.dict(os.environ, {}, clear=True), patch("converter.exporters.singbox.urllib.request.urlopen", side_effect=lambda request, **_: captured.append(request) or Response(b"{}")):
-            _github_api_json("https://api.github.com/repos/example/repo/releases/latest")
-        headers = {key.lower(): value for key, value in captured[0].header_items()}
-        self.assertNotIn("authorization", headers)
-        self.assertEqual(headers["user-agent"], "mihomo-mrs-converter")
-
-    def test_github_rate_limit_fails_without_retries_or_token(self):
-        headers = Message()
-        headers["X-RateLimit-Remaining"] = "0"
-        headers["X-RateLimit-Reset"] = "1700000000"
-        error = urllib.error.HTTPError("https://api.github.com", 403, "rate limit exceeded", headers, io.BytesIO())
-        with patch.dict(os.environ, {"GITHUB_TOKEN": "secret-token"}), patch("converter.exporters.singbox.urllib.request.urlopen", side_effect=error) as mocked, patch("converter.exporters.singbox.time.sleep") as sleep:
-            with self.assertRaisesRegex(SingBoxExportError, "GitHub API rate limit.*remaining=0.*reset=1700000000") as raised:
-                _github_api_json("https://api.github.com/repos/example/repo/releases/latest")
-        self.assertEqual(mocked.call_count, 1)
-        sleep.assert_not_called()
-        self.assertNotIn("secret-token", str(raised.exception))
-
-    def test_github_api_retries_transient_error(self):
-        headers = Message()
-        error = urllib.error.HTTPError("https://api.github.com", 502, "bad gateway", headers, io.BytesIO())
-        with patch("converter.exporters.singbox.urllib.request.urlopen", side_effect=[error, Response(b'{"ok": true}')]) as mocked, patch("converter.exporters.singbox.time.sleep") as sleep:
-            self.assertEqual(_github_api_json("https://api.github.com/test"), {"ok": True})
-        self.assertEqual(mocked.call_count, 2)
-        sleep.assert_called_once_with(1)
     def test_canonical_names_do_not_use_policy_occurrence(self):
         config = {
             "rule-providers": {

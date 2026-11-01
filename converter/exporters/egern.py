@@ -2,7 +2,6 @@
 
 from collections import Counter
 from pathlib import Path
-from contextlib import nullcontext
 from time import perf_counter
 from typing import Any
 import ipaddress
@@ -17,12 +16,7 @@ from ..rules import (
 )
 from ..semantics import is_target_ip_kind, parse_ip_network
 from ..optimize import domain_covered_by_suffix, suffix_covered_by_parent_suffix
-from ..timing import current_timing
-
-
-def _timed(name: str):
-    timing = current_timing()
-    return timing.phase(name) if timing is not None else nullcontext()
+from ..timing import current_timing, timed
 
 
 def network_covered_by_parent(network: ipaddress._BaseNetwork, networks: set[ipaddress._BaseNetwork]) -> bool:
@@ -152,7 +146,7 @@ def export_egern(
         values.append(value)
         return True
 
-    with _timed("Egern collect"):
+    with timed("Egern collect"):
         for name, provider in config["rule-providers"].items():
             segment = egern_segment_name(name)
             behavior = provider.get("behavior")
@@ -191,7 +185,7 @@ def export_egern(
     egern_dir = output_dist / "egern"
     semantic_removed: Counter[str] = Counter()
     expected_egern_files = {f"{segment}.yaml" for segment in sets}
-    with _timed("Egern optimize"):
+    with timed("Egern optimize"):
         for stale in egern_dir.glob("*.yaml"):
             if stale.name not in expected_egern_files:
                 stale.unlink()
@@ -256,7 +250,7 @@ def export_egern(
             "no_resolve": True,
         }})
 
-    with _timed("Egern top-level"):
+    with timed("Egern top-level"):
         for rule in config.get("rules", []):
             if not isinstance(rule, str):
                 continue
@@ -320,7 +314,7 @@ def export_egern(
     if unexpected_unsupported:
         examples = {kind: unsupported_classical_examples.get(kind, [])[:1] for kind in sorted(unexpected_unsupported)}
         raise ValueError(f"Egern unsupported matcher(s) not allowlisted: {examples}")
-    with _timed("Egern write YAML"):
+    with timed("Egern write YAML"):
         for segment, fields in sets.items():
             write_yaml_atomic(egern_dir / f"{segment}.yaml", fields)
         write_yaml_atomic(output_dist / "generated" / "egern-rules.yaml", {"rules": egern_rules})

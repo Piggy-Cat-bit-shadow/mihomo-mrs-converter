@@ -1,15 +1,12 @@
 """Single semantic build pipeline: normalize, optimize, materialize, publish."""
 
 import os
-import re
 import shutil
 import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
-
-import yaml
 
 from .artifacts import write_yaml_atomic
 from .exporters.dns import export_dns
@@ -18,12 +15,12 @@ from .exporters.loon import export_loon
 from .exporters.mihomo import materialize_final_config, normalize_no_active_resolve
 from .exporters.singbox import export_singbox, export_singbox_dns
 from .export_config import ExportProfile, load_export_profile
-from .identifiers import validate_artifact_id
 from .model import BuildConfig, BuildContext, BuildResult
 from .optimize import optimize_config
 from .providers import prefetch_provider_texts, process_provider
 from .rules import find_ruleset_refs, iter_all_rules
 from .segments import load_segment_specs, resolve_segment_roles, segment_mapping, segment_roles
+from .spec import validate_input_schema
 from .state import bootstrap_managed_manifest, build_managed_manifest, read_managed_manifest, refresh_complete_config, write_managed_manifest
 from .timing import BuildTiming, activate
 from .validate import validate_final_config
@@ -34,39 +31,6 @@ def _load_yaml(path: Path) -> dict[str, Any]:
     value = load_yaml_unique(path)
     validate_input_schema(path, value)
     return value
-
-
-def validate_input_schema(path: Path, value: Any) -> None:
-    if not isinstance(value, dict):
-        raise SystemExit(f"{path} must be a YAML mapping")
-    providers = value.get("rule-providers")
-    if not isinstance(providers, dict):
-        raise SystemExit(f"{path}: rule-providers must be a mapping")
-    for name, provider in providers.items():
-        validate_artifact_id(name, f"{path}: rule-providers key {name!r}")
-        if not isinstance(provider, dict):
-            raise SystemExit(f"{path}: rule-providers.{name} must be a mapping")
-        for field in ("type", "behavior", "format", "url", "path", "proxy"):
-            if field in provider and not isinstance(provider[field], str):
-                raise SystemExit(f"{path}: rule-providers.{name}.{field} must be a string")
-        for field in ("interval", "size-limit"):
-            if field in provider and (isinstance(provider[field], bool) or not isinstance(provider[field], int) or provider[field] < 0):
-                raise SystemExit(f"{path}: rule-providers.{name}.{field} must be a non-negative integer")
-        if "header" in provider and (not isinstance(provider["header"], dict) or any(not isinstance(k, str) or not isinstance(v, str) for k, v in provider["header"].items())):
-            raise SystemExit(f"{path}: rule-providers.{name}.header must map strings to strings")
-    if not isinstance(value.get("rules"), list) or any(not isinstance(item, str) for item in value["rules"]):
-        raise SystemExit(f"{path}: rules must be a list of strings")
-    sub_rules = value.get("sub-rules")
-    if sub_rules is not None:
-        if not isinstance(sub_rules, dict):
-            raise SystemExit(f"{path}: sub-rules must be a mapping")
-        for name, members in sub_rules.items():
-            validate_artifact_id(name, f"{path}: sub-rules name {name!r}")
-            if not isinstance(members, list):
-                raise SystemExit(f"{path}: sub-rules.{name} must be a list")
-            for index, member in enumerate(members):
-                if not isinstance(member, str):
-                    raise SystemExit(f"{path}: sub-rules.{name}[{index}] must be a string")
 
 
 def _load_export_config(path: Path | None) -> ExportProfile:
@@ -201,7 +165,7 @@ def build(config: BuildConfig) -> BuildResult:
 
             with timing.phase("atomic dist publish"):
                 generation = build_managed_manifest(config.base_url, final["rule-providers"])["generation"]
-                (publish_dist / ".generation").write_text(generation + "\n", encoding="utf-8")
+                (publish_dist / ".generation").write_text(generation + "\n", encoding="utf-8", newline="\n")
                 if old_dist.exists():
                     shutil.rmtree(old_dist)
                 if config.dist.exists():

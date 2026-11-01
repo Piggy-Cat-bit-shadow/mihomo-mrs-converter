@@ -13,7 +13,6 @@ from ..optimize import dedup_domain_payload, dedup_exact_rules
 from .egern_ruleset import classify_egern_classical, optimize_egern_rule_set
 
 DNS_CLASSICAL_KINDS = {"DOMAIN-KEYWORD", "DOMAIN-WILDCARD", "DOMAIN-REGEX"}
-from ..rules import DNS_DOMAIN_KINDS
 DEFAULT_DNS_ROLE_GROUPS = DEFAULT_DNS_GROUPS
 
 

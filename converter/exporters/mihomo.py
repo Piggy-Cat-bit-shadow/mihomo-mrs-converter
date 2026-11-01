@@ -67,25 +67,25 @@ def materialize_final_config(
 ) -> dict[str, Any]:
     """Create final artifacts once, after semantic identity is stable."""
     providers: dict[str, dict[str, Any]] = {}
-    for name, provider in config["rule-providers"].items():
-        updated = dict(provider)
-        behavior = provider["behavior"]
-        payload = payloads.get(name, [])
-        if behavior in {"domain", "ipcidr"} and mihomo:
-            source_dir = "ipcidr" if behavior == "ipcidr" else "domain"
-            artifact = output_dist / source_dir / f"{name}.mrs"
-            with tempfile.TemporaryDirectory(prefix="mihomo-mrs-provider-") as scratch:
+    with tempfile.TemporaryDirectory(prefix="mihomo-mrs-providers-") as scratch:
+        for name, provider in config["rule-providers"].items():
+            updated = dict(provider)
+            behavior = provider["behavior"]
+            payload = payloads.get(name, [])
+            if behavior in {"domain", "ipcidr"} and mihomo:
+                source_dir = "ipcidr" if behavior == "ipcidr" else "domain"
+                artifact = output_dist / source_dir / f"{name}.mrs"
                 source = Path(scratch) / f"{name}.yaml"
                 write_yaml_payload(source, payload)
                 convert_source_to_mrs(mihomo, behavior, source, artifact)
-            updated.update({"type": "http", "format": "mrs", "url": public_url(base_url, "dist", source_dir, f"{name}.mrs"), "path": f"./ruleset/{name}.mrs"})
-        else:
-            folder = "classical"
-            artifact = output_dist / folder / f"{name}.yaml"
-            write_yaml_payload(artifact, payload)
-            updated.update({"type": "http", "format": "yaml", "url": public_url(base_url, "dist", folder, f"{name}.yaml"), "path": f"./ruleset/{name}.yaml"})
-        size_limit = provider.get("size-limit", 0)
-        if isinstance(size_limit, bool) or not isinstance(size_limit, int) or size_limit < 0:
-            raise ValueError(f"{name}: size-limit must be a non-negative byte count")
-        providers[name] = updated
+                updated.update({"type": "http", "format": "mrs", "url": public_url(base_url, "dist", source_dir, f"{name}.mrs"), "path": f"./ruleset/{name}.mrs"})
+            else:
+                folder = "classical"
+                artifact = output_dist / folder / f"{name}.yaml"
+                write_yaml_payload(artifact, payload)
+                updated.update({"type": "http", "format": "yaml", "url": public_url(base_url, "dist", folder, f"{name}.yaml"), "path": f"./ruleset/{name}.yaml"})
+            size_limit = provider.get("size-limit", 0)
+            if isinstance(size_limit, bool) or not isinstance(size_limit, int) or size_limit < 0:
+                raise ValueError(f"{name}: size-limit must be a non-negative byte count")
+            providers[name] = updated
     return {**config, "rule-providers": providers}

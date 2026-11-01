@@ -5,10 +5,9 @@ import json
 from pathlib import Path
 from typing import Any
 
-import yaml
-
-from .artifacts import public_url, write_yaml_atomic
+from .artifacts import write_yaml_atomic
 from .rules import find_ruleset_refs, iter_all_rules, normalize, parse_ruleset_reference
+from .yamlio import load_yaml_unique
 
 MANAGED_STATE_FILENAME = "managed-state.yaml"
 
@@ -39,7 +38,7 @@ def read_managed_manifest(dist: Path) -> dict[str, Any] | None:
     path = managed_manifest_path(dist)
     if not path.exists():
         return None
-    manifest = yaml.safe_load(path.read_text(encoding="utf-8"))
+    manifest = load_yaml_unique(path)
     if (
         not isinstance(manifest, dict)
         or manifest.get("version") != 2
@@ -67,7 +66,7 @@ def write_managed_manifest(dist: Path, base_url: str, providers: dict[str, dict[
     path.parent.mkdir(parents=True, exist_ok=True)
     write_yaml_atomic(path, manifest)
     if "generation" in manifest and dist.exists():
-        (dist / ".generation").write_text(manifest["generation"] + "\n", encoding="utf-8")
+        (dist / ".generation").write_text(manifest["generation"] + "\n", encoding="utf-8", newline="\n")
     return manifest
 
 

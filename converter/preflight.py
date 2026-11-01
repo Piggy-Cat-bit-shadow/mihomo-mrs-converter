@@ -11,21 +11,18 @@ from pathlib import Path
 from typing import Any
 
 from .export_config import ExportProfile, load_export_profile
-from .model import parse_provider_identity, provider_segment
+from .model import provider_segment
 from .optimize import iter_ruleset_blocks, matching_segment_anchors
-from .pipeline import validate_input_schema
 from .rules import (
     find_ruleset_refs,
     iter_all_rules,
-    parse_egern_network_rule,
     parse_egern_sub_rule_members,
-    parse_rule,
     parse_ruleset_reference,
     simple_ruleset_wrapper,
     split_top_level_commas,
-    strip_balanced_outer_parentheses,
 )
 from .segments import SegmentSpec, load_segment_specs, resolve_segment_roles, segment_mapping, segment_roles
+from .spec import validate_input_schema
 from .yamlio import load_yaml_unique
 
 
@@ -145,8 +142,6 @@ def run_preflight(
 
         if input_path is not None:
             mapping = segment_mapping(specs)
-            spec_by_anchor = {spec.anchor: spec for spec in specs}
-            spec_by_name = {spec.name: spec for spec in specs}
 
             # Verify segments match blocks and anchors exist in providers or blocks
             matched_anchors: set[str] = set()

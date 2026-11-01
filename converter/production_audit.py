@@ -4,9 +4,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import yaml
-
-from .export_config import ExportProfile, load_export_profile
+from .export_config import load_export_profile
 from .rules import find_ruleset_refs, iter_all_rules
 from .model import provider_segment
 from .segments import load_segment_specs, resolve_segment_roles, segment_mapping, segment_roles

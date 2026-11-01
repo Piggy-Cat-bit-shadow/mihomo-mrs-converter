@@ -105,7 +105,3 @@ def resolve_segment_roles(
             )
         roles[name] = next(iter(candidates))
     return roles
-
-
-def segment_reject_modes(specs: tuple[SegmentSpec, ...]) -> dict[str, str]:
-    return {spec.name: spec.reject_mode for spec in specs if spec.role == "reject" and spec.reject_mode is not None}
