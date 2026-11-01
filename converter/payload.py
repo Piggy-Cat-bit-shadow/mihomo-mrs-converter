@@ -51,6 +51,8 @@ class IpEntry:
         return int(self.network.version)
 
 
+# The concrete entry type is implied by the provider behavior: domain payloads
+# hold DomainEntry, ipcidr payloads hold IpEntry, classical payloads RuleLine.
 Payload = tuple[Any, ...]
 
 
@@ -64,9 +66,6 @@ class DedupStats:
     ipcidr_covered_by_parent: int = 0
     output_count: int = 0
 
-    @property
-    def removed(self) -> int:
-        return self.input_count - self.output_count
 
     def merge(self, other: "DedupStats") -> None:
         for name in ("input_count", "exact_duplicates_removed", "domain_covered_by_suffix",
