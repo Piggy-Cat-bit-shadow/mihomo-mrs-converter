@@ -93,6 +93,28 @@ class PolicyAndMatcherTest(unittest.TestCase):
         self.assertIn("domain", aggregated[0])
         self.assertEqual(aggregated[0]["ip_cidr"], ["10.0.0.0/8", "8.8.8.0/24"])
 
+    def test_comma_values_are_not_truncated(self):
+        entry = provider("A", "classical", [
+            "DOMAIN-REGEX,^a,b$", "DOMAIN-KEYWORD,foo,bar", "PROCESS-NAME,x,y.exe",
+        ], segment="A")
+        matchers = _aggregate(_payload_matchers(entry, {}))
+        self.assertEqual(matchers[0]["domain_regex"], ["^a,b$"])
+        self.assertEqual(matchers[0]["domain_keyword"], ["foo,bar"])
+        # process_name is not an OR-safe destination matcher, so it stays separate.
+        self.assertIn({"process_name": ["x,y.exe"]}, matchers)
+
+    def test_source_modifier_maps_to_source_ip_matching(self):
+        entry = provider("A", "classical", ["IP-CIDR,10.0.0.0/8,src"], segment="A")
+        self.assertEqual(_payload_matchers(entry, {}), [{"source_ip_cidr": ["10.0.0.0/8"]}])
+        asn = provider("B", "classical", ["IP-ASN,64512,src"], segment="B")
+        self.assertEqual(
+            _payload_matchers(asn, {"64512": ["192.0.2.0/24"]}),
+            [{"source_ip_cidr": ["192.0.2.0/24"]}],
+        )
+        geoip = provider("C", "classical", ["GEOIP,CN"], segment="C")
+        with self.assertRaisesRegex(SingBoxExportError, "unsupported classical rule kind 'GEOIP'"):
+            _payload_matchers(geoip, {})
+
     def test_artifact_tags_come_from_segment_identity(self):
         config = optimized_config(
             providers=[

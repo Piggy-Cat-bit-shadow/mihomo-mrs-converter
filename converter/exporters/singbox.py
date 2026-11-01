@@ -27,7 +27,7 @@ from typing import Any, Callable, Iterable, Mapping
 from ..data_sources import GEOLITE2_ASSETS, GEOLITE2_RELEASE
 from ..model import Provider
 from ..net import read_capped_response as _read_capped, retry_after_seconds, ssl_context
-from ..rules import parse_ruleset_reference, simple_ruleset_wrapper, split_top_level_commas
+from ..rules import COMMA_TEXT_KINDS, parse_ruleset_reference, rule_text_value, simple_ruleset_wrapper, split_top_level_commas
 from ..timing import BuildTiming, activate, current_timing, observe_external, timed
 from ..views import DnsView
 from .singbox_srs import canonicalize_decompiled_rules as _canonicalize_decompiled_rules
@@ -348,16 +348,27 @@ def _payload_matchers(provider: Provider, asn_map: dict[str, list[str]]) -> list
         rule = entry
         if len(rule.parts) < 2:
             raise SingBoxExportError(f"{context}: missing matcher value")
+        modifiers = [] if rule.kind in COMMA_TEXT_KINDS else [part.lower() for part in rule.parts[2:]]
+        unknown = [modifier for modifier in modifiers if modifier not in {"no-resolve", "src"}]
+        if unknown:
+            raise SingBoxExportError(f"{context}: unsupported modifier(s) {unknown}")
+        source = "src" in modifiers
         if rule.kind in {"IP-ASN", "SRC-IP-ASN"}:
-            kind = "SRC-IP-CIDR" if rule.kind == "SRC-IP-ASN" else "IP-CIDR"
+            kind = "SRC-IP-CIDR" if (rule.kind == "SRC-IP-ASN" or source) else "IP-CIDR"
             for network in asn_map.get(rule.parts[1], []):
                 _append_matcher(result, _matcher(kind, network, context))
             continue
         if rule.kind not in CLASSICAL_KINDS:
             raise SingBoxExportError(f"{context}: unsupported classical rule kind {rule.kind!r}")
+        if source:
+            # Clash/Mihomo spell source matching as a trailing `src` modifier.
+            if rule.kind not in {"IP-CIDR", "IP-CIDR6"}:
+                raise SingBoxExportError(f"{context}: source-IP modifier is not supported for {rule.kind}")
+            _append_matcher(result, _matcher("SRC-IP-CIDR", rule.parts[1], context))
+            continue
         # Sing-box does not actively resolve domains for destination-IP
         # matching, so every matcher belongs to the same logical artifact.
-        _append_matcher(result, _matcher(rule.kind, rule.parts[1], context))
+        _append_matcher(result, _matcher(rule.kind, rule_text_value(rule), context))
     return result
 
 
@@ -565,7 +576,7 @@ def export_singbox_dns(
                 for number, rule in enumerate(view.classical):
                     if len(rule.parts) < 2:
                         raise SingBoxExportError(f"DNS {group} classical[{number}]: missing matcher value")
-                    field, value = _matcher(rule.kind, rule.parts[1], f"DNS {group} classical[{number}]")
+                    field, value = _matcher(rule.kind, rule_text_value(rule), f"DNS {group} classical[{number}]")
                     matchers.append({field: [value]})
                 source_rules = _aggregate(matchers)
                 if not source_rules:

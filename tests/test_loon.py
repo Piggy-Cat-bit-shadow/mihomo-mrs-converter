@@ -35,6 +35,17 @@ class LoonExporterTest(unittest.TestCase):
             ])
 
 
+    def test_comma_values_survive_into_loon_rules(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config = optimized_config(
+                providers=[provider("A", "classical", ["DOMAIN-KEYWORD,foo,bar"], segment="A")],
+                rules=["RULE-SET,A,Proxy"],
+            )
+            export_loon(config, segment_views(config), root, "https://example.invalid")
+            lines = (root / "loon/A.lsr").read_text(encoding="utf-8").splitlines()
+            self.assertEqual(lines, ["DOMAIN-KEYWORD,foo,bar"])
+
     def test_non_terminal_match_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             config = optimized_config(

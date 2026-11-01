@@ -9,12 +9,14 @@ from ..model import OptimizedConfig
 from ..rules import RuleLine
 from ..payload import DomainEntry, IpEntry
 from ..rules import (
+    COMMA_TEXT_KINDS,
     find_ruleset_refs,
     is_target_ip_kind,
     parse_egern_sub_rule_members,
     parse_ip_network,
     parse_rule,
     parse_ruleset_reference,
+    rule_text_value,
     simple_ruleset_wrapper,
     split_top_level_commas,
 )
@@ -70,9 +72,12 @@ def loon_classical_rule(rule: RuleLine) -> tuple[str, str]:
         kind = "PROTOCOL"
     if kind not in LOON_CLASSICAL_KINDS and kind not in {"DST-PORT"}:
         raise ValueError(f"unsupported Loon rule type {rule.kind or '<empty>'}")
-    if len(rule.parts) not in {2, 3}:
+    free_text = rule.kind in COMMA_TEXT_KINDS
+    if len(rule.parts) < 2:
+        raise ValueError("rule has no matcher value")
+    if not free_text and len(rule.parts) not in {2, 3}:
         raise ValueError("rule has unsupported fields or an embedded policy")
-    if len(rule.parts) == 3 and (
+    if not free_text and len(rule.parts) == 3 and (
         rule.parts[2].lower() != "no-resolve"
         or not is_target_ip_kind(kind)
     ):
@@ -85,7 +90,7 @@ def loon_classical_rule(rule: RuleLine) -> tuple[str, str]:
         network = parse_ip_network(rule.parts[1])
         if network is None or network.version != 6:
             raise ValueError("IP-CIDR6 contains an invalid or IPv4 network")
-    values = list(rule.parts[1:])
+    values = [rule_text_value(rule)] if free_text else list(rule.parts[1:])
     if is_target_ip_kind(kind) and "no-resolve" not in {item.lower() for item in values[1:]}:
         values.append("no-resolve")
     return kind, ",".join([kind, *values])

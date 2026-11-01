@@ -9,6 +9,7 @@ from ..artifacts import public_url, write_yaml_atomic
 from ..model import OptimizedConfig
 from ..rules import RuleLine
 from ..rules import (
+    COMMA_TEXT_KINDS,
     DOMAIN_KINDS,
     egern_udp_and_ruleset,
     find_ruleset_refs,
@@ -18,6 +19,7 @@ from ..rules import (
     parse_ip_network,
     parse_rule,
     parse_ruleset_reference,
+    rule_text_value,
     simple_ruleset_wrapper,
 )
 from ..timing import current_timing, timed
@@ -45,12 +47,17 @@ def egern_policy(policy: str, policy_map: dict[str, str] | None = None) -> str:
 def egern_rule_field(rule: RuleLine) -> tuple[str, str, bool] | None:
     """Map one classical rule to an Egern rule-set field, or None if unsupported."""
     field = EGERN_FIELD_BY_KIND.get(rule.kind)
-    if field is None or len(rule.parts) not in {2, 3}:
+    if field is None or len(rule.parts) < 2:
+        return None
+    value = rule_text_value(rule)
+    if rule.kind in COMMA_TEXT_KINDS:
+        # Free-text values may contain commas; these kinds take no modifier.
+        return field, value, False
+    if len(rule.parts) not in {2, 3}:
         return None
     no_resolve = len(rule.parts) == 3
     if no_resolve and (rule.parts[2].lower() != "no-resolve" or not is_target_ip_kind(rule.kind)):
         return None
-    value = rule.parts[1]
     if rule.kind in {"IP-CIDR", "IP-CIDR6"}:
         network = parse_ip_network(value)
         expected = 4 if rule.kind == "IP-CIDR" else 6

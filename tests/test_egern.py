@@ -67,6 +67,27 @@ class EgernExporterTest(unittest.TestCase):
             self.assertEqual(rules[1]["default"]["policy"], "🤖 AI")
 
 
+    def test_comma_values_survive_into_rule_set_fields(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config = optimized_config(
+                providers=[provider("A", "classical", ["DOMAIN-KEYWORD,foo,bar", "DOMAIN-REGEX,^a,b$"], segment="A")],
+                rules=["RULE-SET,A,Proxy"],
+            )
+            export_egern(config, segment_views(config), root, "https://example.invalid")
+            fields = yaml.safe_load((root / "egern/A.yaml").read_text(encoding="utf-8"))
+            self.assertEqual(fields["domain_keyword_set"], ["foo,bar"])
+            self.assertEqual(fields["domain_regex_set"], ["^a,b$"])
+
+    def test_source_ip_modifier_is_not_silently_exported(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = optimized_config(
+                providers=[provider("A", "classical", ["DOMAIN,example.com", "IP-CIDR,10.0.0.0/8,src"], segment="A")],
+                rules=["RULE-SET,A,Proxy"],
+            )
+            with self.assertRaisesRegex(ValueError, "unsupported matcher"):
+                export_egern(config, segment_views(config), Path(tmp), "https://example.invalid")
+
     def test_undefined_sub_rule_is_rejected_instead_of_becoming_a_policy(self):
         with tempfile.TemporaryDirectory() as tmp:
             config = optimized_config(

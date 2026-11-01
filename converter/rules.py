@@ -31,6 +31,13 @@ class RulesetReference:
 TARGET_IP_KINDS = frozenset({"IP-CIDR", "IP-CIDR6", "IP-ASN", "GEOIP"})
 IPCIDR_RULES = frozenset({"IP-CIDR", "IP-CIDR6"})
 
+# Kinds whose value is free text: a comma inside the value must survive payload
+# parsing, and these kinds take no modifier field.
+COMMA_TEXT_KINDS = frozenset({
+    "DOMAIN-KEYWORD", "DOMAIN-REGEX", "DOMAIN-WILDCARD",
+    "PROCESS-NAME", "PROCESS-PATH", "PROCESS-PATH-REGEX",
+})
+
 
 def parse_ip_network(rule: str) -> Any | None:
     import ipaddress
@@ -379,6 +386,19 @@ def source_ip_value(rule: RuleLine) -> str | None:
     if len(rule.parts) != 2:
         return None
     return rule.parts[1] if rule.kind in IPCIDR_RULES else None
+
+
+def rule_text_value(rule: RuleLine) -> str:
+    """Return a classical rule's value, preserving commas for free-text kinds.
+
+    A provider payload has no policy field, so for kinds whose value may itself
+    contain commas the remainder of the line is the value; splitting on every
+    comma would silently truncate regexes, keywords and process names.
+    """
+    if rule.kind in COMMA_TEXT_KINDS and "," in rule.raw:
+        value = rule.raw.split(",", 1)[1]
+        return value.strip()
+    return rule.parts[1] if len(rule.parts) > 1 else ""
 
 
 def _renamed_ruleset(
