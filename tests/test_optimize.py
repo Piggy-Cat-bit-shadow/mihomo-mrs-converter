@@ -309,5 +309,30 @@ class AnchorBoundaryTest(unittest.TestCase):
                 self.assertEqual(route(rules, payloads, domain), route(final.rules, output, domain))
 
 
+class ExternalIdentityCollisionTest(unittest.TestCase):
+    def test_single_provider_segment_can_share_its_own_name_with_a_sub_rule_reference(self):
+        semantic = semantic_config(
+            providers=[normalized("China", "China", "domain", ["cn.example"])],
+            rules=["RULE-SET,China,Proxy"],
+            sub_rules={"R": ["RULE-SET,China,DIRECT"]},
+        )
+        final = optimize_config(semantic, {"China": "China"})
+        names = [provider.name for provider in final.providers]
+        self.assertEqual(names, ["China-domain", "China"])
+        self.assertEqual(final.providers[0].payload, final.providers[1].payload)
+
+    def test_wider_segment_cannot_share_its_name_with_an_external_reference(self):
+        semantic = semantic_config(
+            providers=[
+                normalized("China", "China", "domain", ["cn.example"]),
+                normalized("Other", "Other", "domain", ["other.example"]),
+            ],
+            rules=["RULE-SET,China,Proxy", "RULE-SET,Other,Proxy"],
+            sub_rules={"R": ["RULE-SET,China,DIRECT"]},
+        )
+        with self.assertRaisesRegex(ValueError, "per-segment exports cannot represent both"):
+            optimize_config(semantic, {"China": "China"})
+
+
 if __name__ == "__main__":
     unittest.main()

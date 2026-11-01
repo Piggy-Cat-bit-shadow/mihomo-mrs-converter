@@ -123,9 +123,20 @@ def optimize_config(
     # referenced payloads must stay intact, and unreferenced providers are
     # retained so validation can report them instead of silently dropping them.
     consumed = {name for block in blocks for name in block.providers}
+    planned = {block.name: block for block in blocks}
     for name, provider in providers.items():
         if name in consumed and name not in external_refs:
             continue
+        block = planned.get(name)
+        if block is not None and set(block.providers) != {name}:
+            # Per-segment clients address one file per segment identity; a
+            # provider that is also reachable through a sub-rule cannot share
+            # that identity with a wider segment payload without over-matching.
+            raise ValueError(
+                f"provider {name!r} is referenced outside the route segments but its name is also "
+                f"the identity of a segment containing other providers; per-segment exports cannot "
+                f"represent both"
+            )
         final.append(Provider(name, name, provider.behavior, provider.payload, provider.metadata))
         assigned.add(name)
         rename_map[name] = [name]
