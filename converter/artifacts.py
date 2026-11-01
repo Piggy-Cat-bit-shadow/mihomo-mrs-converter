@@ -11,25 +11,36 @@ from .timing import BuildTiming, activate, current_timing, observe_external
 from .yamlio import dump_yaml
 
 
+def _replace_with_temp(path: Path, write: Any) -> None:
+    """Write through a sibling temporary file and atomically replace ``path``.
+
+    The temporary file is removed if writing fails, so a serialization or disk
+    error cannot leave scratch files next to published artifacts or state.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False, newline="\n") as handle:
+            temporary = Path(handle.name)
+            write(handle)
+        os.replace(temporary, path)
+    except BaseException:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+        raise
+
+
 def write_yaml_payload(path: Path, rules: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(dump_yaml({"payload": rules}), encoding="utf-8", newline="\n")
 
 
 def write_yaml_atomic(path: Path, data: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False, newline="\n") as handle:
-        dump_yaml(data, handle)
-        temporary = Path(handle.name)
-    os.replace(temporary, path)
+    _replace_with_temp(path, lambda handle: dump_yaml(data, handle))
 
 
 def write_text_atomic(path: Path, data: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False, newline="\n") as handle:
-        handle.write(data)
-        temporary = Path(handle.name)
-    os.replace(temporary, path)
+    _replace_with_temp(path, lambda handle: handle.write(data))
 
 
 def public_url(base_url: str, *parts: str) -> str:

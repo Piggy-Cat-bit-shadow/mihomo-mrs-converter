@@ -182,10 +182,30 @@ def _read_cache_meta(cache_path: Path) -> dict[str, str]:
 def _write_cache_meta(cache_path: Path, meta: dict[str, str]) -> None:
     meta_file = _cache_meta_path(cache_path)
     import json
-    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=cache_path.parent, delete=False) as handle:
-        json.dump(meta, handle)
-        temporary = Path(handle.name)
-    os.replace(temporary, meta_file)
+    temporary: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=cache_path.parent, delete=False) as handle:
+            temporary = Path(handle.name)
+            json.dump(meta, handle)
+        os.replace(temporary, meta_file)
+    except BaseException:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+        raise
+
+
+def _write_cache_body(cache_path: Path, body: bytes) -> None:
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile("wb", dir=cache_path.parent, delete=False) as handle:
+            temporary = Path(handle.name)
+            handle.write(body)
+        os.replace(temporary, cache_path)
+    except BaseException:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+        raise
 
 
 def _open_request(request: urllib.request.Request, opener: urllib.request.OpenerDirector, context: ssl.SSLContext) -> Any:
@@ -283,11 +303,7 @@ def fetch_text(
 
             memory_cache[cache_key] = body
             if cache_path:
-                cache_path.parent.mkdir(parents=True, exist_ok=True)
-                with tempfile.NamedTemporaryFile("wb", dir=cache_path.parent, delete=False) as handle:
-                    handle.write(cached_bytes)
-                    temporary = Path(handle.name)
-                os.replace(temporary, cache_path)
+                _write_cache_body(cache_path, cached_bytes)
                 meta_file = _cache_meta_path(cache_path)
                 if new_meta:
                     _write_cache_meta(cache_path, new_meta)
