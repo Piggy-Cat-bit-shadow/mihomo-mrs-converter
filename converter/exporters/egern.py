@@ -219,11 +219,15 @@ def export_egern(
 
     sub_rules = optimized.sub_rules
     with timed("Egern top-level"):
-        for rule in optimized.rules:
+        for index, rule in enumerate(optimized.rules):
             if not isinstance(rule, str):
                 continue
             parsed = parse_rule(rule)
-            if parsed.kind == "MATCH" and len(parsed.parts) >= 2:
+            if parsed.kind == "MATCH":
+                if len(parsed.parts) != 2:
+                    raise ValueError(f"Egern structural unsupported MATCH rule: {rule}")
+                if index != len(optimized.rules) - 1:
+                    raise ValueError(f"Egern MATCH must be the final rule: {rule}")
                 egern_rules.append({"default": {"policy": egern_policy(parsed.parts[1], policy_map)}})
                 continue
             if parsed.kind in {"IP-CIDR", "IP-CIDR6", "IP-ASN", "GEOIP"}:

@@ -87,5 +87,15 @@ class EgernExporterTest(unittest.TestCase):
                 export_egern(config, segment_views(config), Path(tmp), "https://example.invalid")
 
 
+    def test_non_terminal_match_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = optimized_config(
+                providers=[provider("AI-domain", "domain", ["ai.example"], segment="AI")],
+                rules=["MATCH,DIRECT", "RULE-SET,AI-domain,AI"],
+            )
+            with self.assertRaisesRegex(ValueError, "Egern MATCH must be the final rule"):
+                export_egern(config, segment_views(config), Path(tmp), "https://example.invalid")
+
+
 if __name__ == "__main__":
     unittest.main()

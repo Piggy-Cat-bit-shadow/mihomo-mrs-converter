@@ -179,7 +179,7 @@ def export_loon(
         if isinstance(raw_rule, str) and len(unsupported_examples[kind]) < 5:
             unsupported_examples[kind].append(raw_rule)
 
-    for raw_rule in optimized.rules:
+    for rule_index, raw_rule in enumerate(optimized.rules):
         if not isinstance(raw_rule, str):
             record_top_level_unsupported("<non-string>", raw_rule)
             continue
@@ -206,7 +206,11 @@ def export_loon(
             continue
         if parsed.kind == "NETWORK" and len(parsed.parts) == 3 and parsed.parts[1].upper() in {"TCP", "UDP"}:
             loon_rules.append(f"PROTOCOL,{parsed.parts[1].upper()},{parsed.parts[2]}")
-        elif parsed.kind == "MATCH" and len(parsed.parts) == 2:
+        elif parsed.kind == "MATCH":
+            if len(parsed.parts) != 2:
+                raise SystemExit(f"Loon structural unsupported MATCH rule: {raw_rule}")
+            if rule_index != len(optimized.rules) - 1:
+                raise SystemExit(f"Loon MATCH must be the final rule: {raw_rule}")
             loon_rules.append(f"FINAL,{parsed.parts[1]}")
         else:
             parts = split_top_level_commas(raw_rule)
