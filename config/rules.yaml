@@ -358,6 +358,7 @@ rules:
 - RULE-SET,Lan,DIRECT
 - RULE-SET,private,DIRECT
 - RULE-SET,me-China,DIRECT
+- RULE-SET,DouYin,DIRECT
 - RULE-SET,wechat,DIRECT
 - RULE-SET,SteamCN,DIRECT
 - RULE-SET,Steam,🌍 国外流量
@@ -398,7 +399,6 @@ rules:
 - RULE-SET,apple,DIRECT
 - RULE-SET,icloud,DIRECT
 - RULE-SET,qcloud,DIRECT
-- RULE-SET,DouYin,DIRECT
 - RULE-SET,BiliBili,DIRECT
 - RULE-SET,BaiDuTieBa,DIRECT
 - RULE-SET,alibaba-domain,DIRECT
