@@ -690,17 +690,6 @@ DOMAIN-SUFFIX,m6.run
 DOMAIN-SUFFIX,intltencentcos.com
 DOMAIN-SUFFIX,rumt-sg.com
 DOMAIN-SUFFIX,rumt-us.com
-DOMAIN-SUFFIX,amemv.com
-DOMAIN-SUFFIX,douyincdn.com
-DOMAIN-SUFFIX,douyinpic.com
-DOMAIN-SUFFIX,douyinstatic.com
-DOMAIN-SUFFIX,douyinvod.com
-DOMAIN-SUFFIX,idouyinvod.com
-DOMAIN-SUFFIX,ixigua.com
-DOMAIN-SUFFIX,ixiguavideo.com
-DOMAIN-SUFFIX,pstatp.com
-DOMAIN-SUFFIX,snssdk.com
-DOMAIN-SUFFIX,toutiao.com
 DOMAIN-SUFFIX,acg.tv
 DOMAIN-SUFFIX,acgvideo.com
 DOMAIN-SUFFIX,animetamashi.com
@@ -2489,6 +2478,7 @@ DOMAIN-SUFFIX,alittle-tea.com
 DOMAIN-SUFFIX,alloyteam.com
 DOMAIN-SUFFIX,alphassl.com
 DOMAIN-SUFFIX,amd.com
+DOMAIN-SUFFIX,amemv.com
 DOMAIN-SUFFIX,ams.org
 DOMAIN-SUFFIX,andfx.net
 DOMAIN-SUFFIX,anfensi.com
@@ -3137,8 +3127,12 @@ DOMAIN-SUFFIX,douban.fm
 DOMAIN-SUFFIX,doubanio.com
 DOMAIN-SUFFIX,douxie.com
 DOMAIN-SUFFIX,douyin.com
+DOMAIN-SUFFIX,douyincdn.com
 DOMAIN-SUFFIX,douyinfe.com
 DOMAIN-SUFFIX,douyinliving.com
+DOMAIN-SUFFIX,douyinpic.com
+DOMAIN-SUFFIX,douyinstatic.com
+DOMAIN-SUFFIX,douyinvod.com
 DOMAIN-SUFFIX,douyu.com
 DOMAIN-SUFFIX,douyu.tv
 DOMAIN-SUFFIX,douyuscdn.com
@@ -3634,6 +3628,7 @@ DOMAIN-SUFFIX,idongdong.com
 DOMAIN-SUFFIX,idouyinliving.com
 DOMAIN-SUFFIX,idouyinpic.com
 DOMAIN-SUFFIX,idouyinstatic.com
+DOMAIN-SUFFIX,idouyinvod.com
 DOMAIN-SUFFIX,idqqimg.com
 DOMAIN-SUFFIX,ieee.org
 DOMAIN-SUFFIX,iesdouyin.com
@@ -3710,6 +3705,8 @@ DOMAIN-SUFFIX,itsk.com
 DOMAIN-SUFFIX,ivweb.io
 DOMAIN-SUFFIX,ixdzs.com
 DOMAIN-SUFFIX,ixgvideo.com
+DOMAIN-SUFFIX,ixigua.com
+DOMAIN-SUFFIX,ixiguavideo.com
 DOMAIN-SUFFIX,iyingdi.com
 DOMAIN-SUFFIX,iyiou.com
 DOMAIN-SUFFIX,iyunxiao.com
@@ -4361,6 +4358,7 @@ DOMAIN-SUFFIX,privatehd.to
 DOMAIN-SUFFIX,proquest.com
 DOMAIN-SUFFIX,proximabeta.com
 DOMAIN-SUFFIX,psbc.com
+DOMAIN-SUFFIX,pstatp.com
 DOMAIN-SUFFIX,pterclub.com
 DOMAIN-SUFFIX,pubghelper.com
 DOMAIN-SUFFIX,pubgtool.com
@@ -4738,6 +4736,7 @@ DOMAIN-SUFFIX,topthink.com
 DOMAIN-SUFFIX,totheglory.im
 DOMAIN-SUFFIX,touqikan.com
 DOMAIN-SUFFIX,toursbms.com
+DOMAIN-SUFFIX,toutiao.com
 DOMAIN-SUFFIX,toutiaoapi.com
 DOMAIN-SUFFIX,toutiaocdn.com
 DOMAIN-SUFFIX,toutiaocloud.com

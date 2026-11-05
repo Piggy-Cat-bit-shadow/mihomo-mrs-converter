@@ -420,17 +420,6 @@ domain_suffix_set:
 - intltencentcos.com
 - rumt-sg.com
 - rumt-us.com
-- amemv.com
-- douyincdn.com
-- douyinpic.com
-- douyinstatic.com
-- douyinvod.com
-- idouyinvod.com
-- ixigua.com
-- ixiguavideo.com
-- pstatp.com
-- snssdk.com
-- toutiao.com
 - acg.tv
 - acgvideo.com
 - animetamashi.com
@@ -2219,6 +2208,7 @@ domain_suffix_set:
 - alloyteam.com
 - alphassl.com
 - amd.com
+- amemv.com
 - ams.org
 - andfx.net
 - anfensi.com
@@ -2867,8 +2857,12 @@ domain_suffix_set:
 - doubanio.com
 - douxie.com
 - douyin.com
+- douyincdn.com
 - douyinfe.com
 - douyinliving.com
+- douyinpic.com
+- douyinstatic.com
+- douyinvod.com
 - douyu.com
 - douyu.tv
 - douyuscdn.com
@@ -3364,6 +3358,7 @@ domain_suffix_set:
 - idouyinliving.com
 - idouyinpic.com
 - idouyinstatic.com
+- idouyinvod.com
 - idqqimg.com
 - ieee.org
 - iesdouyin.com
@@ -3440,6 +3435,8 @@ domain_suffix_set:
 - ivweb.io
 - ixdzs.com
 - ixgvideo.com
+- ixigua.com
+- ixiguavideo.com
 - iyingdi.com
 - iyiou.com
 - iyunxiao.com
@@ -4091,6 +4088,7 @@ domain_suffix_set:
 - proquest.com
 - proximabeta.com
 - psbc.com
+- pstatp.com
 - pterclub.com
 - pubghelper.com
 - pubgtool.com
@@ -4468,6 +4466,7 @@ domain_suffix_set:
 - totheglory.im
 - touqikan.com
 - toursbms.com
+- toutiao.com
 - toutiaoapi.com
 - toutiaocdn.com
 - toutiaocloud.com

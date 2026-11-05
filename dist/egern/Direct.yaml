@@ -9,6 +9,8 @@ domain_set:
 - miwifi.com
 - www.miwifi.com
 - localhost.gaq.wiki
+- lf3-static.bytednsdoc.com
+- v5-dy-o-abtest.zjcdn.com
 - apd-pcdnwxlogin.teg.tencent-cloud.net
 - btrace.qq.com
 - dldir1.qq.com
@@ -162,6 +164,17 @@ domain_suffix_set:
 - westlawchina.com
 - edu.cn
 - gov.cn
+- amemv.com
+- douyincdn.com
+- douyinpic.com
+- douyinstatic.com
+- douyinvod.com
+- idouyinvod.com
+- ixigua.com
+- ixiguavideo.com
+- pstatp.com
+- snssdk.com
+- toutiao.com
 - iot-tencent.com
 - lbs.gtimg.com
 - map.qq.com
