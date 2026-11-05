@@ -426,11 +426,6 @@ domain_suffix_set:
 - weixin.com
 - weixinbridge.com
 - weixinsxy.com
-- cm.steampowered.com
-- steamchina.com
-- steamcontent.com
-- steamserver.net
-- steamusercontent.com
 - adcdownload.apple.com.akadns.net
 - adcdownload.apple.com
 - amp-api.media.apple.com
@@ -614,6 +609,11 @@ domain_suffix_set:
 - myicloud.net
 - mylcloud.net
 - wwwicloud.com
+- cm.steampowered.com
+- steamchina.com
+- steamcontent.com
+- steamserver.net
+- steamusercontent.com
 - tencentclb.com
 - tcdnvodbak.com
 - aitransfy.com
