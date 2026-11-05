@@ -11,6 +11,6 @@ segments:
   global:
     name: Global
     role: global
-  apple:
+  qcloud:
     name: China
     role: china
