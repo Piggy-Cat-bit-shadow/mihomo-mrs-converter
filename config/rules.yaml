@@ -360,6 +360,8 @@ rules:
 - RULE-SET,me-China,DIRECT
 - RULE-SET,DouYin,DIRECT
 - RULE-SET,wechat,DIRECT
+- RULE-SET,apple,DIRECT
+- RULE-SET,icloud,DIRECT
 - RULE-SET,SteamCN,DIRECT
 - RULE-SET,Steam,🌍 国外流量
 - RULE-SET,me-foreign,🌍 国外流量
@@ -396,8 +398,6 @@ rules:
 - RULE-SET,youtube,🌍 国外流量
 - RULE-SET,google,🌍 国外流量
 - RULE-SET,global,🌍 国外流量
-- RULE-SET,apple,DIRECT
-- RULE-SET,icloud,DIRECT
 - RULE-SET,qcloud,DIRECT
 - RULE-SET,BiliBili,DIRECT
 - RULE-SET,BaiDuTieBa,DIRECT
