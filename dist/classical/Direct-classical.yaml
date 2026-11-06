@@ -19,3 +19,10 @@ payload:
 - IP-CIDR6,ff00::/8,no-resolve
 - DOMAIN-KEYWORD,sysu
 - IP-ASN,132203,no-resolve
+- PROCESS-NAME,com.bilibili.app.blue
+- PROCESS-NAME,com.bilibili.app.in
+- PROCESS-NAME,com.bilibili.comic
+- PROCESS-NAME,com.bilibili.comic.intl
+- PROCESS-NAME,tv.danmaku.bili
+- PROCESS-NAME,tv.danmaku.bilibilihd
+- PROCESS-NAME,com.taobao.taobao

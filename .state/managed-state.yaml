@@ -15,6 +15,13 @@ providers:
     behavior: classical
     format: yaml
     fingerprint: 0538f2f350dbfd7b23d4e5f7f255a52fb2f317f3e6db4401ccccc1bb8015133a
+  Direct-ip:
+    name: Direct-ip
+    url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/ipcidr/Direct-ip.mrs
+    path: ./ruleset/Direct-ip.mrs
+    behavior: ipcidr
+    format: mrs
+    fingerprint: bcd98cfd38313b2442caa69f4e0f78d49ebb397790e4fbbe7692646b58d1447b
   Global-First-domain:
     name: Global-First-domain
     url: https://raw.githubusercontent.com/Piggy-Cat-bit-shadow/mihomo-mrs-converter/main/dist/domain/Global-First-domain.mrs
@@ -99,4 +106,4 @@ providers:
     behavior: ipcidr
     format: mrs
     fingerprint: 89f8d5f243c3c645b9a123c079de7ff6b8ba18d5eea227aada41a75f193dea00
-generation: de1680acc3ade27bebb2cc793e71697111274eeab70bde73a24a2e23de56dc67
+generation: becfba6a3ffc01943eef2d97957c14830f4889ab3903bd5ea8cc17508f9f15fc
