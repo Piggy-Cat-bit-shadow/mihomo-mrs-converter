@@ -8,9 +8,9 @@ segments:
   me-pure:
     name: AI
     role: ai
-  global:
+  GoogleEarth:
     name: Global
     role: global
-  qcloud:
+  ChinaMax-domain:
     name: China
     role: china
