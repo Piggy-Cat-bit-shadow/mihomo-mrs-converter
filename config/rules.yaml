@@ -358,18 +358,33 @@ rules:
 - RULE-SET,Lan,DIRECT
 - RULE-SET,private,DIRECT
 - RULE-SET,me-China,DIRECT
-- RULE-SET,DouYin,DIRECT
 - RULE-SET,wechat,DIRECT
 - RULE-SET,apple,DIRECT
 - RULE-SET,icloud,DIRECT
 - RULE-SET,SteamCN,DIRECT
+- RULE-SET,qcloud,DIRECT
+- RULE-SET,DouYin,DIRECT
+- RULE-SET,BiliBili,DIRECT
+- RULE-SET,BaiDuTieBa,DIRECT
+- RULE-SET,alibaba-domain,DIRECT
+- RULE-SET,alibaba,DIRECT
 - RULE-SET,Steam,🌍 国外流量
 - RULE-SET,me-foreign,🌍 国外流量
 - RULE-SET,Scholar-Foreign,🌍 国外流量
 - RULE-SET,Scholar,🌍 国外流量
 - RULE-SET,Telegram,🌍 国外流量
 - RULE-SET,github,🌍 国外流量
-- RULE-SET,AppleProxy,🌍 国外流量
+- RULE-SET,WhatsApp,🌍 国外流量
+- RULE-SET,Discord,🌍 国外流量
+- RULE-SET,netflix,🌍 国外流量
+- RULE-SET,disney,🌍 国外流量
+- RULE-SET,primevideo,🌍 国外流量
+- RULE-SET,Instagram,🌍 国外流量
+- RULE-SET,Facebook,🌍 国外流量
+- RULE-SET,Twitter,🌍 国外流量
+- RULE-SET,Reddit,🌍 国外流量
+- RULE-SET,Spotify,🌍 国外流量
+- RULE-SET,tiktok,🌍 国外流量
 - SUB-RULE,(RULE-SET,me-pure),AI-Routing
 - SUB-RULE,(RULE-SET,AppleIntelligence),AI-Routing
 - SUB-RULE,(RULE-SET,openai),AI-Routing
@@ -382,27 +397,11 @@ rules:
 - SUB-RULE,(RULE-SET,Crypto),AI-Routing
 - SUB-RULE,(RULE-SET,IPCheck),AI-Routing
 - SUB-RULE,(RULE-SET,paypal),AI-Routing
-- RULE-SET,WhatsApp,🌍 国外流量
-- RULE-SET,Discord,🌍 国外流量
-- RULE-SET,netflix,🌍 国外流量
-- RULE-SET,disney,🌍 国外流量
-- RULE-SET,primevideo,🌍 国外流量
-- RULE-SET,Instagram,🌍 国外流量
-- RULE-SET,Facebook,🌍 国外流量
-- RULE-SET,Twitter,🌍 国外流量
-- RULE-SET,Reddit,🌍 国外流量
-- RULE-SET,Spotify,🌍 国外流量
-- RULE-SET,tiktok,🌍 国外流量
 - RULE-SET,GoogleEarth,🌍 国外流量
 - RULE-SET,GoogleDrive,🌍 国外流量
 - RULE-SET,youtube,🌍 国外流量
 - RULE-SET,google,🌍 国外流量
 - RULE-SET,global,🌍 国外流量
-- RULE-SET,qcloud,DIRECT
-- RULE-SET,BiliBili,DIRECT
-- RULE-SET,BaiDuTieBa,DIRECT
-- RULE-SET,alibaba-domain,DIRECT
-- RULE-SET,alibaba,DIRECT
 - RULE-SET,ChinaMax-domain,DIRECT
 - RULE-SET,ChinaMax-classical,DIRECT
 - RULE-SET,ChinaMax-ip,DIRECT,no-resolve
