@@ -131,6 +131,7 @@ domain_suffix_set:
 - grazie.aws.intellij.net
 - grok.com
 - grok.x.com
+- grokbot.com
 - grokipedia.com
 - groq.com
 - h2o.ai
@@ -747,6 +748,7 @@ domain_set:
 - daily-cloudcode-pa.googleapis.com
 - geminiweb-pa.clients.google.com
 - geminiweb-pa.clients6.google.com
+- http-intake.logs.us5.datadoghq.com
 - imagine.meta.com
 - notebooklm-pa.googleapis.com
 - notebooklm.googleapis.com
@@ -754,6 +756,7 @@ domain_set:
 - openaiassets.blob.core.windows.net
 - ppl-ai-file-upload.s3.amazonaws.com
 - pplx-res.cloudinary.com
+- production-copilot-host-westus.webpubsub.azure.com
 - sydney.bing.com
 - webchannel-alkalimakersuite-pa.clients6.google.com
 - www.bing.com

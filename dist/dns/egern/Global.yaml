@@ -1299,6 +1299,7 @@ domain_suffix_set:
 - g.ai
 - gemini.google
 - grazie.ai
+- grokbot.com
 - grokipedia.com
 - groq.com
 - h2o.ai
@@ -29783,6 +29784,7 @@ domain_set:
 - cdn.usefathom.com
 - anthropic-com.ghost.io
 - api.together.xyz
+- http-intake.logs.us5.datadoghq.com
 - openai.qualtrics.com
 - token-api.metaswap.codefi.network
 - ip-scan.adspower.net
