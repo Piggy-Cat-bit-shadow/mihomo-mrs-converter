@@ -746,6 +746,7 @@ domain_set:
 - copilot-workspace.githubnext.com
 - copilotprodattachments.blob.core.windows.net
 - daily-cloudcode-pa.googleapis.com
+- daily-cloudcode-pa.sandbox.googleapis.com
 - geminiweb-pa.clients.google.com
 - geminiweb-pa.clients6.google.com
 - http-intake.logs.us5.datadoghq.com
