@@ -30,6 +30,7 @@ payload:
 - DOMAIN-KEYWORD,notebooklm.google
 - DOMAIN-KEYWORD,openaiapi
 - DOMAIN-KEYWORD,openaicom
+- DOMAIN-WILDCARD,scontent-*.xx.fbcdn.net
 - DOMAIN-REGEX,^chatgpt-async-webps-prod-\S+-\d+\.webpubsub\.azure\.com$
 - DOMAIN-KEYWORD,binance
 - DOMAIN-KEYWORD,huobi
