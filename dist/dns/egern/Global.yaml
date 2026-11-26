@@ -1299,6 +1299,7 @@ domain_suffix_set:
 - flow.google
 - g.ai
 - gemini.google
+- gemma.ai
 - grazie.ai
 - grokbot.com
 - grokipedia.com
@@ -29937,6 +29938,7 @@ domain_keyword_set:
 - generativelanguage
 - alkalimakersuite-pa.clients6.google.com
 - anthropic
+- antigravity
 - claude
 - labs.google
 - notebooklm.google

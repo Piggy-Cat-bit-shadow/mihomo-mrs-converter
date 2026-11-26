@@ -126,6 +126,7 @@ domain_suffix_set:
 - geller-pa.googleapis.com
 - gemini.google
 - gemini.gstatic.com
+- gemma.ai
 - generativelanguage.googleapis.com
 - githubcopilot.com
 - grazie.ai
@@ -777,6 +778,7 @@ domain_keyword_set:
 - generativelanguage
 - alkalimakersuite-pa.clients6.google.com
 - anthropic
+- antigravity
 - claude
 - labs.google
 - notebooklm.google
